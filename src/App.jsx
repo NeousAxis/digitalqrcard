@@ -18,21 +18,37 @@ import {
 } from 'lucide-react';
 
 // --- Utils ---
+const THEME_COLORS = {
+  'card-bg-1': '#FF6B6B',
+  'card-bg-2': '#4facfe',
+  'card-bg-3': '#43e97b',
+  'card-bg-4': '#fa709a',
+  'card-bg-5': '#667eea'
+};
+
 const generateVCard = (card) => {
   const nameParts = card.name ? card.name.trim().split(/\s+/) : [];
   const lastName = nameParts.length > 1 ? nameParts.pop() : '';
   const firstName = nameParts.join(' ') || (card.name || '');
-
-  return `BEGIN:VCARD
-VERSION:3.0
-N:${lastName};${firstName};;;
-FN:${firstName} ${lastName}
-ORG:${card.company};
-TITLE:${card.title}
-TEL;TYPE=CELL,VOICE:${card.phone}
-EMAIL;TYPE=WORK,INTERNET:${card.email}
-URL:${card.website}
-END:VCARD`;
+  const lines = [
+    'BEGIN:VCARD',
+    'VERSION:3.0',
+    `N:${lastName};${firstName};;;`,
+    `FN:${firstName} ${lastName}`,
+    `ORG:${card.company};`,
+    `TITLE:${card.title}`,
+    `TEL;TYPE=CELL,VOICE:${card.phone}`,
+    `EMAIL;TYPE=WORK,INTERNET:${card.email}`,
+    `URL:${card.website}`
+  ];
+  if (card.address) {
+    lines.push(`ADR;TYPE=WORK:;;${card.address};;;;`);
+  }
+  if (card.extraLabel && card.extraValue) {
+    lines.push(`${card.extraLabel.toUpperCase()}:${card.extraValue}`);
+  }
+  lines.push('END:VCARD');
+  return lines.join('\n');
 };
 
 const SUBSCRIPTION_LIMITS = {
@@ -95,7 +111,10 @@ const TRANSLATIONS = {
     yourCompany: 'Votre Entreprise',
     placeholderName: 'Jean Dupont',
     placeholderTitle: 'Directeur Marketing',
-    placeholderCompany: 'Ma Société SA'
+    placeholderCompany: 'Ma Société SA',
+    address: 'Adresse',
+    extraFieldLabel: 'Label Champ Supplémentaire',
+    extraFieldValue: 'Valeur Champ Supplémentaire'
   },
   en: {
     appName: 'DigitalQRCard',
@@ -147,10 +166,10 @@ const TRANSLATIONS = {
     premium: 'Premium',
     yourName: 'Your Name',
     yourTitle: 'Your Title',
-    yourCompany: 'Your Company',
-    placeholderName: 'John Doe',
-    placeholderTitle: 'Marketing Director',
-    placeholderCompany: 'My Company Inc'
+    yourCompany: 'My Company Inc',
+    address: 'Address',
+    extraFieldLabel: 'Extra Field Label',
+    extraFieldValue: 'Extra Field Value'
   }
 };
 
@@ -177,6 +196,12 @@ const CardPreview = ({ card, showQR = false, onClick, t }) => {
           <p className="card-details">{card.company || t.yourCompany}</p>
         </div>
 
+        {card.address && (
+          <div className="card-details">
+            <p>{card.address}</p>
+          </div>
+        )}
+
         <div className="card-details">
           {card.phone && (
             <div className="detail-row">
@@ -198,7 +223,7 @@ const CardPreview = ({ card, showQR = false, onClick, t }) => {
               value={vCardData}
               size={128}
               level="M"
-              fgColor="#0284c7"
+              fgColor={THEME_COLORS[card.theme] || '#0284c7'}
               includeMargin={true}
             />
             <div className="qr-text">{t.scanToAdd}</div>
@@ -222,6 +247,9 @@ const Editor = ({ card, onSave, onCancel, t }) => {
     phone: '',
     email: '',
     website: '',
+    address: '',
+    extraLabel: '',
+    extraValue: '',
     theme: 'card-bg-1'
   });
 
@@ -274,6 +302,20 @@ const Editor = ({ card, onSave, onCancel, t }) => {
               />
             </div>
           </div>
+
+          {/* Address Field */}
+          <div className="form-group">
+            <label>{t.address}</label>
+            <div className="input-wrapper">
+              <Globe size={18} className="input-icon" />
+              <input
+                className="input-field"
+                placeholder="123 Rue Exemple, 1000 Ville"
+                value={formData.address}
+                onChange={e => setFormData({ ...formData, address: e.target.value })}
+              />
+            </div>
+          </div>
         </div>
 
         <div className="form-column">
@@ -312,6 +354,32 @@ const Editor = ({ card, onSave, onCancel, t }) => {
                 placeholder="www.monsite.ch"
                 value={formData.website}
                 onChange={e => setFormData({ ...formData, website: e.target.value })}
+              />
+            </div>
+          </div>
+
+          {/* Custom Extra Field */}
+          <div className="form-group">
+            <label>{t.extraFieldLabel} (ex: "LinkedIn")</label>
+            <div className="input-wrapper">
+              <User size={18} className="input-icon" />
+              <input
+                className="input-field"
+                placeholder="Label"
+                value={formData.extraLabel}
+                onChange={e => setFormData({ ...formData, extraLabel: e.target.value })}
+              />
+            </div>
+          </div>
+          <div className="form-group">
+            <label>{t.extraFieldValue}</label>
+            <div className="input-wrapper">
+              <User size={18} className="input-icon" />
+              <input
+                className="input-field"
+                placeholder="Valeur"
+                value={formData.extraValue}
+                onChange={e => setFormData({ ...formData, extraValue: e.target.value })}
               />
             </div>
           </div>
@@ -426,7 +494,7 @@ function App() {
     return localStorage.getItem('subscription') || 'free';
   });
 
-  const [lang, setLang] = useState('fr');
+  const [lang, setLang] = useState('en');
 
   const [view, setView] = useState('dashboard'); // dashboard, editor
   const [editingCard, setEditingCard] = useState(null);
@@ -469,7 +537,7 @@ function App() {
   };
 
   const toggleLang = () => {
-    setLang(l => l === 'fr' ? 'en' : 'fr');
+    setLang(l => l === 'en' ? 'fr' : 'en');
   };
 
   return (
@@ -492,7 +560,7 @@ function App() {
             title="Switch Language"
           >
             <Languages size={20} />
-            <span>{lang}</span>
+            <span>{lang === 'en' ? 'FR' : 'EN'}</span>
           </button>
 
           <div className="plan-info">
