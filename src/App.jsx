@@ -16,7 +16,10 @@ import {
   Briefcase,
   Languages
 } from 'lucide-react';
-
+// Firebase imports
+import { initializeApp } from 'firebase/app';
+import { getFirestore, collection, getDocs, addDoc, setDoc, doc, deleteDoc } from 'firebase/firestore';
+import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 // --- Utils ---
 const THEME_COLORS = {
   'card-bg-1': '#FF6B6B',
@@ -26,6 +29,20 @@ const THEME_COLORS = {
   'card-bg-5': '#667eea'
 };
 
+// --- Firebase Config (replace with your own values) ---
+const firebaseConfig = {
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.REACT_APP_FIREBASE_APP_ID,
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
 const generateVCard = (card) => {
   const nameParts = card.name ? card.name.trim().split(/\s+/) : [];
   const lastName = nameParts.length > 1 ? nameParts.pop() : '';
@@ -108,10 +125,7 @@ const TRANSLATIONS = {
     premium: 'Premium',
     yourName: 'Votre Nom',
     yourTitle: 'Votre Titre',
-    yourCompany: 'Votre Entreprise',
-    placeholderName: 'Jean Dupont',
-    placeholderTitle: 'Directeur Marketing',
-    placeholderCompany: 'Ma Société SA',
+    yourCompany: 'Ma Société SA',
     address: 'Adresse',
     extraFieldLabel: 'Label Champ Supplémentaire',
     extraFieldValue: 'Valeur Champ Supplémentaire'
@@ -485,10 +499,7 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t }) => {
 // --- Main App ---
 
 function App() {
-  const [cards, setCards] = useState(() => {
-    const saved = localStorage.getItem('cards');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [cards, setCards] = useState([]);
 
   const [subscription, setSubscription] = useState(() => {
     return localStorage.getItem('subscription') || 'free';
@@ -501,12 +512,30 @@ function App() {
   const [showPricing, setShowPricing] = useState(false);
   const [sharedCardId, setSharedCardId] = useState(null);
 
+  const [user, setUser] = useState(null); // Firebase Auth user
+
   const t = TRANSLATIONS[lang];
-
+  // Sign in anonymously and listen for auth state changes
   useEffect(() => {
-    localStorage.setItem('cards', JSON.stringify(cards));
-  }, [cards]);
+    signInAnonymously(auth).catch(err => console.error('Auth error:', err));
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+    });
+    return () => unsubscribe();
+  }, []);
 
+  // Load cards for the signed‑in user
+  useEffect(() => {
+    if (!user?.uid) return;
+    const fetchCards = async () => {
+      const colRef = collection(db, 'users', user.uid, 'cards');
+      const snapshot = await getDocs(colRef);
+      const loaded = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setCards(loaded);
+    };
+    fetchCards();
+  }, [user?.uid]);
+  // Keep subscription in localStorage (still simple)
   useEffect(() => {
     localStorage.setItem('subscription', subscription);
   }, [subscription]);
@@ -514,18 +543,36 @@ function App() {
   const limit = SUBSCRIPTION_LIMITS[subscription];
   const canAddCard = cards.length < limit;
 
-  const handleSaveCard = (cardData) => {
+  const handleSaveCard = async (cardData) => {
+    if (!user?.uid) {
+      alert('User not ready yet. Please wait.');
+      return;
+    }
+    // Remove the temporary 'id' if it's a new card
+    const { id, ...dataToSave } = cardData;
+
     if (editingCard) {
-      setCards(cards.map(c => c.id === cardData.id ? cardData : c));
+      // Update existing document for this user
+      const docRef = doc(db, 'users', user.uid, 'cards', editingCard.id);
+      await setDoc(docRef, dataToSave);
+      setCards(cards.map(c => c.id === editingCard.id ? { ...cardData, id: editingCard.id } : c));
     } else {
-      setCards([...cards, cardData]);
+      // Add new document for this user
+      const docRef = await addDoc(collection(db, 'users', user.uid, 'cards'), dataToSave);
+      setCards([...cards, { ...cardData, id: docRef.id }]);
     }
     setView('dashboard');
     setEditingCard(null);
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
+    if (!user?.uid) {
+      alert('User not ready yet.');
+      return;
+    }
     if (confirm(t.confirmDelete)) {
+      const docRef = doc(db, 'users', user.uid, 'cards', id);
+      await deleteDoc(docRef);
       setCards(cards.filter(c => c.id !== id));
     }
   };
@@ -559,7 +606,7 @@ function App() {
             className="lang-btn"
             title="Switch Language"
           >
-            <Languages size={20} />
+            {/* Show only the target language code */}
             <span>{lang === 'en' ? 'FR' : 'EN'}</span>
           </button>
 
@@ -573,123 +620,123 @@ function App() {
             {t.manageSub}
           </button>
         </div>
-      </header>
+      </header >
 
-      {/* Main Content */}
-      <main>
-        {view === 'dashboard' && (
-          <>
-            <div className="dashboard-header">
-              <div className="section-title">
-                <h2>{t.yourCards}</h2>
-                <p>{t.manageCards}</p>
+        </div>
+
+        <button
+          onClick={() => {
+            if (canAddCard) {
+              setEditingCard(null);
+              setView('editor');
+            } else {
+              setShowPricing(true);
+            }
+          }}
+          className="btn-primary"
+        >
+          <Plus size={20} /> {t.newCard}
+        </button>
+      </div >
+
+  {
+    cards.length === 0 ? (
+      <div className="glass-panel empty-state">
+        <div className="empty-icon">
+          <CreditCard size={40} className="text-gray-500" />
+        </div>
+        <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>{t.noCards}</h3>
+        <p style={{ color: '#94a3b8', marginBottom: '2rem' }}>{t.startCreating}</p>
+        <button
+          onClick={() => {
+            setEditingCard(null);
+            setView('editor');
+          }}
+          className="btn-primary"
+        >
+          {t.createFirst}
+        </button>
+      </div>
+    ) : (
+      <div className="cards-grid">
+        {cards.map(card => (
+          <div key={card.id} className="glass-panel card-wrapper">
+            <div className="card-preview-container">
+              <CardPreview
+                card={card}
+                showQR={sharedCardId === card.id}
+                onClick={() => setSharedCardId(sharedCardId === card.id ? null : card.id)}
+                t={t}
+              />
+            </div>
+
+            <div className="card-actions">
+              <div className="action-group">
+                <button
+                  onClick={() => {
+                    setEditingCard(card);
+                    setView('editor');
+                  }}
+                  className="icon-btn"
+                  title={t.edit}
+                >
+                  <Edit2 size={18} />
+                </button>
+                <button
+                  onClick={() => handleDelete(card.id)}
+                  className="icon-btn delete"
+                  title={t.delete}
+                >
+                  <Trash2 size={18} />
+                </button>
               </div>
 
               <button
-                onClick={() => {
-                  if (canAddCard) {
-                    setEditingCard(null);
-                    setView('editor');
-                  } else {
-                    setShowPricing(true);
-                  }
-                }}
-                className="btn-primary"
+                onClick={() => setSharedCardId(sharedCardId === card.id ? null : card.id)}
+                className={`share-btn ${sharedCardId === card.id ? 'active' : ''}`}
               >
-                <Plus size={20} /> {t.newCard}
+                <Share2 size={18} />
+                {sharedCardId === card.id ? t.close : t.share}
               </button>
             </div>
+          </div>
+        ))}
+      </div>
+    )
+  }
+    </>
+  )
+}
 
-            {cards.length === 0 ? (
-              <div className="glass-panel empty-state">
-                <div className="empty-icon">
-                  <CreditCard size={40} className="text-gray-500" />
-                </div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>{t.noCards}</h3>
-                <p style={{ color: '#94a3b8', marginBottom: '2rem' }}>{t.startCreating}</p>
-                <button
-                  onClick={() => {
-                    setEditingCard(null);
-                    setView('editor');
-                  }}
-                  className="btn-primary"
-                >
-                  {t.createFirst}
-                </button>
-              </div>
-            ) : (
-              <div className="cards-grid">
-                {cards.map(card => (
-                  <div key={card.id} className="glass-panel card-wrapper">
-                    <div className="card-preview-container">
-                      <CardPreview
-                        card={card}
-                        showQR={sharedCardId === card.id}
-                        onClick={() => setSharedCardId(sharedCardId === card.id ? null : card.id)}
-                        t={t}
-                      />
-                    </div>
+{
+  view === 'editor' && (
+    <Editor
+      card={editingCard}
+      onSave={handleSaveCard}
+      onCancel={() => {
+        setView('dashboard');
+        setEditingCard(null);
+      }}
+      t={t}
+    />
+  )
+}
+      </main >
 
-                    <div className="card-actions">
-                      <div className="action-group">
-                        <button
-                          onClick={() => {
-                            setEditingCard(card);
-                            setView('editor');
-                          }}
-                          className="icon-btn"
-                          title={t.edit}
-                        >
-                          <Edit2 size={18} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(card.id)}
-                          className="icon-btn delete"
-                          title={t.delete}
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-
-                      <button
-                        onClick={() => setSharedCardId(sharedCardId === card.id ? null : card.id)}
-                        className={`share-btn ${sharedCardId === card.id ? 'active' : ''}`}
-                      >
-                        <Share2 size={18} />
-                        {sharedCardId === card.id ? t.close : t.share}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
-        )}
-
-        {view === 'editor' && (
-          <Editor
-            card={editingCard}
-            onSave={handleSaveCard}
-            onCancel={() => {
-              setView('dashboard');
-              setEditingCard(null);
-            }}
-            t={t}
-          />
-        )}
-      </main>
-
-      {/* Pricing Modal */}
-      {showPricing && (
-        <PricingModal
-          currentPlan={subscription}
-          onUpgrade={handleUpgrade}
-          onClose={() => setShowPricing(false)}
-          t={t}
-        />
-      )}
-    </div>
+  {/* Pricing Modal */ }
+{
+  showPricing && (
+    <PricingModal
+      currentPlan={subscription}
+      onUpgrade={handleUpgrade}
+      onClose={() => setShowPricing(false)}
+      t={t}
+    />
+  )
+}
+    </div >
   );
 }
 
 export default App;
+```
