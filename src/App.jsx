@@ -663,7 +663,7 @@ function App() {
           {user ? (
             <>
               <div className="plan-info">
-                {t.plan}: <span className="plan-badge">{subscription}</span> ({cards.length}/{limit})
+                <span className="plan-badge">{subscription}</span>
               </div>
               <button
                 onClick={() => setShowPricing(true)}
@@ -682,7 +682,11 @@ function App() {
                 </button>
               </div>
             </>
-          ) : null}
+          ) : (
+            <div style={{ color: 'white', fontSize: '0.8rem' }}>
+              Loading Auth...
+            </div>
+          )}
         </div>
       </header>
 
