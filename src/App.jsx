@@ -653,22 +653,28 @@ function App() {
       alert('Please log in to save cards.');
       return;
     }
-    // Remove the temporary 'id' if it's a new card
-    // eslint-disable-next-line no-unused-vars
-    const { id, ...dataToSave } = cardData;
 
-    if (editingCard) {
-      // Update existing document for this user
-      const docRef = doc(db, 'users', user.uid, 'cards', editingCard.id);
-      await setDoc(docRef, dataToSave);
-      setCards(cards.map(c => c.id === editingCard.id ? { ...cardData, id: editingCard.id } : c));
-    } else {
-      // Add new document for this user
-      const docRef = await addDoc(collection(db, 'users', user.uid, 'cards'), dataToSave);
-      setCards([...cards, { ...cardData, id: docRef.id }]);
+    try {
+      // Remove the temporary 'id' if it's a new card
+      // eslint-disable-next-line no-unused-vars
+      const { id, ...dataToSave } = cardData;
+
+      if (editingCard) {
+        // Update existing document for this user
+        const docRef = doc(db, 'users', user.uid, 'cards', editingCard.id);
+        await setDoc(docRef, dataToSave);
+        setCards(cards.map(c => c.id === editingCard.id ? { ...cardData, id: editingCard.id } : c));
+      } else {
+        // Add new document for this user
+        const docRef = await addDoc(collection(db, 'users', user.uid, 'cards'), dataToSave);
+        setCards([...cards, { ...cardData, id: docRef.id }]);
+      }
+      setView('dashboard');
+      setEditingCard(null);
+    } catch (error) {
+      console.error("Error saving card:", error);
+      alert("Error saving card: " + error.message);
     }
-    setView('dashboard');
-    setEditingCard(null);
   };
 
   const handleDelete = async (id) => {
