@@ -203,229 +203,288 @@ const PRICING = {
 
 // --- Components ---
 
-const CardPreview = ({ card, showQR = false, onClick, t }) => {
-  const vCardData = generateVCard(card);
+const FIELD_TYPES = [
+  { value: 'title', label: 'Title/Position', icon: Briefcase },
+  { value: 'company', label: 'Company', icon: Building2 },
+  { value: 'phone', label: 'Phone', icon: Phone },
+  { value: 'email', label: 'Email', icon: Mail },
+  { value: 'website', label: 'Website', icon: Globe },
+  { value: 'location', label: 'Address', icon: MapPin },
+  { value: 'custom', label: 'Custom', icon: Star }
+];
+
+const CardPreview = ({ card, showQR, onClick, t }) => {
+  const Icon = Smartphone;
+  // Backward compatibility: construct fields if they don't exist
+  const fields = card.fields || [
+    { type: 'title', value: card.title },
+    { type: 'company', value: card.company },
+    { type: 'phone', value: card.phone },
+    { type: 'email', value: card.email },
+    { type: 'website', value: card.website },
+    { type: 'location', value: card.location },
+    { type: 'custom', value: card.extra, label: card.extraLabel }
+  ].filter(f => f.value);
+
+  const getIcon = (type) => {
+    const ft = FIELD_TYPES.find(f => f.value === type);
+    return ft ? <ft.icon size={16} /> : <Star size={16} />;
+  };
 
   return (
     <div
       onClick={onClick}
-      className={`card-preview ${card.theme || 'card-bg-1'}`}
-      style={{ cursor: 'pointer' }}
+      className={`digital-card theme-${card.theme || 'modern'}`}
+      style={{
+        background: THEME_COLORS[card.theme || 'modern'],
+        cursor: 'pointer',
+        position: 'relative',
+        overflow: 'hidden'
+      }}
     >
+      {/* Decorative patterns */}
+      <div className="card-pattern-circle-1" />
+      <div className="card-pattern-circle-2" />
+
       <div className="card-content">
-        <div className="card-info">
-          <h3>{card.name || t.yourName}</h3>
-          <p>{card.title || t.yourTitle}</p>
-          <p className="card-details">{card.company || t.yourCompany}</p>
+        <div className="card-header-section">
+          <div className="card-avatar-placeholder">
+            <User size={32} className="text-white opacity-90" />
+          </div>
+          <div className="card-main-info">
+            <h3 className="card-name">{card.name || t.yourName}</h3>
+            {/* Render first 'title' field as subtitle if exists, otherwise first field */}
+            <p className="card-title">
+              {fields.find(f => f.type === 'title')?.value || (fields[0]?.value)}
+            </p>
+          </div>
         </div>
 
-        {card.address && (
-          <div className="card-details">
-            <p>{card.address}</p>
-          </div>
-        )}
-
-        <div className="card-details">
-          {card.phone && (
-            <div className="detail-row">
-              <Phone size={14} /> <span>{card.phone}</span>
+        <div className="card-body-section">
+          {showQR ? (
+            <div className="qr-wrapper" style={{ background: 'white', padding: '1rem', borderRadius: '1rem', margin: '0 auto', width: 'fit-content' }}>
+              <QRCodeSVG
+                value={`BEGIN:VCARD\nVERSION:3.0\nFN:${card.name}\n${fields.map(f => {
+                  if (f.type === 'phone') return `TEL:${f.value}`;
+                  if (f.type === 'email') return `EMAIL:${f.value}`;
+                  if (f.type === 'website') return `URL:${f.value}`;
+                  if (f.type === 'title') return `TITLE:${f.value}`;
+                  if (f.type === 'company') return `ORG:${f.value}`;
+                  if (f.type === 'location') return `ADR:;;${f.value}`;
+                  return `NOTE:${f.label || f.type}: ${f.value}`;
+                }).join('\n')}\nEND:VCARD`}
+                size={180}
+                level="M"
+              />
             </div>
-          )}
-          {card.email && (
-            <div className="detail-row">
-              <Mail size={14} /> <span>{card.email}</span>
+          ) : (
+            <div className="info-stack">
+              {fields.map((field, idx) => (
+                <div key={idx} className="info-row">
+                  <span className="info-icon-wrapper">
+                    {getIcon(field.type)}
+                  </span>
+                  <div className="info-content">
+                    <span className="info-value">{field.value}</span>
+                    <span className="info-label">{(field.type === 'custom' ? field.label : FIELD_TYPES.find(t => t.value === field.type)?.label) || field.type}</span>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
       </div>
-
-      {showQR && (
-        <div className="qr-overlay">
-          <div className="qr-box animate-fade-in">
-            <QRCodeSVG
-              value={vCardData}
-              size={128}
-              level="M"
-              fgColor={THEME_COLORS[card.theme] || '#0284c7'}
-              includeMargin={true}
-            />
-            <div className="qr-text">{t.scanToAdd}</div>
-          </div>
-        </div>
-      )}
-
-      {/* Decorative circles */}
-      <div className="absolute top-0 right-0 -mt-8 -mr-8 w-32 h-32 bg-white opacity-10 rounded-full blur-2xl"></div>
-      <div className="absolute bottom-0 left-0 -mb-8 -ml-8 w-24 h-24 bg-black opacity-10 rounded-full blur-xl"></div>
     </div>
   );
 };
 
-const Editor = ({ card, onSave, onCancel, t }) => {
-  const [formData, setFormData] = useState(card || {
-    id: null, // Will be set on save if needed
-    name: '',
-    title: '',
-    company: '',
-    phone: '',
-    email: '',
-    website: '',
-    address: '',
-    extraLabel: '',
-    extraValue: '',
-    theme: 'card-bg-1'
-  });
+// Helper to migrate old cards to new structure
+const migrateCard = (card) => {
+  if (card.fields) return card.fields;
+  return [
+    { type: 'title', value: card.title },
+    { type: 'company', value: card.company },
+    { type: 'phone', value: card.phone },
+    { type: 'email', value: card.email },
+    { type: 'website', value: card.website },
+    { type: 'location', value: card.address }, // Changed from card.location to card.address for backward compatibility
+    { type: 'custom', value: card.extraValue, label: card.extraLabel } // Changed from card.extra to card.extraValue
+  ].filter(f => f.value);
+};
 
-  const themes = ['card-bg-1', 'card-bg-2', 'card-bg-3', 'card-bg-4', 'card-bg-5'];
+const Editor = ({ card, onSave, onCancel, t }) => {
+  const [name, setName] = useState(card?.name || '');
+  const [theme, setTheme] = useState(card?.theme || 'modern');
+  const [fields, setFields] = useState(card ? migrateCard(card) : [
+    { type: 'title', value: '' },
+    { type: 'company', value: '' },
+    { type: 'phone', value: '' },
+    { type: 'email', value: '' }
+  ]);
+
+  const addField = () => {
+    setFields([...fields, { type: 'phone', value: '' }]);
+  };
+
+  const removeField = (index) => {
+    const newFields = [...fields];
+    newFields.splice(index, 1);
+    setFields(newFields);
+  };
+
+  const updateField = (index, key, val) => {
+    const newFields = [...fields];
+    newFields[index][key] = val;
+    setFields(newFields);
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSave({
+      id: card?.id,
+      name,
+      theme,
+      fields: fields.filter(f => f.value.trim() !== '')
+    });
+  };
 
   return (
-    <div className="glass-panel editor-container animate-fade-in">
-      <h2 className="editor-title">
-        <Edit2 size={24} className="text-primary" />
-        {card ? t.editCard : t.createNewCard}
-      </h2>
+    <div className="editor-container glass-panel">
+      <h2 className="editor-title">{card ? t.edit : t.createNewCard}</h2> {/* Changed t.create to t.createNewCard */}
 
-      <div className="form-grid">
-        <div className="form-column">
-          <div className="form-group">
-            <label>{t.fullName}</label>
-            <div className="input-wrapper">
-              <User size={18} className="input-icon" />
-              <input
-                className="input-field"
-                placeholder={t.placeholderName}
-                value={formData.name}
-                onChange={e => setFormData({ ...formData, name: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label>{t.title}</label>
-            <div className="input-wrapper">
-              <Briefcase size={18} className="input-icon" />
-              <input
-                className="input-field"
-                placeholder={t.placeholderTitle}
-                value={formData.title}
-                onChange={e => setFormData({ ...formData, title: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label>{t.company}</label>
-            <div className="input-wrapper">
-              <CreditCard size={18} className="input-icon" />
-              <input
-                className="input-field"
-                placeholder={t.placeholderCompany}
-                value={formData.company}
-                onChange={e => setFormData({ ...formData, company: e.target.value })}
-              />
-            </div>
-          </div>
-
-          {/* Address Field */}
-          <div className="form-group">
-            <label>{t.address}</label>
-            <div className="input-wrapper">
-              <Globe size={18} className="input-icon" />
-              <input
-                className="input-field"
-                placeholder="123 Rue Exemple, 1000 Ville"
-                value={formData.address}
-                onChange={e => setFormData({ ...formData, address: e.target.value })}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="form-column">
-          <div className="form-group">
-            <label>{t.phone}</label>
-            <div className="input-wrapper">
-              <Phone size={18} className="input-icon" />
-              <input
-                className="input-field"
-                placeholder="+41 79 123 45 67"
-                value={formData.phone}
-                onChange={e => setFormData({ ...formData, phone: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label>{t.email}</label>
-            <div className="input-wrapper">
-              <Mail size={18} className="input-icon" />
-              <input
-                className="input-field"
-                placeholder="jean@example.com"
-                value={formData.email}
-                onChange={e => setFormData({ ...formData, email: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label>{t.website}</label>
-            <div className="input-wrapper">
-              <Globe size={18} className="input-icon" />
-              <input
-                className="input-field"
-                placeholder="www.monsite.ch"
-                value={formData.website}
-                onChange={e => setFormData({ ...formData, website: e.target.value })}
-              />
-            </div>
-          </div>
-
-          {/* Custom Extra Field */}
-          <div className="form-group">
-            <label>{t.extraFieldLabel} (ex: "LinkedIn")</label>
-            <div className="input-wrapper">
-              <User size={18} className="input-icon" />
-              <input
-                className="input-field"
-                placeholder="Label"
-                value={formData.extraLabel}
-                onChange={e => setFormData({ ...formData, extraLabel: e.target.value })}
-              />
-            </div>
-          </div>
-          <div className="form-group">
-            <label>{t.extraFieldValue}</label>
-            <div className="input-wrapper">
-              <User size={18} className="input-icon" />
-              <input
-                className="input-field"
-                placeholder="Valeur"
-                value={formData.extraValue}
-                onChange={e => setFormData({ ...formData, extraValue: e.target.value })}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="form-group">
-        <label>{t.cardStyle}</label>
-        <div className="theme-selector">
-          {themes.map(theme => (
-            <button
-              key={theme}
-              onClick={() => setFormData({ ...formData, theme })}
-              className={`theme-btn ${theme} ${formData.theme === theme ? 'active' : ''}`}
+      <form onSubmit={handleSubmit} className="editor-form">
+        {/* Fixed Name Field */}
+        <div className="form-group">
+          <label className="field-label">{t.fullName}</label>
+          <div className="input-group">
+            <User className="input-icon" size={18} />
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Ex: John Doe"
+              className="form-input"
+              required
             />
-          ))}
+          </div>
         </div>
-      </div>
 
-      <div className="editor-actions">
-        <button onClick={onCancel} className="btn-secondary">{t.cancel}</button>
-        <button onClick={() => onSave(formData)} className="btn-primary">{t.save}</button>
-      </div>
+        {/* Dynamic Fields */}
+        <div className="dynamic-fields-section">
+          <label className="field-label" style={{ marginBottom: '0.5rem', display: 'block' }}>Contact Details & Info</label>
+          <div className="fields-list" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {fields.map((field, index) => (
+              <div key={index} className="dynamic-field-row glass-panel" style={{ padding: '0.75rem', display: 'flex', alignItems: 'flex-start', gap: '0.5rem', background: 'rgba(255,255,255,0.03)' }}>
+                {/* Type Select */}
+                <div style={{ flex: '0 0 140px' }}>
+                  <select
+                    value={field.type}
+                    onChange={(e) => updateField(index, 'type', e.target.value)}
+                    className="form-select"
+                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
+                  >
+                    {FIELD_TYPES.map(ft => (
+                      <option key={ft.value} value={ft.value}>{ft.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Value Input */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <input
+                    type="text"
+                    value={field.value}
+                    onChange={(e) => updateField(index, 'value', e.target.value)}
+                    placeholder="Value"
+                    className="form-input"
+                    style={{ width: '100%' }}
+                  />
+                  {field.type === 'custom' && (
+                    <input
+                      type="text"
+                      value={field.label || ''}
+                      onChange={(e) => updateField(index, 'label', e.target.value)}
+                      placeholder="Label (ex: Portfolio)"
+                      className="form-input text-sm"
+                      style={{ opacity: 0.8 }}
+                    />
+                  )}
+                </div>
+
+                {/* Remove Button */}
+                <button
+                  type="button"
+                  onClick={() => removeField(index)}
+                  className="icon-btn delete"
+                  style={{ marginTop: '0.25rem', opacity: 0.7 }}
+                  title="Remove field"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={addField}
+            className="btn-secondary"
+            style={{ width: '100%', marginTop: '1rem', borderStyle: 'dashed' }}
+          >
+            <Plus size={16} /> Add Field
+          </button>
+        </div>
+
+        {/* Theme Selector */}
+        <div className="form-group theme-selector-group" style={{ marginTop: '2rem' }}>
+          <label className="field-label">{t.cardStyle}</label>
+          <div className="theme-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(60px, 1fr))', gap: '1rem' }}>
+            {Object.entries(THEME_COLORS).map(([key, bg]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setTheme(key)}
+                className={`theme-option ${theme === key ? 'active' : ''}`}
+                style={{
+                  height: '60px',
+                  borderRadius: '12px',
+                  background: bg,
+                  border: theme === key ? '2px solid white' : '2px solid transparent',
+                  boxShadow: theme === key ? '0 0 0 2px rgba(255,255,255,0.2), 0 4px 12px rgba(0,0,0,0.3)' : 'none',
+                  transform: theme === key ? 'scale(1.05)' : 'scale(1)',
+                  transition: 'all 0.2s ease',
+                  cursor: 'pointer',
+                  position: 'relative'
+                }}
+                title={key}
+              >
+                {theme === key && (
+                  <div style={{
+                    position: 'absolute',
+                    inset: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'rgba(0,0,0,0.1)',
+                    borderRadius: '10px'
+                  }}>
+                    <div style={{ width: 8, height: 8, background: 'white', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }} />
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="form-actions">
+          <button type="button" onClick={onCancel} className="btn-secondary">
+            {t.cancel}
+          </button>
+          <button type="submit" className="btn-primary">
+            {t.save}
+          </button>
+        </div>
+      </form>
     </div>
   );
 };
