@@ -27,11 +27,18 @@ import { getFirestore, collection, getDocs, addDoc, setDoc, doc, deleteDoc } fro
 import { getAuth, signInAnonymously, signOut, onAuthStateChanged } from 'firebase/auth';
 // --- Utils ---
 const THEME_COLORS = {
+  // Gradients (Radiants)
+  'radiant-ocean': 'linear-gradient(135deg, #00c6fb 0%, #005bea 100%)',
+  'radiant-sunset': 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+  'radiant-nature': 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+  'radiant-purple': 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+  'radiant-dark': 'linear-gradient(to right, #434343 0%, black 100%)',
+  // Solids
   'card-bg-1': '#FF6B6B',
   'card-bg-2': '#4facfe',
   'card-bg-3': '#43e97b',
   'card-bg-4': '#fa709a',
-  'card-bg-5': '#667eea'
+  'card-bg-5': '#a18cd1'
 };
 
 // --- Firebase Config (replace with your own values) ---
