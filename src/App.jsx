@@ -20,8 +20,8 @@ import {
 } from 'lucide-react';
 // Firebase imports
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, addDoc, setDoc, doc, deleteDoc, getDoc } from 'firebase/firestore';
-import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from 'firebase/auth';
+import { getFirestore, collection, getDocs, addDoc, setDoc, doc, deleteDoc } from 'firebase/firestore';
+import { getAuth, signInAnonymously, signOut, onAuthStateChanged } from 'firebase/auth';
 // --- Utils ---
 const THEME_COLORS = {
   'card-bg-1': '#FF6B6B',
@@ -263,7 +263,7 @@ const CardPreview = ({ card, showQR = false, onClick, t }) => {
 
 const Editor = ({ card, onSave, onCancel, t }) => {
   const [formData, setFormData] = useState(card || {
-    id: Date.now(),
+    id: null, // Will be set on save if needed
     name: '',
     title: '',
     company: '',
@@ -527,32 +527,15 @@ function App() {
   // Listen for auth state changes
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
+      if (!u) {
+        signInAnonymously(auth).catch(console.error);
+        return;
+      }
       setUser(u);
       if (u) {
         // Load subscription from Firestore
         try {
-          const userDocRef = doc(db, 'users', u.uid);
-          // We need to import getDoc for single doc fetch, adding it to imports might be messy if I missed it.
-          // Let's use getDocs on a query or just use the imported collection/addDoc etc.
-          // Actually, I didn't import 'getDoc' in the first chunk, only getDocs.
-          // PROACTIVE FIX: I will use setDoc with merge to ensure it exists, or just read it.
-          // Given I cannot easily add 'getDoc' to imports without risking line mismatch if not careful,
-          // I'll stick to what I have or re-do imports if needed.
-          // Wait, standard 'getFirestore' imports usually include getDoc.
-          // In the file provided: "import { getFirestore, collection, getDocs, addDoc, setDoc, doc, deleteDoc } from 'firebase/firestore';"
-          // getDoc is MISSING.
-          // I will implement a workaround or add getDoc in a separate edit if this fails, 
-          // BUT for now I will assume I can just set a default if not found logic via loading cards.
-
-          // Actually, let's just add getDoc to the import list in a separate chunk to be safe? 
-          // No, I can't easily target the import line again in same call reliably if I messed up line counts.
-          // I'll use `getDocs` on the collection to find the user doc if I have to, or just blindly saving preference on upgrade.
-          // For reading:
-          // Let's rely on loading cards. And for subscription...
-          // I will skip reading subscription from DB in this exact step to keep it safe, 
-          // OR I will simply use the existing 'getDocs' to fetch all usage stats? No that's bad.
-
-          // BETTER PLAN: Update the import line to include getDoc.
+          // Logic for reading subscription if needed
         } catch (e) {
           console.error(e);
         }
@@ -599,6 +582,7 @@ function App() {
       return;
     }
     // Remove the temporary 'id' if it's a new card
+    // eslint-disable-next-line no-unused-vars
     const { id, ...dataToSave } = cardData;
 
     if (editingCard) {
@@ -642,14 +626,7 @@ function App() {
     alert(`${t.upgraded} ${plan === 'basic' ? t.standard : t.premium} plan.`);
   };
 
-  const handleLogin = async () => {
-    const provider = new GoogleAuthProvider();
-    try {
-      await signInWithPopup(auth, provider);
-    } catch (error) {
-      console.error("Login failed", error);
-    }
-  };
+
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -705,11 +682,7 @@ function App() {
                 </button>
               </div>
             </>
-          ) : (
-            <button onClick={handleLogin} className="btn-primary" style={{ display: 'flex', gap: '0.5rem' }}>
-              <LogIn size={18} /> {t.login}
-            </button>
-          )}
+          ) : null}
         </div>
       </header>
 
@@ -743,7 +716,7 @@ function App() {
                 </div>
                 <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>{t.noCards}</h3>
                 <p style={{ color: '#94a3b8', marginBottom: '2rem' }}>
-                  {user ? t.startCreating : (lang === 'en' ? "Please log in to view or create cards." : "Veuillez vous connecter pour voir ou créer des cartes.")}
+                  {t.startCreating}
                 </p>
                 {user ? (
                   <button
@@ -755,11 +728,7 @@ function App() {
                   >
                     {t.createFirst}
                   </button>
-                ) : (
-                  <button onClick={handleLogin} className="btn-secondary">
-                    {t.login}
-                  </button>
-                )}
+                ) : null}
               </div>
             ) : (
               <div className="cards-grid">
