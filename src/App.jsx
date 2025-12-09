@@ -16,7 +16,10 @@ import {
   Briefcase,
   Languages,
   LogIn,
-  LogOut
+  LogOut,
+  Building2,
+  MapPin,
+  Star
 } from 'lucide-react';
 // Firebase imports
 import { initializeApp } from 'firebase/app';
@@ -234,9 +237,9 @@ const CardPreview = ({ card, showQR, onClick, t }) => {
   return (
     <div
       onClick={onClick}
-      className={`digital-card theme-${card.theme || 'modern'}`}
+      className={`digital-card theme-${card.theme || 'card-bg-1'}`}
       style={{
-        background: THEME_COLORS[card.theme || 'modern'],
+        background: THEME_COLORS[card.theme || 'card-bg-1'],
         cursor: 'pointer',
         position: 'relative',
         overflow: 'hidden'
@@ -314,7 +317,7 @@ const migrateCard = (card) => {
 
 const Editor = ({ card, onSave, onCancel, t }) => {
   const [name, setName] = useState(card?.name || '');
-  const [theme, setTheme] = useState(card?.theme || 'modern');
+  const [theme, setTheme] = useState(card?.theme || 'card-bg-1');
   const [fields, setFields] = useState(card ? migrateCard(card) : [
     { type: 'title', value: '' },
     { type: 'company', value: '' },
