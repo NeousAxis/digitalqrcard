@@ -656,8 +656,23 @@ function App() {
             onClick={toggleLang}
             className="lang-btn"
             title="Switch Language"
+            style={{
+              background: 'rgba(255, 255, 255, 0.1)',
+              border: 'none',
+              borderRadius: '50%',
+              width: '32px',
+              height: '32px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '0.75rem',
+              fontWeight: 'bold',
+              color: 'white',
+              cursor: 'pointer',
+              padding: 0
+            }}
           >
-            <span>{lang === 'en' ? 'FR' : 'EN'}</span>
+            {lang === 'en' ? 'FR' : 'EN'}
           </button>
 
           {user ? (
