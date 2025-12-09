@@ -663,7 +663,7 @@ function App() {
           {user ? (
             <>
               <div className="plan-info">
-                <span className="plan-badge">{subscription}</span>
+                <span className="plan-badge">{subscription}</span> <span style={{ fontSize: '0.85rem', opacity: 0.8 }}>({cards.length}/{limit})</span>
               </div>
               <button
                 onClick={() => setShowPricing(true)}
@@ -671,16 +671,6 @@ function App() {
               >
                 {t.manageSub}
               </button>
-              <div className="user-profile" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: '1rem' }}>
-                {user.photoURL ? (
-                  <img src={user.photoURL} alt="Profile" style={{ width: 32, height: 32, borderRadius: '50%' }} />
-                ) : (
-                  <User size={20} />
-                )}
-                <button onClick={handleLogout} className="icon-btn" title={t.logout}>
-                  <LogOut size={20} />
-                </button>
-              </div>
             </>
           ) : (
             <div style={{ color: 'white', fontSize: '0.8rem' }}>
