@@ -225,7 +225,7 @@ const CardPreview = ({ card, showQR, onClick, t }) => {
     { type: 'phone', value: card.phone },
     { type: 'email', value: card.email },
     { type: 'website', value: card.website },
-    { type: 'location', value: card.location },
+    { type: 'location', value: card.location }, // Fixed: uses card.location as per previous definition
     { type: 'custom', value: card.extra, label: card.extraLabel }
   ].filter(f => f.value);
 
@@ -310,14 +310,14 @@ const migrateCard = (card) => {
     { type: 'phone', value: card.phone },
     { type: 'email', value: card.email },
     { type: 'website', value: card.website },
-    { type: 'location', value: card.address }, // Changed from card.location to card.address for backward compatibility
-    { type: 'custom', value: card.extraValue, label: card.extraLabel } // Changed from card.extra to card.extraValue
+    { type: 'location', value: card.location || card.address },
+    { type: 'custom', value: card.extra || card.extraValue, label: card.extraLabel }
   ].filter(f => f.value);
 };
 
 const Editor = ({ card, onSave, onCancel, t }) => {
   const [name, setName] = useState(card?.name || '');
-  const [theme, setTheme] = useState(card?.theme || 'card-bg-1');
+  const [theme, setTheme] = useState(card?.theme || 'radiant-ocean'); // Default to a nice radiant
   const [fields, setFields] = useState(card ? migrateCard(card) : [
     { type: 'title', value: '' },
     { type: 'company', value: '' },
@@ -353,7 +353,7 @@ const Editor = ({ card, onSave, onCancel, t }) => {
 
   return (
     <div className="editor-container glass-panel">
-      <h2 className="editor-title">{card ? t.edit : t.createNewCard}</h2> {/* Changed t.create to t.createNewCard */}
+      <h2 className="editor-title">{card ? t.edit : t.createNewCard}</h2>
 
       <form onSubmit={handleSubmit} className="editor-form">
         {/* Fixed Name Field */}
@@ -375,55 +375,58 @@ const Editor = ({ card, onSave, onCancel, t }) => {
         {/* Dynamic Fields */}
         <div className="dynamic-fields-section">
           <label className="field-label" style={{ marginBottom: '0.5rem', display: 'block' }}>Contact Details & Info</label>
-          <div className="fields-list" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <div className="fields-list" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {fields.map((field, index) => (
-              <div key={index} className="dynamic-field-row glass-panel" style={{ padding: '0.75rem', display: 'flex', alignItems: 'flex-start', gap: '0.5rem', background: 'rgba(255,255,255,0.03)' }}>
-                {/* Type Select */}
-                <div style={{ flex: '0 0 140px' }}>
-                  <select
-                    value={field.type}
-                    onChange={(e) => updateField(index, 'type', e.target.value)}
-                    className="form-select"
-                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
+              <div key={index} className="dynamic-field-row glass-panel" style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                {/* Header: Type + Delete */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                  <div className="select-wrapper" style={{ position: 'relative', width: '70%' }}>
+                    <select
+                      value={field.type}
+                      onChange={(e) => updateField(index, 'type', e.target.value)}
+                      className="form-select"
+                      style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
+                    >
+                      {FIELD_TYPES.map(ft => (
+                        <option key={ft.value} value={ft.value}>{ft.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeField(index)}
+                    className="icon-btn delete"
+                    title="Remove field"
+                    style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}
                   >
-                    {FIELD_TYPES.map(ft => (
-                      <option key={ft.value} value={ft.value}>{ft.label}</option>
-                    ))}
-                  </select>
+                    <Trash2 size={18} />
+                  </button>
                 </div>
 
-                {/* Value Input */}
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {/* Input Value */}
+                <div className="input-group">
                   <input
                     type="text"
                     value={field.value}
                     onChange={(e) => updateField(index, 'value', e.target.value)}
-                    placeholder="Value"
+                    placeholder="Enter details..."
                     className="form-input"
                     style={{ width: '100%' }}
                   />
-                  {field.type === 'custom' && (
+                </div>
+
+                {field.type === 'custom' && (
+                  <div className="input-group" style={{ marginTop: '0.5rem' }}>
                     <input
                       type="text"
                       value={field.label || ''}
                       onChange={(e) => updateField(index, 'label', e.target.value)}
-                      placeholder="Label (ex: Portfolio)"
+                      placeholder="Label (e.g. Portfolio)"
                       className="form-input text-sm"
                       style={{ opacity: 0.8 }}
                     />
-                  )}
-                </div>
-
-                {/* Remove Button */}
-                <button
-                  type="button"
-                  onClick={() => removeField(index)}
-                  className="icon-btn delete"
-                  style={{ marginTop: '0.25rem', opacity: 0.7 }}
-                  title="Remove field"
-                >
-                  <X size={18} />
-                </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
