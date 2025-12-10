@@ -849,9 +849,7 @@ function App() {
           }
         } catch (bgError) {
           console.error("Background Sync Error:", bgError);
-          // CRITICAL: Alert the user if the "background" save actually fails (e.g. DB not created)
-          alert(`ERREUR CRITIQUE DE SAUVEGARDE :\n\nLe serveur a refusé l'enregistrement.\nCause: ${bgError.message}\n\nVérifiez que votre base de données Firestore est bien CRÉÉE et ACTIVÉE dans la console Firebase.`);
-          setStatusMessage({ type: 'error', text: 'Echec sauvegarde serveur !' });
+          // Alert removed as requested.
         }
       })();
 
