@@ -318,7 +318,7 @@ const migrateCard = (card) => {
     { type: 'email', value: card.email },
     { type: 'website', value: card.website },
     { type: 'location', value: card.location || card.address },
-    { type: 'custom', value: card.extra || card.extraValue, label: card.extraLabel }
+    { type: 'custom', value: card.extra || card.extraValue, label: card.extraLabel || '' }
   ].filter(f => f.value);
 };
 
@@ -657,7 +657,10 @@ function App() {
     try {
       // Remove the temporary 'id' if it's a new card
       // eslint-disable-next-line no-unused-vars
-      const { id, ...dataToSave } = cardData;
+      const { id, ...rawData } = cardData;
+
+      // Sanitize data to remove undefined values which Firebase rejects
+      const dataToSave = JSON.parse(JSON.stringify(rawData));
 
       if (editingCard) {
         // Update existing document for this user
