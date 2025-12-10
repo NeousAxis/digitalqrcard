@@ -19,11 +19,22 @@ import {
   LogOut,
   Building2,
   MapPin,
-  Star
+  Star,
+  Cloud,
+  CloudOff,
+  RefreshCw
 } from 'lucide-react';
 // Firebase imports
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, addDoc, setDoc, doc, deleteDoc } from 'firebase/firestore';
+import {
+  getFirestore,
+  collection,
+  onSnapshot, // Changed from getDocs to onSnapshot
+  addDoc,
+  setDoc,
+  doc,
+  deleteDoc
+} from 'firebase/firestore';
 import { getAuth, signInAnonymously, signOut, onAuthStateChanged } from 'firebase/auth';
 // --- Utils ---
 const THEME_COLORS = {
@@ -662,19 +673,21 @@ function App() {
   useEffect(() => {
     if (!user) return;
 
-    const loadData = async () => {
-      // Load Cards
-      const colRef = collection(db, 'users', user.uid, 'cards');
-      const snapshot = await getDocs(colRef);
-      const loaded = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setCards(loaded);
+    // Use onSnapshot for real-time updates and sync status
+    const colRef = collection(db, 'users', user.uid, 'cards');
 
-      // Load Subscription (Simulated/Workaround since getDoc missing)
-      // We will assume 'free' unless we find a specific document.
-      // For now, let's keep the localStorage fallback as a partial cache if db fails
-      // BUT we really want DB.
-    };
-    loadData();
+    const unsubscribe = onSnapshot(colRef, (snapshot) => {
+      const loaded = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        _isPending: doc.metadata.hasPendingWrites // Track if data is only local
+      }));
+      setCards(loaded);
+    }, (error) => {
+      console.error("Error fetching cards:", error);
+    });
+
+    return () => unsubscribe();
   }, [user]);
 
 
@@ -901,6 +914,34 @@ function App() {
                         onClick={() => setSharedCardId(sharedCardId === card.id ? null : card.id)}
                         t={t}
                       />
+                      {/* Sync Status Indicator */}
+                      <div style={{
+                        position: 'absolute',
+                        top: '10px',
+                        right: '10px',
+                        background: 'rgba(0,0,0,0.6)',
+                        backdropFilter: 'blur(4px)',
+                        padding: '4px 8px',
+                        borderRadius: '12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        fontSize: '0.75rem',
+                        color: 'white',
+                        pointerEvents: 'none'
+                      }}>
+                        {card._isPending ? (
+                          <>
+                            <RefreshCw size={12} className="spin-slow" />
+                            <span>En attente...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Cloud size={12} className="text-green-400" />
+                            <span style={{ color: '#4ade80' }}>Synchronisé</span>
+                          </>
+                        )}
+                      </div>
                     </div>
 
                     <div className="card-actions">
