@@ -322,7 +322,7 @@ const migrateCard = (card) => {
   ].filter(f => f.value);
 };
 
-const Editor = ({ card, onSave, onCancel, t, isSaving }) => {
+const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage }) => {
   const [name, setName] = useState(card?.name || '');
   const [theme, setTheme] = useState(card?.theme || 'radiant-ocean'); // Default to a nice radiant
   const [fields, setFields] = useState(card ? migrateCard(card) : [
@@ -494,9 +494,26 @@ const Editor = ({ card, onSave, onCancel, t, isSaving }) => {
             {t.cancel}
           </button>
           <button type="submit" className="btn-primary">
-            {isSaving ? 'Saving...' : t.save}
+            {isSaving ? (
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span className="spinner-small"></span> {t.save}...
+              </span>
+            ) : t.save}
           </button>
         </div>
+        {statusMessage && (
+          <div style={{
+            marginTop: '1rem',
+            padding: '0.75rem',
+            borderRadius: '0.5rem',
+            background: statusMessage.type === 'error' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(59, 130, 246, 0.2)',
+            color: statusMessage.type === 'error' ? '#fca5a5' : '#93c5fd',
+            fontSize: '0.9rem',
+            textAlign: 'center'
+          }}>
+            {statusMessage.text}
+          </div>
+        )}
       </form>
     </div>
   );
@@ -649,42 +666,70 @@ function App() {
   const limit = SUBSCRIPTION_LIMITS[subscription];
   const canAddCard = cards.length < limit;
 
+  const [statusMessage, setStatusMessage] = useState(null);
+
   const handleSaveCard = async (cardData) => {
     setIsSaving(true);
-    if (!user?.uid) {
-      alert('Authentication error: You are not logged in.');
+    setStatusMessage({ type: 'info', text: 'Vérification de la connexion...' });
+
+    if (!navigator.onLine) {
+      alert('Pas de connexion internet détectée.');
+      setStatusMessage({ type: 'error', text: 'Pas de connexion internet.' });
       setIsSaving(false);
       return;
     }
 
+    if (!user?.uid) {
+      setStatusMessage({ type: 'error', text: 'Authentification requise. Veuillez patienter...' });
+      // Try to wait a bit for auth
+      await new Promise(r => setTimeout(r, 1000));
+      if (!auth.currentUser) {
+        alert('Erreur: Vous n\'êtes pas connecté au serveur.');
+        setStatusMessage({ type: 'error', text: 'Erreur d\'authentification. Rechargez la page.' });
+        setIsSaving(false);
+        return;
+      }
+    }
+
     try {
-      console.log('Attempting to save cardData:', cardData);
+      setStatusMessage({ type: 'info', text: 'Préparation des données...' });
 
       // Remove the temporary 'id' if it's a new card
       // eslint-disable-next-line no-unused-vars
       const { id, ...rawData } = cardData;
 
-      // Sanitize data to remove undefined values which Firebase rejects
+      // Sanitize data
       const dataToSave = JSON.parse(JSON.stringify(rawData));
-
-      // Add timestamp
       dataToSave.updatedAt = new Date().toISOString();
+
+      setStatusMessage({ type: 'info', text: 'Envoi vers le serveur (cela peut prendre 5-10s)...' });
+
+      // Timeout promise
+      const timeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Le serveur met trop de temps à répondre. Vérifiez votre connexion.")), 15000)
+      );
 
       if (editingCard) {
         // Update existing document for this user
         const docRef = doc(db, 'users', user.uid, 'cards', editingCard.id);
-        await setDoc(docRef, dataToSave);
+        await Promise.race([setDoc(docRef, dataToSave), timeout]);
         setCards(cards.map(c => c.id === editingCard.id ? { ...cardData, id: editingCard.id } : c));
       } else {
         // Add new document for this user
-        const docRef = await addDoc(collection(db, 'users', user.uid, 'cards'), dataToSave);
-        setCards([...cards, { ...cardData, id: docRef.id }]);
+        await Promise.race([addDoc(collection(db, 'users', user.uid, 'cards'), dataToSave), timeout]).then(docRef => {
+          setCards([...cards, { ...cardData, id: docRef.id }]);
+        });
       }
+
+      setStatusMessage({ type: 'success', text: 'Enregistré avec succès !' });
+      await new Promise(r => setTimeout(r, 500)); // Show success briefly
       setView('dashboard');
       setEditingCard(null);
+      setStatusMessage(null);
     } catch (error) {
       console.error("Error saving card:", error);
-      alert("Erreur lors de l'enregistrement: " + error.message + "\nCheck console for details.");
+      setStatusMessage({ type: 'error', text: error.message });
+      alert("Erreur: " + error.message);
     } finally {
       setIsSaving(false);
     }
@@ -887,6 +932,7 @@ function App() {
             }}
             t={t}
             isSaving={isSaving}
+            statusMessage={statusMessage}
           />
         )}
       </main>
