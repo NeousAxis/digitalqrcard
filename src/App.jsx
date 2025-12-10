@@ -41,7 +41,17 @@ import {
   doc,
   deleteDoc
 } from 'firebase/firestore';
-import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from 'firebase/auth';
+import {
+  getAuth,
+  signInWithPopup,
+  GoogleAuthProvider,
+  signOut,
+  onAuthStateChanged,
+  setPersistence,
+  browserLocalPersistence,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword
+} from 'firebase/auth';
 // --- Utils ---
 const THEME_COLORS = {
   // Gradients (Radiants)
@@ -697,6 +707,85 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t }) => {
         </div>
       </div>
     </div>
+
+};
+
+const AuthModal = ({ onClose, onLoginGoogle }) => {
+  const [isRegister, setIsRegister] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState(null);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
+    try {
+      if (isRegister) {
+        await createUserWithEmailAndPassword(auth, email, password);
+      } else {
+        await signInWithEmailAndPassword(auth, email, password);
+      }
+      onClose(); // Auth listener will handle the rest
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="glass-panel" style={{ maxWidth: '400px', width: '90%', padding: '2rem' }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+          <h2 className="section-title" style={{ margin: 0 }}>{isRegister ? 'Créer un compte' : 'Connexion'}</h2>
+          <button onClick={onClose} className="icon-btn"><X size={24} /></button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="form-grid">
+          <div className="form-group">
+            <label className="field-label">Email</label>
+            <input
+              type="email"
+              className="input-field"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label className="field-label">Mot de passe</label>
+            <input
+              type="password"
+              className="input-field"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              required
+              minLength={6}
+            />
+          </div>
+
+          {error && <div style={{ color: '#ef4444', fontSize: '0.9rem', marginBottom: '1rem' }}>{error}</div>}
+
+          <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
+            {isRegister ? 'S\'inscrire' : 'Se connecter'}
+          </button>
+        </form>
+
+        <div style={{ margin: '1.5rem 0', textAlign: 'center', borderBottom: '1px solid #e2e8f0', lineHeight: '0.1em' }}>
+          <span style={{ background: '#fff', padding: '0 10px', color: '#64748b' }}>OU</span>
+        </div>
+
+        <button onClick={onLoginGoogle} className="btn-secondary" style={{ width: '100%', justifyContent: 'center' }}>
+          <LogIn size={18} style={{ marginRight: '0.5rem' }} /> Continuer avec Google
+        </button>
+
+        <div style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '0.9rem' }}>
+          {isRegister ? (
+            <p>Déjà un compte ? <span onClick={() => setIsRegister(false)} style={{ color: '#3b82f6', cursor: 'pointer', fontWeight: 'bold' }}>Se connecter</span></p>
+          ) : (
+            <p>Pas de compte ? <span onClick={() => setIsRegister(true)} style={{ color: '#3b82f6', cursor: 'pointer', fontWeight: 'bold' }}>Créer un compte</span></p>
+          )}
+        </div>
+      </div>
+    </div>
   );
 };
 
@@ -714,6 +803,7 @@ function App() {
   const [view, setView] = useState('dashboard'); // dashboard, editor
   const [editingCard, setEditingCard] = useState(null);
   const [showPricing, setShowPricing] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false); // New State for Auth Modal
   const [sharedCardId, setSharedCardId] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -959,12 +1049,23 @@ function App() {
               </button>
             </>
           ) : (
-            <button onClick={handleLogin} className="btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
-              <LogIn size={16} style={{ marginRight: '0.5rem' }} /> Connexion (Google)
+            <button onClick={() => setShowAuthModal(true)} className="btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
+              <LogIn size={16} style={{ marginRight: '0.5rem' }} /> Connexion / Inscription
             </button>
           )}
         </div>
       </header>
+
+      {/* Auth Modal */}
+      {showAuthModal && !user && (
+        <AuthModal
+          onClose={() => setShowAuthModal(false)}
+          onLoginGoogle={() => {
+            setShowAuthModal(false);
+            handleLogin();
+          }}
+        />
+      )}
 
       {/* Main Content */}
       <main className="main-content" style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
@@ -1011,8 +1112,8 @@ function App() {
                 ) : (
                   <div style={{ marginTop: '1rem' }}>
                     <p style={{ marginBottom: '1rem' }}>Connectez-vous pour sauvegarder et synchroniser vos cartes sur tous vos appareils.</p>
-                    <button onClick={handleLogin} className="btn-primary">
-                      <LogIn size={18} style={{ marginRight: '0.5rem' }} /> Se connecter avec Google
+                    <button onClick={() => setShowAuthModal(true)} className="btn-primary">
+                      <LogIn size={18} style={{ marginRight: '0.5rem' }} /> Se connecter / Créer un compte
                     </button>
                   </div>
                 )}
