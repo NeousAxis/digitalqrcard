@@ -322,7 +322,7 @@ const migrateCard = (card) => {
   ].filter(f => f.value);
 };
 
-const Editor = ({ card, onSave, onCancel, t }) => {
+const Editor = ({ card, onSave, onCancel, t, isSaving }) => {
   const [name, setName] = useState(card?.name || '');
   const [theme, setTheme] = useState(card?.theme || 'radiant-ocean'); // Default to a nice radiant
   const [fields, setFields] = useState(card ? migrateCard(card) : [
@@ -354,7 +354,7 @@ const Editor = ({ card, onSave, onCancel, t }) => {
       id: card?.id,
       name,
       theme,
-      fields: fields.filter(f => f.value.trim() !== '')
+      fields: fields.filter(f => f.value && String(f.value).trim() !== '')
     });
   };
 
@@ -494,7 +494,7 @@ const Editor = ({ card, onSave, onCancel, t }) => {
             {t.cancel}
           </button>
           <button type="submit" className="btn-primary">
-            {t.save}
+            {isSaving ? 'Saving...' : t.save}
           </button>
         </div>
       </form>
@@ -592,6 +592,7 @@ function App() {
   const [editingCard, setEditingCard] = useState(null);
   const [showPricing, setShowPricing] = useState(false);
   const [sharedCardId, setSharedCardId] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const [user, setUser] = useState(null); // Firebase Auth user
 
@@ -649,18 +650,25 @@ function App() {
   const canAddCard = cards.length < limit;
 
   const handleSaveCard = async (cardData) => {
+    setIsSaving(true);
     if (!user?.uid) {
-      alert('Please log in to save cards.');
+      alert('Authentication error: You are not logged in.');
+      setIsSaving(false);
       return;
     }
 
     try {
+      console.log('Attempting to save cardData:', cardData);
+
       // Remove the temporary 'id' if it's a new card
       // eslint-disable-next-line no-unused-vars
       const { id, ...rawData } = cardData;
 
       // Sanitize data to remove undefined values which Firebase rejects
       const dataToSave = JSON.parse(JSON.stringify(rawData));
+
+      // Add timestamp
+      dataToSave.updatedAt = new Date().toISOString();
 
       if (editingCard) {
         // Update existing document for this user
@@ -676,7 +684,9 @@ function App() {
       setEditingCard(null);
     } catch (error) {
       console.error("Error saving card:", error);
-      alert("Error saving card: " + error.message);
+      alert("Erreur lors de l'enregistrement: " + error.message + "\nCheck console for details.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -876,6 +886,7 @@ function App() {
               setEditingCard(null);
             }}
             t={t}
+            isSaving={isSaving}
           />
         )}
       </main>
