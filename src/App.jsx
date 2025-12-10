@@ -86,7 +86,7 @@ import {
 } from 'firebase/firestore';
 
 const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true, // Keep this for better firewall traversal
+  // experimentalForceLongPolling: true, // AUTO-DETECT is better generally. Only use force if WS fails consistently.
   localCache: persistentLocalCache({
     tabManager: persistentMultipleTabManager()
   })
@@ -796,17 +796,18 @@ function App() {
       }
 
       // 2. WAIT FOR SERVER CONFIRMATION (Trusted Save)
-      setStatusMessage({ type: 'info', text: 'Attente de la confirmation du serveur...' });
+      setStatusMessage({ type: 'info', text: 'Attente de la confirmation du serveur (max 30s)...' });
 
       await new Promise((resolve, reject) => {
         const timeoutId = setTimeout(() => {
           unsubscribe();
-          reject(new Error("Le serveur n'a pas confirmé l'enregistrement après 10 secondes. Vérifiez votre connexion."));
-        }, 10000);
+          reject(new Error("Délai d'attente dépassé (30s). Le serveur n'a pas confirmé l'écriture. Vérifiez votre connexion internet."));
+        }, 30000); // 30 seconds timeout
 
         const unsubscribe = onSnapshot(targetDocRef, (snap) => {
           // Check metadata: hasPendingWrites is false ONLY when server has ack'd
-          if (!snap.metadata.hasPendingWrites) {
+          // Also check if doc exists to avoid false positives (though delete is unlikely here)
+          if (snap && !snap.metadata.hasPendingWrites) {
             clearTimeout(timeoutId);
             unsubscribe();
             resolve();
