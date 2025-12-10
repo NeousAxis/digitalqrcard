@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
@@ -100,19 +101,19 @@ const generateVCard = (card) => {
   const lines = [
     'BEGIN:VCARD',
     'VERSION:3.0',
-    `N:${lastName};${firstName};;;`,
-    `FN:${firstName} ${lastName}`,
-    `ORG:${card.company};`,
-    `TITLE:${card.title}`,
-    `TEL;TYPE=CELL,VOICE:${card.phone}`,
-    `EMAIL;TYPE=WORK,INTERNET:${card.email}`,
-    `URL:${card.website}`
+    `N:${lastName};${firstName};;; `,
+    `FN:${firstName} ${lastName} `,
+    `ORG:${card.company}; `,
+    `TITLE:${card.title} `,
+    `TEL; TYPE = CELL, VOICE:${card.phone} `,
+    `EMAIL; TYPE = WORK, INTERNET:${card.email} `,
+    `URL:${card.website} `
   ];
   if (card.address) {
-    lines.push(`ADR;TYPE=WORK:;;${card.address};;;;`);
+    lines.push(`ADR; TYPE = WORK: ;;${card.address};;;; `);
   }
   if (card.extraLabel && card.extraValue) {
-    lines.push(`${card.extraLabel.toUpperCase()}:${card.extraValue}`);
+    lines.push(`${card.extraLabel.toUpperCase()}:${card.extraValue} `);
   }
   lines.push('END:VCARD');
   return lines.join('\n');
@@ -323,9 +324,9 @@ const CardPreview = ({ card, showQR, onClick, t }) => {
         {showQR ? (
           <div style={{ margin: '1rem 0' }}>
             <QRCodeSVG
-              value={`BEGIN:VCARD
-VERSION:3.0
-N:;${card.name || ''};;;
+              value={`BEGIN: VCARD
+VERSION: 3.0
+N: ;${card.name || ''};;;
 FN:${card.name || ''}
 ORG:${company || ''}
 TITLE:${title || ''}
@@ -351,8 +352,9 @@ ${fields
                     // Fallback to Note
                     const noteLabel = f.label || f.type || 'Info';
                     return `NOTE:${noteLabel.toUpperCase()}: ${val}`;
-                  }).join('\n')}
-END:VCARD`}
+                  }).join('\n')
+                }
+END: VCARD`}
               size={160}
               level="M"
             />
@@ -559,7 +561,7 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage }) => {
                 key={key}
                 type="button"
                 onClick={() => setTheme(key)}
-                className={`theme-option ${theme === key ? 'active' : ''}`}
+                className={`theme - option ${theme === key ? 'active' : ''} `}
                 style={{
                   height: '60px',
                   borderRadius: '12px',
@@ -635,7 +637,7 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t }) => {
 
         <div className="pricing-grid">
           {/* Free Plan */}
-          <div className={`pricing-card ${currentPlan === 'free' ? 'highlight' : ''}`}>
+          <div className={`pricing - card ${currentPlan === 'free' ? 'highlight' : ''} `}>
             <h3>{t.free}</h3>
             <div className="price">0 CHF<span>{t.month}</span></div>
             <ul className="features-list">
@@ -645,7 +647,7 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t }) => {
             </ul>
             <button
               disabled={currentPlan === 'free'}
-              className={`btn-full ${currentPlan === 'free' ? 'btn-secondary' : 'btn-secondary'}`}
+              className={`btn - full ${currentPlan === 'free' ? 'btn-secondary' : 'btn-secondary'} `}
               style={{ opacity: currentPlan === 'free' ? 0.5 : 1 }}
             >
               {currentPlan === 'free' ? t.currentPlan : t.select}
@@ -653,7 +655,7 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t }) => {
           </div>
 
           {/* Basic Plan */}
-          <div className={`pricing-card ${currentPlan === 'basic' ? 'highlight' : ''}`}>
+          <div className={`pricing - card ${currentPlan === 'basic' ? 'highlight' : ''} `}>
             <div className="popular-badge">{t.popular}</div>
             <h3>{t[PRICING.basic.key]}</h3>
             <div className="price">{PRICING.basic.price}<span>{t.month}</span></div>
@@ -665,7 +667,7 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t }) => {
             <button
               onClick={() => onUpgrade('basic')}
               disabled={currentPlan === 'basic'}
-              className={`btn-full ${currentPlan === 'basic' ? 'btn-secondary' : 'btn-primary'}`}
+              className={`btn - full ${currentPlan === 'basic' ? 'btn-secondary' : 'btn-primary'} `}
               style={{ opacity: currentPlan === 'basic' ? 0.5 : 1 }}
             >
               {currentPlan === 'basic' ? t.currentPlan : t.chooseThis}
@@ -673,7 +675,7 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t }) => {
           </div>
 
           {/* Pro Plan */}
-          <div className={`pricing-card ${currentPlan === 'pro' ? 'highlight' : ''}`}>
+          <div className={`pricing - card ${currentPlan === 'pro' ? 'highlight' : ''} `}>
             <h3>{t[PRICING.pro.key]}</h3>
             <div className="price">{PRICING.pro.price}<span>{t.month}</span></div>
             <ul className="features-list">
@@ -684,7 +686,7 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t }) => {
             <button
               onClick={() => onUpgrade('pro')}
               disabled={currentPlan === 'pro'}
-              className={`btn-full ${currentPlan === 'pro' ? 'btn-secondary' : 'btn-secondary'}`}
+              className={`btn - full ${currentPlan === 'pro' ? 'btn-secondary' : 'btn-secondary'} `}
               style={{ opacity: currentPlan === 'pro' ? 0.5 : 1 }}
             >
               {currentPlan === 'pro' ? t.currentPlan : t.chooseThis}
@@ -849,7 +851,14 @@ function App() {
           }
         } catch (bgError) {
           console.error("Background Sync Error:", bgError);
-          // Alert removed as requested.
+          // Update the specific card in local state to show ERROR instead of Spinner
+          setCards(prev => prev.map(c => {
+            // Match by ID (handling the temp ID or persistent ID)
+            if (c.id === (editingCard?.id || optimisticCard.id)) {
+              return { ...c, _isPending: false, _error: bgError.message };
+            }
+            return c;
+          }));
         }
       })();
 
@@ -1029,7 +1038,12 @@ function App() {
                         color: 'white',
                         pointerEvents: 'none'
                       }}>
-                        {card._isPending ? (
+                        {card._error ? (
+                          <>
+                            <AlertCircle size={12} className="text-red-500" />
+                            <span style={{ color: '#ef4444', fontWeight: 'bold' }} title={card._error}>Erreur Synchro</span>
+                          </>
+                        ) : card._isPending ? (
                           <>
                             <RefreshCw size={12} className="spin-slow" />
                             <span>En attente...</span>
@@ -1066,7 +1080,7 @@ function App() {
 
                       <button
                         onClick={() => setSharedCardId(sharedCardId === card.id ? null : card.id)}
-                        className={`share-btn ${sharedCardId === card.id ? 'active' : ''}`}
+                        className={`share - btn ${sharedCardId === card.id ? 'active' : ''} `}
                       >
                         <Share2 size={18} />
                         {sharedCardId === card.id ? t.close : t.share}
