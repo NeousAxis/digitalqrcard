@@ -54,7 +54,19 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+
+// Debug: Check if config is loaded
+console.log('Firebase Config Loaded:', {
+  projectId: firebaseConfig.projectId,
+  authDomain: firebaseConfig.authDomain,
+  apiKeyPresent: !!firebaseConfig.apiKey
+});
+
+// Use initializeFirestore to force long polling if websockets are blocked/unstable
+import { initializeFirestore } from 'firebase/firestore';
+const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true,
+});
 const auth = getAuth(app);
 const generateVCard = (card) => {
   const nameParts = card.name ? card.name.trim().split(/\s+/) : [];
