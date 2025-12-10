@@ -329,27 +329,29 @@ N:;${card.name || ''};;;
 FN:${card.name || ''}
 ORG:${company || ''}
 TITLE:${title || ''}
-${fields.map(f => {
-                // Smart VCard Mapping
-                const val = f.value;
-                const lbl = (f.label || '').toLowerCase();
+${fields
+                  .filter(f => f.type !== 'title' && f.type !== 'company') // <--- FIX: Exclude title/company from loop to avoid duplication in Notes
+                  .map(f => {
+                    // Smart VCard Mapping
+                    const val = f.value;
+                    const lbl = (f.label || '').toLowerCase();
 
-                if (f.type === 'phone' || lbl.includes('phone') || lbl.includes('tel') || lbl.includes('mobile')) {
-                  return `TEL;TYPE=CELL,VOICE:${val}`;
-                }
-                if (f.type === 'email' || lbl.includes('email') || lbl.includes('mail')) {
-                  return `EMAIL;TYPE=WORK,INTERNET:${val}`;
-                }
-                if (f.type === 'website' || lbl.includes('web') || lbl.includes('site')) {
-                  return `URL:${val}`;
-                }
-                if (f.type === 'location' || lbl.includes('address') || lbl.includes('adresse')) {
-                  return `ADR;TYPE=WORK:;;${val};;;;`;
-                }
-                // Fallback to Note
-                const noteLabel = f.label || f.type || 'Info';
-                return `NOTE:${noteLabel.toUpperCase()}: ${val}`;
-              }).join('\n')}
+                    if (f.type === 'phone' || lbl.includes('phone') || lbl.includes('tel') || lbl.includes('mobile')) {
+                      return `TEL;TYPE=CELL,VOICE:${val}`;
+                    }
+                    if (f.type === 'email' || lbl.includes('email') || lbl.includes('mail')) {
+                      return `EMAIL;TYPE=WORK,INTERNET:${val}`;
+                    }
+                    if (f.type === 'website' || lbl.includes('web') || lbl.includes('site')) {
+                      return `URL:${val}`;
+                    }
+                    if (f.type === 'location' || lbl.includes('address') || lbl.includes('adresse')) {
+                      return `ADR;TYPE=WORK:;;${val};;;;`;
+                    }
+                    // Fallback to Note
+                    const noteLabel = f.label || f.type || 'Info';
+                    return `NOTE:${noteLabel.toUpperCase()}: ${val}`;
+                  }).join('\n')}
 END:VCARD`}
               size={160}
               level="M"
@@ -682,7 +684,7 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t }) => {
             <button
               onClick={() => onUpgrade('pro')}
               disabled={currentPlan === 'pro'}
-              className={`btn-full ${currentPlan === 'pro' ? 'btn-secondary' : 'btn-primary'}`}
+              className={`btn-full ${currentPlan === 'pro' ? 'btn-secondary' : 'btn-secondary'}`}
               style={{ opacity: currentPlan === 'pro' ? 0.5 : 1 }}
             >
               {currentPlan === 'pro' ? t.currentPlan : t.chooseThis}
@@ -809,24 +811,47 @@ function App() {
 
       let targetDocRef;
 
-      // 1. Perform the Write Operation (Optimistic - resolves when written to local cache)
-      if (editingCard) {
-        targetDocRef = doc(db, 'users', user.uid, 'cards', editingCard.id);
-        await setDoc(targetDocRef, dataToSave);
-      } else {
-        targetDocRef = await addDoc(collection(db, 'users', user.uid, 'cards'), dataToSave);
-      }
+      // 1. OPTIMISTIC UPDATE (Instant Feedback)
+      // This ensures the "spinner" stops immediately and user sees their card.
+      const optimisticCard = {
+        ...dataToSave,
+        id: editingCard?.id || 'temp_' + Date.now(),
+        _isPending: true
+      };
 
-      // 2. SUCCESS (Immediate UI feedback)
-      // We rely on the Dashboard 'Sync Icons' to tell the user when it's on the server.
-      setStatusMessage({ type: 'success', text: 'Carte enregistrée ! Synchro en arrière-plan...' });
+      setCards(prev => {
+        if (editingCard) {
+          return prev.map(c => c.id === editingCard.id ? optimisticCard : c);
+        }
+        return [...prev, optimisticCard];
+      });
 
-      // Short delay for user to read the message
-      await new Promise(r => setTimeout(r, 1000));
+      setStatusMessage({ type: 'success', text: 'Enregistré !' });
 
-      setView('dashboard');
-      setEditingCard(null);
-      setStatusMessage(null);
+      // Immediate switch
+      setTimeout(() => {
+        setView('dashboard');
+        setEditingCard(null);
+        setStatusMessage(null);
+        setIsSaving(false);
+      }, 500);
+
+      // 2. BACKGROUND SYNC
+      // We process the write in background. The onSnapshot listener will eventually
+      // replace our optimistic card with the real server data (confirming sync).
+      (async () => {
+        try {
+          if (editingCard) {
+            const docRef = doc(db, 'users', user.uid, 'cards', editingCard.id);
+            await setDoc(docRef, dataToSave);
+          } else {
+            await addDoc(collection(db, 'users', user.uid, 'cards'), dataToSave);
+          }
+        } catch (bgError) {
+          console.error("Background Sync Error:", bgError);
+          // Optional: You could show a global toast here if sync fails deeply
+        }
+      })();
 
     } catch (error) {
       console.error("Error saving card:", error);
