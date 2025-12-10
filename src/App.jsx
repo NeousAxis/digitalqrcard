@@ -41,7 +41,7 @@ import {
   doc,
   deleteDoc
 } from 'firebase/firestore';
-import { getAuth, signInAnonymously, signOut, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, signInAnonymously, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from 'firebase/auth';
 // --- Utils ---
 const THEME_COLORS = {
   // Gradients (Radiants)
@@ -94,6 +94,8 @@ const db = initializeFirestore(app, {
 });
 
 const auth = getAuth(app);
+// CRITICAL: Ensure persistence is LOCAL so user ID survives refresh
+setPersistence(auth, browserLocalPersistence).catch(console.error);
 const generateVCard = (card) => {
   const nameParts = card.name ? card.name.trim().split(/\s+/) : [];
   const lastName = nameParts.length > 1 ? nameParts.pop() : '';
@@ -719,23 +721,20 @@ function App() {
 
   const t = TRANSLATIONS[lang];
   // Listen for auth state changes
+  // Listen for auth state changes with explicit persistence handling
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (u) => {
-      if (!u) {
-        signInAnonymously(auth).catch(console.error);
-        return;
-      }
-      setUser(u);
+    // Only attempt sign-in if we are sure no user is loaded after initial check
+    // We let onAuthStateChanged handle the initial 'restore' from local storage first.
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
       if (u) {
-        // Load subscription from Firestore
-        try {
-          // Logic for reading subscription if needed (stub)
-        } catch (e) {
-          console.error(e);
-        }
+        setUser(u);
+        setEditingCard(null); // Reset logic to avoid confusion
       } else {
-        setCards([]);
-        setSubscription('free');
+        // Only sign in if strictly necessary and not ensuring persistence
+        signInAnonymously(auth).catch((error) => {
+          console.error("Auth Error:", error);
+          // If error is network, do not retry infinitely
+        });
       }
     });
     return () => unsubscribe();
