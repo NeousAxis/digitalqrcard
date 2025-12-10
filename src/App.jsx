@@ -673,18 +673,32 @@ function App() {
   useEffect(() => {
     if (!user) return;
 
-    // Use onSnapshot for real-time updates and sync status
+    // Load from Local Backup first (Instant UI)
+    const localBackup = localStorage.getItem(`cards_backup_${user.uid}`);
+    if (localBackup) {
+      try {
+        setCards(JSON.parse(localBackup));
+      } catch (e) { console.error('Backup load failed', e); }
+    }
+
+    // Then listen to Firebase
     const colRef = collection(db, 'users', user.uid, 'cards');
 
     const unsubscribe = onSnapshot(colRef, (snapshot) => {
       const loaded = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-        _isPending: doc.metadata.hasPendingWrites // Track if data is only local
+        _isPending: doc.metadata.hasPendingWrites
       }));
+      // Merge logic: If we have pending local writes, we might want to keep them?
+      // For now, Firestore local persistence should handle this, so we trust snapshot.
       setCards(loaded);
+
+      // Update backup
+      localStorage.setItem(`cards_backup_${user.uid}`, JSON.stringify(loaded));
     }, (error) => {
       console.error("Error fetching cards:", error);
+      // If offline/error, we rely on the backup we loaded above
     });
 
     return () => unsubscribe();
@@ -738,22 +752,34 @@ function App() {
 
       console.log('Sending to Firestore...');
 
-      if (editingCard) {
-        // Update existing document
-        const docRef = doc(db, 'users', user.uid, 'cards', editingCard.id);
-        await setDoc(docRef, dataToSave);
-        setCards(cards.map(c => c.id === editingCard.id ? { ...cardData, id: editingCard.id } : c));
-      } else {
-        // Add new document
-        const docRef = await addDoc(collection(db, 'users', user.uid, 'cards'), dataToSave);
-        setCards([...cards, { ...cardData, id: docRef.id }]);
-      }
+      // 1. SAVE TO LOCAL BACKUP (Failsafe)
+      const newCardState = editingCard
+        ? cards.map(c => c.id === editingCard.id ? { ...cardData, id: editingCard.id, _isPending: true } : c)
+        : [...cards, { ...cardData, id: 'temp_' + Date.now(), _isPending: true }];
 
-      setStatusMessage({ type: 'success', text: 'Carte enregistrée (synchro en cours) !' });
-      await new Promise(r => setTimeout(r, 800));
+      localStorage.setItem(`cards_backup_${user.uid}`, JSON.stringify(newCardState));
+      // Optimistic UI update
+      setCards(newCardState);
       setView('dashboard');
       setEditingCard(null);
       setStatusMessage(null);
+
+      // 2. SEND TO FIREBASE (Background)
+      // We don't await this for the UI to close, but we log errors
+      (async () => {
+        try {
+          if (editingCard) {
+            const docRef = doc(db, 'users', user.uid, 'cards', editingCard.id);
+            await setDoc(docRef, dataToSave);
+          } else {
+            await addDoc(collection(db, 'users', user.uid, 'cards'), dataToSave);
+          }
+        } catch (err) {
+          console.error("Background sync failed:", err);
+          // The onSnapshot listener will handle eventual consistency
+        }
+      })();
+
     } catch (error) {
       console.error("Error saving card:", error);
       setStatusMessage({ type: 'error', text: error.message });
