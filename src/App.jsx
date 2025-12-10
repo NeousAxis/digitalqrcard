@@ -41,7 +41,7 @@ import {
   doc,
   deleteDoc
 } from 'firebase/firestore';
-import { getAuth, signInAnonymously, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from 'firebase/auth';
+import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from 'firebase/auth';
 // --- Utils ---
 const THEME_COLORS = {
   // Gradients (Radiants)
@@ -723,22 +723,29 @@ function App() {
   // Listen for auth state changes
   // Listen for auth state changes with explicit persistence handling
   useEffect(() => {
-    // Only attempt sign-in if we are sure no user is loaded after initial check
-    // We let onAuthStateChanged handle the initial 'restore' from local storage first.
     const unsubscribe = onAuthStateChanged(auth, (u) => {
-      if (u) {
-        setUser(u);
-        setEditingCard(null); // Reset logic to avoid confusion
-      } else {
-        // Only sign in if strictly necessary and not ensuring persistence
-        signInAnonymously(auth).catch((error) => {
-          console.error("Auth Error:", error);
-          // If error is network, do not retry infinitely
-        });
+      setUser(u);
+      if (!u) {
+        setCards([]); // Clear data on logout
+        setSubscription('free');
       }
     });
     return () => unsubscribe();
   }, []);
+
+  const handleLogin = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      console.error("Login Error:", error);
+      alert("Erreur de connexion : " + error.message);
+    }
+  };
+
+  const handleLogout = async () => {
+    await signOut(auth);
+  };
 
   // Separate effect for data loading when user changes
   useEffect(() => {
@@ -899,11 +906,7 @@ function App() {
 
 
 
-  const handleLogout = async () => {
-    await signOut(auth);
-    setCards([]);
-    setSubscription('free');
-  };
+
 
   const toggleLang = () => {
     setLang(l => l === 'en' ? 'fr' : 'en');
@@ -951,17 +954,14 @@ function App() {
               <div className="plan-info">
                 <span className="plan-badge">{subscription}</span> <span style={{ fontSize: '0.85rem', opacity: 0.8 }}>({cards.length}/{limit})</span>
               </div>
-              <button
-                onClick={() => setShowPricing(true)}
-                className="btn-secondary"
-              >
-                {t.manageSub}
+              <button onClick={handleLogout} className="icon-btn" title="Sign Out">
+                <LogOut size={20} className="text-white" />
               </button>
             </>
           ) : (
-            <div style={{ color: 'white', fontSize: '0.8rem' }}>
-              Loading Auth...
-            </div>
+            <button onClick={handleLogin} className="btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
+              <LogIn size={16} style={{ marginRight: '0.5rem' }} /> Connexion (Google)
+            </button>
           )}
         </div>
       </header>
@@ -1008,7 +1008,14 @@ function App() {
                   >
                     {t.createFirst}
                   </button>
-                ) : null}
+                ) : (
+                  <div style={{ marginTop: '1rem' }}>
+                    <p style={{ marginBottom: '1rem' }}>Connectez-vous pour sauvegarder et synchroniser vos cartes sur tous vos appareils.</p>
+                    <button onClick={handleLogin} className="btn-primary">
+                      <LogIn size={18} style={{ marginRight: '0.5rem' }} /> Se connecter avec Google
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="cards-grid">
