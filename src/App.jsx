@@ -703,43 +703,30 @@ function App() {
       if (u) {
         // Load subscription from Firestore
         try {
-          // Logic for  .spin-slow {
-          animation: spin 3s linear infinite;
+          overflow: hidden;
+          box - shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+          color: #334155;
+          display: flex;
+          flex - direction: column;
+          position: relative;
+          transition: transform 0.2s;
+          height: 100 %;
         }
-
-  @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-        }
-
-/* --- PRO CARD DESIGN --- */
-.pro - card {
-        background: white;
-    border - radius: 1.5rem;
-    overflow: hidden;
-    box - shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-    color: #334155;
-    display: flex;
-    flex - direction: column;
-    position: relative;
-    transition: transform 0.2s;
-    height: 100 %;
-  }
 
 .pro - card: hover {
-    transform: translateY(-5px);
-  }
+        transform: translateY(-5px);
+}
 
     .pro - header - banner {
-      height: 120px;
-      width: 100 %;
-      position: relative;
-    }
+  height: 120px;
+  width: 100 %;
+  position: relative;
+}
 
       .pro - avatar - wrapper {
-        width: 100px;
-        height: 100px;
-        border- radius: 50 %;
+  width: 100px;
+  height: 100px;
+  border - radius: 50 %;
   background: white;
   padding: 4px;
   position: absolute;
