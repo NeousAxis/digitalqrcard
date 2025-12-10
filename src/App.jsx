@@ -708,6 +708,7 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t }) => {
       </div>
     </div>
 
+  );
 };
 
 const AuthModal = ({ onClose, onLoginGoogle }) => {
