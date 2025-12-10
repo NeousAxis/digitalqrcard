@@ -323,12 +323,34 @@ const CardPreview = ({ card, showQR, onClick, t }) => {
         {showQR ? (
           <div style={{ margin: '1rem 0' }}>
             <QRCodeSVG
-              value={`BEGIN:VCARD\nVERSION:3.0\nFN:${card.name}\n${fields.map(f => {
-                if (f.type === 'phone') return `TEL:${f.value}`;
-                if (f.type === 'email') return `EMAIL:${f.value}`;
-                if (f.type === 'website') return `URL:${f.value}`;
-                return `NOTE:${f.label || f.type}: ${f.value}`;
-              }).join('\n')}\nEND:VCARD`}
+              value={`BEGIN:VCARD
+VERSION:3.0
+N:;${card.name || ''};;;
+FN:${card.name || ''}
+ORG:${company || ''}
+TITLE:${title || ''}
+${fields.map(f => {
+                // Smart VCard Mapping
+                const val = f.value;
+                const lbl = (f.label || '').toLowerCase();
+
+                if (f.type === 'phone' || lbl.includes('phone') || lbl.includes('tel') || lbl.includes('mobile')) {
+                  return `TEL;TYPE=CELL,VOICE:${val}`;
+                }
+                if (f.type === 'email' || lbl.includes('email') || lbl.includes('mail')) {
+                  return `EMAIL;TYPE=WORK,INTERNET:${val}`;
+                }
+                if (f.type === 'website' || lbl.includes('web') || lbl.includes('site')) {
+                  return `URL:${val}`;
+                }
+                if (f.type === 'location' || lbl.includes('address') || lbl.includes('adresse')) {
+                  return `ADR;TYPE=WORK:;;${val};;;;`;
+                }
+                // Fallback to Note
+                const noteLabel = f.label || f.type || 'Info';
+                return `NOTE:${noteLabel.toUpperCase()}: ${val}`;
+              }).join('\n')}
+END:VCARD`}
               size={160}
               level="M"
             />
@@ -660,7 +682,7 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t }) => {
             <button
               onClick={() => onUpgrade('pro')}
               disabled={currentPlan === 'pro'}
-              className={`btn-full ${currentPlan === 'pro' ? 'btn-secondary' : 'btn-secondary'}`}
+              className={`btn-full ${currentPlan === 'pro' ? 'btn-secondary' : 'btn-primary'}`}
               style={{ opacity: currentPlan === 'pro' ? 0.5 : 1 }}
             >
               {currentPlan === 'pro' ? t.currentPlan : t.chooseThis}
@@ -787,7 +809,7 @@ function App() {
 
       let targetDocRef;
 
-      // 1. Perform the Write Operation
+      // 1. Perform the Write Operation (Optimistic - resolves when written to local cache)
       if (editingCard) {
         targetDocRef = doc(db, 'users', user.uid, 'cards', editingCard.id);
         await setDoc(targetDocRef, dataToSave);
@@ -795,32 +817,12 @@ function App() {
         targetDocRef = await addDoc(collection(db, 'users', user.uid, 'cards'), dataToSave);
       }
 
-      // 2. WAIT FOR SERVER CONFIRMATION (Trusted Save)
-      setStatusMessage({ type: 'info', text: 'Attente de la confirmation du serveur (max 30s)...' });
+      // 2. SUCCESS (Immediate UI feedback)
+      // We rely on the Dashboard 'Sync Icons' to tell the user when it's on the server.
+      setStatusMessage({ type: 'success', text: 'Carte enregistrée ! Synchro en arrière-plan...' });
 
-      await new Promise((resolve, reject) => {
-        const timeoutId = setTimeout(() => {
-          unsubscribe();
-          reject(new Error("Délai d'attente dépassé (30s). Le serveur n'a pas confirmé l'écriture. Vérifiez votre connexion internet."));
-        }, 30000); // 30 seconds timeout
-
-        const unsubscribe = onSnapshot(targetDocRef, (snap) => {
-          // Check metadata: hasPendingWrites is false ONLY when server has ack'd
-          // Also check if doc exists to avoid false positives (though delete is unlikely here)
-          if (snap && !snap.metadata.hasPendingWrites) {
-            clearTimeout(timeoutId);
-            unsubscribe();
-            resolve();
-          }
-        });
-      });
-
-      // 3. Success only if we passed step 2
-      setStatusMessage({ type: 'success', text: '✅ Confirmé : Carte sécurisée dans la base de données.' });
-
-      // Update local state strictly from what we just saved (or let the main listener handle it)
-      // We trigger a close after a short delay to let user see the green tick
-      await new Promise(r => setTimeout(r, 1500));
+      // Short delay for user to read the message
+      await new Promise(r => setTimeout(r, 1000));
 
       setView('dashboard');
       setEditingCard(null);
