@@ -62,11 +62,20 @@ console.log('Firebase Config Loaded:', {
   apiKeyPresent: !!firebaseConfig.apiKey
 });
 
-// Use initializeFirestore to force long polling if websockets are blocked/unstable
-import { initializeFirestore } from 'firebase/firestore';
+// Initialize Firestore with Offline Persistence to avoid blocking UI on network issues
+import {
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager
+} from 'firebase/firestore';
+
 const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true,
+  experimentalForceLongPolling: true, // Keep this for better firewall traversal
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager()
+  })
 });
+
 const auth = getAuth(app);
 const generateVCard = (card) => {
   const nameParts = card.name ? card.name.trim().split(/\s+/) : [];
@@ -714,27 +723,21 @@ function App() {
       const dataToSave = JSON.parse(JSON.stringify(rawData));
       dataToSave.updatedAt = new Date().toISOString();
 
-      setStatusMessage({ type: 'info', text: 'Envoi vers le serveur (cela peut prendre 5-10s)...' });
-
-      // Timeout promise
-      const timeout = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Le serveur met trop de temps à répondre. Vérifiez votre connexion.")), 15000)
-      );
+      console.log('Sending to Firestore...');
 
       if (editingCard) {
-        // Update existing document for this user
+        // Update existing document
         const docRef = doc(db, 'users', user.uid, 'cards', editingCard.id);
-        await Promise.race([setDoc(docRef, dataToSave), timeout]);
+        await setDoc(docRef, dataToSave);
         setCards(cards.map(c => c.id === editingCard.id ? { ...cardData, id: editingCard.id } : c));
       } else {
-        // Add new document for this user
-        await Promise.race([addDoc(collection(db, 'users', user.uid, 'cards'), dataToSave), timeout]).then(docRef => {
-          setCards([...cards, { ...cardData, id: docRef.id }]);
-        });
+        // Add new document
+        const docRef = await addDoc(collection(db, 'users', user.uid, 'cards'), dataToSave);
+        setCards([...cards, { ...cardData, id: docRef.id }]);
       }
 
-      setStatusMessage({ type: 'success', text: 'Enregistré avec succès !' });
-      await new Promise(r => setTimeout(r, 500)); // Show success briefly
+      setStatusMessage({ type: 'success', text: 'Carte enregistrée (synchro en cours) !' });
+      await new Promise(r => setTimeout(r, 800));
       setView('dashboard');
       setEditingCard(null);
       setStatusMessage(null);
