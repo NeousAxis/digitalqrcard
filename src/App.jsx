@@ -703,515 +703,378 @@ function App() {
       if (u) {
         // Load subscription from Firestore
         try {
-          overflow: hidden;
-          box - shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-          color: #334155;
-          display: flex;
-          flex - direction: column;
-          position: relative;
-          transition: transform 0.2s;
-          height: 100 %;
+          // Logic for reading subscription if needed (stub)
+        } catch (e) {
+          console.error(e);
         }
-
-.pro - card: hover {
-        transform: translateY(-5px);
-}
-
-    .pro - header - banner {
-  height: 120px;
-  width: 100 %;
-  position: relative;
-}
-
-      .pro - avatar - wrapper {
-  width: 100px;
-  height: 100px;
-  border - radius: 50 %;
-  background: white;
-  padding: 4px;
-  position: absolute;
-  top: 70px;
-  left: 50 %;
-  transform: translateX(-50 %);
-  z - index: 10;
-  box - shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.pro - avatar {
-  width: 100 %;
-  height: 100 %;
-  border - radius: 50 %;
-  background: #f1f5f9;
-  display: flex;
-  align - items: center;
-  justify - content: center;
-  overflow: hidden;
-}
-
-.pro - content {
-  padding: 3.5rem 1.5rem 2rem 1.5rem; /* Top padding clears avatar */
-  text - align: center;
-  flex: 1;
-  display: flex;
-  flex - direction: column;
-  align - items: center;
-}
-
-.pro - name {
-  font - size: 1.5rem;
-  font - weight: 800;
-  color: #0f172a;
-  margin: 0 0 0.25rem 0;
-  line - height: 1.2;
-}
-
-.pro - title {
-  font - size: 0.95rem;
-  color: #64748b;
-  margin: 0 0 1.5rem 0;
-  font - weight: 500;
-}
-
-.pro - actions - row {
-  display: flex;
-  justify - content: center;
-  gap: 1.5rem;
-  margin - bottom: 2rem;
-  width: 100 %;
-}
-
-.pro - action - btn {
-  width: 3.5rem;
-  height: 3.5rem;
-  border - radius: 50 %;
-  display: flex;
-  align - items: center;
-  justify - content: center;
-  background: #f8fafc;
-  color: #334155;
-  transition: all 0.2s;
-  border: 1px solid #e2e8f0;
-  font - size: 1.5rem;
-}
-
-.pro - action - btn:hover {
-  transform: scale(1.1);
-  box - shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-/* Specific colors for actions */
-.action - phone { color: #0ea5e9; background: #e0f2fe; border - color: #bae6fd; }
-.action - email { color: #f43f5e; background: #ffe4e6; border - color: #fecdd3; }
-.action - web { color: #8b5cf6; background: #ede9fe; border - color: #ddd6fe; }
-.action - map { color: #10b981; background: #d1fae5; border - color: #6ee7b7; }
-
-.pro - details - list {
-  width: 100 %;
-  margin - top: auto;
-  padding - top: 1.5rem;
-  border - top: 1px solid #f1f5f9;
-}
-
-.pro - detail - item {
-  display: flex;
-  align - items: center;
-  gap: 1rem;
-  padding: 0.75rem 0;
-  color: #64748b;
-  font - size: 0.9rem;
-  text - align: left;
-}
-
-.pro - detail - icon {
-  color: #94a3b8;
-  width: 1.25rem;
-  display: flex;
-  justify - content: center;
-}
-
-.pro - footer - btn {
-  margin - top: 1.5rem;
-  width: 100 %;
-  padding: 0.875rem;
-  border - radius: 0.75rem; /* Rounded button */
-  background: white;
-  border: 2px solid; /* Uses theme color via inline style */
-  font - weight: 700;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.pro - footer - btn:hover {
-  opacity: 0.9;
-  transform: translateY(-2px);
-}
-setCards([]);
-setSubscription('free');
+      } else {
+        setCards([]);
+        setSubscription('free');
       }
     });
-return () => unsubscribe();
+    return () => unsubscribe();
   }, []);
 
-// Separate effect for data loading when user changes
-useEffect(() => {
-  if (!user) return;
+  // Separate effect for data loading when user changes
+  useEffect(() => {
+    if (!user) return;
 
-  // Then listen to Firebase
-  const colRef = collection(db, 'users', user.uid, 'cards');
+    // Then listen to Firebase
+    const colRef = collection(db, 'users', user.uid, 'cards');
 
-  const unsubscribe = onSnapshot(colRef, (snapshot) => {
-    const loaded = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      _isPending: doc.metadata.hasPendingWrites
-    }));
-    setCards(loaded);
-  }, (error) => {
-    console.error("Error fetching cards:", error);
-  });
+    const unsubscribe = onSnapshot(colRef, (snapshot) => {
+      const loaded = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        _isPending: doc.metadata.hasPendingWrites
+      }));
+      setCards(loaded);
+    }, (error) => {
+      console.error("Error fetching cards:", error);
+    });
 
-  return () => unsubscribe();
-}, [user]);
+    return () => unsubscribe();
+  }, [user]);
 
 
 
-// Keep subscription in localStorage (still simple) -> REMOVED in favor of Firestore
-// useEffect(() => {
-//   localStorage.setItem('subscription', subscription);
-// }, [subscription]);
+  // Keep subscription in localStorage (still simple) -> REMOVED in favor of Firestore
+  // useEffect(() => {
+  //   localStorage.setItem('subscription', subscription);
+  // }, [subscription]);
 
-const limit = SUBSCRIPTION_LIMITS[subscription];
-const canAddCard = cards.length < limit;
+  const limit = SUBSCRIPTION_LIMITS[subscription];
+  const canAddCard = cards.length < limit;
 
-const [statusMessage, setStatusMessage] = useState(null);
+  const [statusMessage, setStatusMessage] = useState(null);
 
-const handleSaveCard = async (cardData) => {
-  setIsSaving(true);
-  setStatusMessage({ type: 'info', text: 'Vérification de la connexion...' });
+  const handleSaveCard = async (cardData) => {
+    setIsSaving(true);
+    setStatusMessage({ type: 'info', text: 'Vérification de la connexion...' });
 
-  if (!navigator.onLine) {
-    alert('Pas de connexion internet détectée.');
-    setStatusMessage({ type: 'error', text: 'Pas de connexion internet.' });
-    setIsSaving(false);
-    return;
-  }
-
-  if (!user?.uid) {
-    setStatusMessage({ type: 'error', text: 'Authentification requise. Veuillez patienter...' });
-    // Try to wait a bit for auth
-    await new Promise(r => setTimeout(r, 1000));
-    if (!auth.currentUser) {
-      alert('Erreur: Vous n\'êtes pas connecté au serveur.');
-      setStatusMessage({ type: 'error', text: 'Erreur d\'authentification. Rechargez la page.' });
+    if (!navigator.onLine) {
+      alert('Pas de connexion internet détectée.');
+      setStatusMessage({ type: 'error', text: 'Pas de connexion internet.' });
       setIsSaving(false);
       return;
     }
-  }
 
-  try {
-    setStatusMessage({ type: 'info', text: 'Préparation des données...' });
-
-    // Remove the temporary 'id' if it's a new card
-    // eslint-disable-next-line no-unused-vars
-    const { id, ...rawData } = cardData;
-
-    // Sanitize data
-    const dataToSave = JSON.parse(JSON.stringify(rawData));
-    dataToSave.updatedAt = new Date().toISOString();
-
-    console.log('Sending to Firestore...');
-    setStatusMessage({ type: 'info', text: 'Envoi au serveur en cours...' });
-
-    let targetDocRef;
-
-    // 1. Perform the Write Operation
-    if (editingCard) {
-      targetDocRef = doc(db, 'users', user.uid, 'cards', editingCard.id);
-      await setDoc(targetDocRef, dataToSave);
-    } else {
-      targetDocRef = await addDoc(collection(db, 'users', user.uid, 'cards'), dataToSave);
+    if (!user?.uid) {
+      setStatusMessage({ type: 'error', text: 'Authentification requise. Veuillez patienter...' });
+      // Try to wait a bit for auth
+      await new Promise(r => setTimeout(r, 1000));
+      if (!auth.currentUser) {
+        alert('Erreur: Vous n\'êtes pas connecté au serveur.');
+        setStatusMessage({ type: 'error', text: 'Erreur d\'authentification. Rechargez la page.' });
+        setIsSaving(false);
+        return;
+      }
     }
 
-    // 2. WAIT FOR SERVER CONFIRMATION (Trusted Save)
-    setStatusMessage({ type: 'info', text: 'Attente de la confirmation du serveur...' });
+    try {
+      setStatusMessage({ type: 'info', text: 'Préparation des données...' });
 
-    await new Promise((resolve, reject) => {
-      const timeoutId = setTimeout(() => {
-        unsubscribe();
-        reject(new Error("Le serveur n'a pas confirmé l'enregistrement après 10 secondes. Vérifiez votre connexion."));
-      }, 10000);
+      // Remove the temporary 'id' if it's a new card
+      // eslint-disable-next-line no-unused-vars
+      const { id, ...rawData } = cardData;
 
-      const unsubscribe = onSnapshot(targetDocRef, (snap) => {
-        // Check metadata: hasPendingWrites is false ONLY when server has ack'd
-        if (!snap.metadata.hasPendingWrites) {
-          clearTimeout(timeoutId);
+      // Sanitize data
+      const dataToSave = JSON.parse(JSON.stringify(rawData));
+      dataToSave.updatedAt = new Date().toISOString();
+
+      console.log('Sending to Firestore...');
+      setStatusMessage({ type: 'info', text: 'Envoi au serveur en cours...' });
+
+      let targetDocRef;
+
+      // 1. Perform the Write Operation
+      if (editingCard) {
+        targetDocRef = doc(db, 'users', user.uid, 'cards', editingCard.id);
+        await setDoc(targetDocRef, dataToSave);
+      } else {
+        targetDocRef = await addDoc(collection(db, 'users', user.uid, 'cards'), dataToSave);
+      }
+
+      // 2. WAIT FOR SERVER CONFIRMATION (Trusted Save)
+      setStatusMessage({ type: 'info', text: 'Attente de la confirmation du serveur...' });
+
+      await new Promise((resolve, reject) => {
+        const timeoutId = setTimeout(() => {
           unsubscribe();
-          resolve();
-        }
+          reject(new Error("Le serveur n'a pas confirmé l'enregistrement après 10 secondes. Vérifiez votre connexion."));
+        }, 10000);
+
+        const unsubscribe = onSnapshot(targetDocRef, (snap) => {
+          // Check metadata: hasPendingWrites is false ONLY when server has ack'd
+          if (!snap.metadata.hasPendingWrites) {
+            clearTimeout(timeoutId);
+            unsubscribe();
+            resolve();
+          }
+        });
       });
-    });
 
-    // 3. Success only if we passed step 2
-    setStatusMessage({ type: 'success', text: '✅ Confirmé : Carte sécurisée dans la base de données.' });
+      // 3. Success only if we passed step 2
+      setStatusMessage({ type: 'success', text: '✅ Confirmé : Carte sécurisée dans la base de données.' });
 
-    // Update local state strictly from what we just saved (or let the main listener handle it)
-    // We trigger a close after a short delay to let user see the green tick
-    await new Promise(r => setTimeout(r, 1500));
+      // Update local state strictly from what we just saved (or let the main listener handle it)
+      // We trigger a close after a short delay to let user see the green tick
+      await new Promise(r => setTimeout(r, 1500));
 
-    setView('dashboard');
-    setEditingCard(null);
-    setStatusMessage(null);
+      setView('dashboard');
+      setEditingCard(null);
+      setStatusMessage(null);
 
-  } catch (error) {
-    console.error("Error saving card:", error);
-    setStatusMessage({ type: 'error', text: error.message });
-    // Do NOT close modal so user can retry
-  } finally {
-    setIsSaving(false);
-  }
-};
+    } catch (error) {
+      console.error("Error saving card:", error);
+      setStatusMessage({ type: 'error', text: error.message });
+      // Do NOT close modal so user can retry
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
-const handleDelete = async (id) => {
-  if (!user?.uid) {
-    return;
-  }
-  if (confirm(t.confirmDelete)) {
-    const docRef = doc(db, 'users', user.uid, 'cards', id);
-    await deleteDoc(docRef);
-    setCards(cards.filter(c => c.id !== id));
-  }
-};
+  const handleDelete = async (id) => {
+    if (!user?.uid) {
+      return;
+    }
+    if (confirm(t.confirmDelete)) {
+      const docRef = doc(db, 'users', user.uid, 'cards', id);
+      await deleteDoc(docRef);
+      setCards(cards.filter(c => c.id !== id));
+    }
+  };
 
-const handleUpgrade = async (plan) => {
-  if (!user?.uid) return;
+  const handleUpgrade = async (plan) => {
+    if (!user?.uid) return;
 
-  // In a real app, here you would redirect to Stripe checkout.
-  // On success webhook, you update the DB. 
-  // For now, we simulate immediate upgrade:
+    // In a real app, here you would redirect to Stripe checkout.
+    // On success webhook, you update the DB. 
+    // For now, we simulate immediate upgrade:
 
-  const userRef = doc(db, 'users', user.uid);
-  // Merge true to avoid overwriting other fields
-  await setDoc(userRef, { subscription: plan }, { merge: true });
+    const userRef = doc(db, 'users', user.uid);
+    // Merge true to avoid overwriting other fields
+    await setDoc(userRef, { subscription: plan }, { merge: true });
 
-  setSubscription(plan);
-  setShowPricing(false);
-  alert(`${t.upgraded} ${plan === 'basic' ? t.standard : t.premium} plan.`);
-};
-
+    setSubscription(plan);
+    setShowPricing(false);
+    alert(`${t.upgraded} ${plan === 'basic' ? t.standard : t.premium} plan.`);
+  };
 
 
-const handleLogout = async () => {
-  await signOut(auth);
-  setCards([]);
-  setSubscription('free');
-};
 
-const toggleLang = () => {
-  setLang(l => l === 'en' ? 'fr' : 'en');
-};
+  const handleLogout = async () => {
+    await signOut(auth);
+    setCards([]);
+    setSubscription('free');
+  };
 
-return (
-  <div className="app-container">
-    {/* Header */}
-    <header className="app-header">
-      <div className="brand">
-        <div className="brand-icon">
-          <Smartphone className="text-white" size={24} />
+  const toggleLang = () => {
+    setLang(l => l === 'en' ? 'fr' : 'en');
+  };
+
+  return (
+    <div className="app-container">
+      {/* Header */}
+      <header className="app-header">
+        <div className="brand">
+          <div className="brand-icon">
+            <Smartphone className="text-white" size={24} />
+          </div>
+          <h1 className="brand-name">
+            {t.appName}
+          </h1>
         </div>
-        <h1 className="brand-name">
-          {t.appName}
-        </h1>
-      </div>
 
-      <div className="header-controls">
-        <button
-          onClick={toggleLang}
-          className="lang-btn"
-          title="Switch Language"
-          style={{
-            background: 'rgba(255, 255, 255, 0.1)',
-            border: 'none',
-            borderRadius: '50%',
-            width: '32px',
-            height: '32px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '0.75rem',
-            fontWeight: 'bold',
-            color: 'white',
-            cursor: 'pointer',
-            padding: 0
-          }}
-        >
-          {lang === 'en' ? 'FR' : 'EN'}
-        </button>
+        <div className="header-controls">
+          <button
+            onClick={toggleLang}
+            className="lang-btn"
+            title="Switch Language"
+            style={{
+              background: 'rgba(255, 255, 255, 0.1)',
+              border: 'none',
+              borderRadius: '50%',
+              width: '32px',
+              height: '32px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '0.75rem',
+              fontWeight: 'bold',
+              color: 'white',
+              cursor: 'pointer',
+              padding: 0
+            }}
+          >
+            {lang === 'en' ? 'FR' : 'EN'}
+          </button>
 
-        {user ? (
-          <>
-            <div className="plan-info">
-              <span className="plan-badge">{subscription}</span> <span style={{ fontSize: '0.85rem', opacity: 0.8 }}>({cards.length}/{limit})</span>
-            </div>
-            <button
-              onClick={() => setShowPricing(true)}
-              className="btn-secondary"
-            >
-              {t.manageSub}
-            </button>
-          </>
-        ) : (
-          <div style={{ color: 'white', fontSize: '0.8rem' }}>
-            Loading Auth...
-          </div>
-        )}
-      </div>
-    </header>
-
-    {/* Main Content */}
-    <main className="main-content" style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
-      {view === 'dashboard' ? (
-        <>
-          <div className="dashboard-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-            <h2 className="section-title">{t.yourCards}</h2>
-            {user && (
-              <button
-                onClick={() => {
-                  if (canAddCard) {
-                    setEditingCard(null);
-                    setView('editor');
-                  } else {
-                    setShowPricing(true);
-                  }
-                }}
-                className="btn-primary"
-              >
-                <Plus size={20} /> {t.newCard}
-              </button>
-            )}
-          </div>
-
-          {cards.length === 0 ? (
-            <div className="glass-panel empty-state">
-              <div className="empty-icon">
-                <CreditCard size={40} className="text-gray-500" />
+          {user ? (
+            <>
+              <div className="plan-info">
+                <span className="plan-badge">{subscription}</span> <span style={{ fontSize: '0.85rem', opacity: 0.8 }}>({cards.length}/{limit})</span>
               </div>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>{t.noCards}</h3>
-              <p style={{ color: '#94a3b8', marginBottom: '2rem' }}>
-                {t.startCreating}
-              </p>
-              {user ? (
+              <button
+                onClick={() => setShowPricing(true)}
+                className="btn-secondary"
+              >
+                {t.manageSub}
+              </button>
+            </>
+          ) : (
+            <div style={{ color: 'white', fontSize: '0.8rem' }}>
+              Loading Auth...
+            </div>
+          )}
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="main-content" style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
+        {view === 'dashboard' ? (
+          <>
+            <div className="dashboard-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+              <h2 className="section-title">{t.yourCards}</h2>
+              {user && (
                 <button
                   onClick={() => {
-                    setEditingCard(null);
-                    setView('editor');
+                    if (canAddCard) {
+                      setEditingCard(null);
+                      setView('editor');
+                    } else {
+                      setShowPricing(true);
+                    }
                   }}
                   className="btn-primary"
                 >
-                  {t.createFirst}
+                  <Plus size={20} /> {t.newCard}
                 </button>
-              ) : null}
+              )}
             </div>
-          ) : (
-            <div className="cards-grid">
-              {cards.map(card => (
-                <div key={card.id} className="glass-panel card-wrapper">
-                  <div className="card-preview-container">
-                    <CardPreview
-                      card={card}
-                      showQR={sharedCardId === card.id}
-                      onClick={() => setSharedCardId(sharedCardId === card.id ? null : card.id)}
-                      t={t}
-                    />
-                    {/* Sync Status Indicator */}
-                    <div style={{
-                      position: 'absolute',
-                      top: '10px',
-                      right: '10px',
-                      background: 'rgba(0,0,0,0.6)',
-                      backdropFilter: 'blur(4px)',
-                      padding: '4px 8px',
-                      borderRadius: '12px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      fontSize: '0.75rem',
-                      color: 'white',
-                      pointerEvents: 'none'
-                    }}>
-                      {card._isPending ? (
-                        <>
-                          <RefreshCw size={12} className="spin-slow" />
-                          <span>En attente...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Cloud size={12} className="text-green-400" />
-                          <span style={{ color: '#4ade80' }}>Synchronisé</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
 
-                  <div className="card-actions">
-                    <div className="action-group">
-                      <button
-                        onClick={() => {
-                          setEditingCard(card);
-                          setView('editor');
-                        }}
-                        className="icon-btn"
-                        title={t.edit}
-                      >
-                        <Edit2 size={18} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(card.id)}
-                        className="icon-btn delete"
-                        title={t.delete}
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-
-                    <button
-                      onClick={() => setSharedCardId(sharedCardId === card.id ? null : card.id)}
-                      className={`share-btn ${sharedCardId === card.id ? 'active' : ''}`}
-                    >
-                      <Share2 size={18} />
-                      {sharedCardId === card.id ? t.close : t.share}
-                    </button>
-                  </div>
+            {cards.length === 0 ? (
+              <div className="glass-panel empty-state">
+                <div className="empty-icon">
+                  <CreditCard size={40} className="text-gray-500" />
                 </div>
-              ))}
-            </div>
-          )}
-        </>
-      ) : (
-        <Editor
-          card={editingCard}
-          onSave={handleSaveCard}
-          onCancel={() => {
-            setView('dashboard');
-            setEditingCard(null);
-          }}
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>{t.noCards}</h3>
+                <p style={{ color: '#94a3b8', marginBottom: '2rem' }}>
+                  {t.startCreating}
+                </p>
+                {user ? (
+                  <button
+                    onClick={() => {
+                      setEditingCard(null);
+                      setView('editor');
+                    }}
+                    className="btn-primary"
+                  >
+                    {t.createFirst}
+                  </button>
+                ) : null}
+              </div>
+            ) : (
+              <div className="cards-grid">
+                {cards.map(card => (
+                  <div key={card.id} className="glass-panel card-wrapper">
+                    <div className="card-preview-container">
+                      <CardPreview
+                        card={card}
+                        showQR={sharedCardId === card.id}
+                        onClick={() => setSharedCardId(sharedCardId === card.id ? null : card.id)}
+                        t={t}
+                      />
+                      {/* Sync Status Indicator */}
+                      <div style={{
+                        position: 'absolute',
+                        top: '10px',
+                        right: '10px',
+                        background: 'rgba(0,0,0,0.6)',
+                        backdropFilter: 'blur(4px)',
+                        padding: '4px 8px',
+                        borderRadius: '12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        fontSize: '0.75rem',
+                        color: 'white',
+                        pointerEvents: 'none'
+                      }}>
+                        {card._isPending ? (
+                          <>
+                            <RefreshCw size={12} className="spin-slow" />
+                            <span>En attente...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Cloud size={12} className="text-green-400" />
+                            <span style={{ color: '#4ade80' }}>Synchronisé</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="card-actions">
+                      <div className="action-group">
+                        <button
+                          onClick={() => {
+                            setEditingCard(card);
+                            setView('editor');
+                          }}
+                          className="icon-btn"
+                          title={t.edit}
+                        >
+                          <Edit2 size={18} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(card.id)}
+                          className="icon-btn delete"
+                          title={t.delete}
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+
+                      <button
+                        onClick={() => setSharedCardId(sharedCardId === card.id ? null : card.id)}
+                        className={`share-btn ${sharedCardId === card.id ? 'active' : ''}`}
+                      >
+                        <Share2 size={18} />
+                        {sharedCardId === card.id ? t.close : t.share}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <Editor
+            card={editingCard}
+            onSave={handleSaveCard}
+            onCancel={() => {
+              setView('dashboard');
+              setEditingCard(null);
+            }}
+            t={t}
+            isSaving={isSaving}
+            statusMessage={statusMessage}
+          />
+        )}
+      </main>
+
+      {/* Pricing Modal */}
+      {showPricing && (
+        <PricingModal
+          currentPlan={subscription}
+          onUpgrade={handleUpgrade}
+          onClose={() => setShowPricing(false)}
           t={t}
-          isSaving={isSaving}
-          statusMessage={statusMessage}
         />
       )}
-    </main>
-
-    {/* Pricing Modal */}
-    {showPricing && (
-      <PricingModal
-        currentPlan={subscription}
-        onUpgrade={handleUpgrade}
-        onClose={() => setShowPricing(false)}
-        t={t}
-      />
-    )}
-  </div>
-);
+    </div>
+  );
 }
 
 export default App;
