@@ -89,19 +89,9 @@ console.log('Firebase Config Loaded:', {
   apiKeyPresent: !!firebaseConfig.apiKey
 });
 
-// Initialize Firestore with Offline Persistence to avoid blocking UI on network issues
-import {
-  initializeFirestore,
-  persistentLocalCache,
-  persistentMultipleTabManager
-} from 'firebase/firestore';
-
-const db = initializeFirestore(app, {
-  // experimentalForceLongPolling: true, // AUTO-DETECT is better generally. Only use force if WS fails consistently.
-  localCache: persistentLocalCache({
-    tabManager: persistentMultipleTabManager()
-  })
-});
+// Initialize Firestore
+// We use basic getFirestore() to ensure reliable online operation and avoid complex persistence state bugs.
+const db = getFirestore(app);
 
 const auth = getAuth(app);
 // CRITICAL: Ensure persistence is LOCAL so user ID survives refresh
@@ -838,96 +828,81 @@ function App() {
     await signOut(auth);
   };
 
-  // Separate effect for data loading when user changes
+  // Separate effect for data loading - depends specifically on user.uid to avoid object reference churn
   useEffect(() => {
-    if (!user) return;
+    if (!user?.uid) {
+      setCards([]); // Clear cards if no user
+      return;
+    }
 
-    // Then listen to Firebase
+    console.log("Subscribing to cards for user:", user.uid);
     const colRef = collection(db, 'users', user.uid, 'cards');
 
     const unsubscribe = onSnapshot(colRef, (snapshot) => {
       const loaded = snapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data(),
-        _isPending: doc.metadata.hasPendingWrites
+        ...doc.data()
       }));
+      console.log("Cards loaded from server:", loaded.length);
       setCards(loaded);
     }, (error) => {
       console.error("Error fetching cards:", error);
+      alert("ERREUR CRITIQUE DE CHARGEMENT:\n" + error.message);
     });
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user?.uid]);
 
-
-
-  // Keep subscription in localStorage (still simple) -> REMOVED in favor of Firestore
-  // useEffect(() => {
-  //   localStorage.setItem('subscription', subscription);
-  // }, [subscription]);
-
-  const limit = SUBSCRIPTION_LIMITS[subscription];
-  const canAddCard = cards.length < limit;
-
-  const [statusMessage, setStatusMessage] = useState(null);
 
   const handleSaveCard = async (cardData) => {
     setIsSaving(true);
-    setStatusMessage({ type: 'info', text: 'Vérification de la connexion...' });
+    setStatusMessage({ type: 'info', text: 'Sauvegarde...' });
 
     if (!navigator.onLine) {
-      alert('Pas de connexion internet détectée.');
-      setStatusMessage({ type: 'error', text: 'Pas de connexion internet.' });
+      alert('Erreur: Pas de connexion internet.');
       setIsSaving(false);
       return;
     }
 
-    if (!user?.uid) {
-      setStatusMessage({ type: 'error', text: 'Authentification requise. Veuillez patienter...' });
-      // Try to wait a bit for auth
-      await new Promise(r => setTimeout(r, 1000));
-      if (!auth.currentUser) {
-        alert('Erreur: Vous n\'êtes pas connecté au serveur.');
-        setStatusMessage({ type: 'error', text: 'Erreur d\'authentification. Rechargez la page.' });
-        setIsSaving(false);
-        return;
-      }
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      alert("Erreur: Vous n'êtes pas connecté. Veuillez vous reconnecter.");
+      setIsSaving(false);
+      return;
     }
 
     try {
-      setStatusMessage({ type: 'info', text: 'Préparation des données...' });
-
-      // Remove the temporary 'id' if it's a new card
+      // 1. Prepare Data
       // eslint-disable-next-line no-unused-vars
       const { id, ...rawData } = cardData;
-
-      // Sanitize data
       const dataToSave = JSON.parse(JSON.stringify(rawData));
       dataToSave.updatedAt = new Date().toISOString();
+      dataToSave.userId = currentUser.uid;
 
-      console.log('Sending to Firestore...');
-      setStatusMessage({ type: 'info', text: 'Envoi au serveur en cours...' });
+      let savedId;
 
-      let targetDocRef;
+      // 2. Write to Firestore
+      if (editingCard && !editingCard.id.startsWith('temp_')) {
+        // Update existing
+        savedId = editingCard.id;
+        const docRef = doc(db, 'users', currentUser.uid, 'cards', savedId);
+        await setDoc(docRef, dataToSave);
 
-      // 1. OPTIMISTIC UPDATE (Instant Feedback)
-      // This ensures the "spinner" stops immediately and user sees their card.
-      const optimisticCard = {
-        ...dataToSave,
-        id: editingCard?.id || 'temp_' + Date.now(),
-        _isPending: true
-      };
+        // Manual State Update (Update Item)
+        setCards(prev => prev.map(c => c.id === savedId ? { ...dataToSave, id: savedId } : c));
+      } else {
+        // Create new
+        const docRef = await addDoc(collection(db, 'users', currentUser.uid, 'cards'), dataToSave);
+        savedId = docRef.id;
 
-      setCards(prev => {
-        if (editingCard) {
-          return prev.map(c => c.id === editingCard.id ? optimisticCard : c);
-        }
-        return [...prev, optimisticCard];
-      });
+        // Manual State Update (Add Item)
+        setCards(prev => [...prev, { ...dataToSave, id: savedId }]);
+      }
 
-      setStatusMessage({ type: 'success', text: 'Enregistré !' });
+      // 3. Success feedback
+      setStatusMessage({ type: 'success', text: 'Sauvegardé !' });
 
-      // Immediate switch
+      // Short timeout to let the user see the "Saved" state before closing
       setTimeout(() => {
         setView('dashboard');
         setEditingCard(null);
@@ -935,47 +910,27 @@ function App() {
         setIsSaving(false);
       }, 500);
 
-      // 2. BACKGROUND SYNC
-      // We process the write in background. The onSnapshot listener will eventually
-      // replace our optimistic card with the real server data (confirming sync).
-      (async () => {
-        try {
-          if (editingCard) {
-            const docRef = doc(db, 'users', user.uid, 'cards', editingCard.id);
-            await setDoc(docRef, dataToSave);
-          } else {
-            await addDoc(collection(db, 'users', user.uid, 'cards'), dataToSave);
-          }
-        } catch (bgError) {
-          console.error("Background Sync Error:", bgError);
-          // Update the specific card in local state to show ERROR instead of Spinner
-          setCards(prev => prev.map(c => {
-            // Match by ID (handling the temp ID or persistent ID)
-            if (c.id === (editingCard?.id || optimisticCard.id)) {
-              return { ...c, _isPending: false, _error: bgError.message };
-            }
-            return c;
-          }));
-        }
-      })();
-
     } catch (error) {
-      console.error("Error saving card:", error);
+      console.error("Save Error:", error);
+      alert("Erreur de sauvegarde: " + error.message);
       setStatusMessage({ type: 'error', text: error.message });
-      // Do NOT close modal so user can retry
-    } finally {
       setIsSaving(false);
     }
   };
 
   const handleDelete = async (id) => {
-    if (!user?.uid) {
-      return;
-    }
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
+
     if (confirm(t.confirmDelete)) {
-      const docRef = doc(db, 'users', user.uid, 'cards', id);
-      await deleteDoc(docRef);
-      setCards(cards.filter(c => c.id !== id));
+      try {
+        const docRef = doc(db, 'users', currentUser.uid, 'cards', id);
+        await deleteDoc(docRef);
+        // Optimistically remove from list to feel fast, onSnapshot will confirm
+        setCards(cards.filter(c => c.id !== id));
+      } catch (err) {
+        alert("Erreur lors de la suppression: " + err.message);
+      }
     }
   };
 
