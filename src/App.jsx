@@ -967,7 +967,7 @@ function App() {
             <Smartphone className="text-white" size={24} />
           </div>
           <h1 className="brand-name">
-            {t.appName}
+            {t.appName} <span style={{ fontSize: '0.4em', background: '#ef4444', padding: '2px 5px', borderRadius: '4px', verticalAlign: 'middle' }}>v2.2 FIX</span>
           </h1>
         </div>
 
@@ -997,8 +997,9 @@ function App() {
 
           {user ? (
             <>
-              <div className="plan-info">
-                <span className="plan-badge">{subscription}</span> <span style={{ fontSize: '0.85rem', opacity: 0.8 }}>({cards.length}/{limit})</span>
+              <div className="plan-info" style={{ display: 'flex', flexDirection: 'column', alignItems: 'end', lineHeight: '1.1' }}>
+                <div><span className="plan-badge">{subscription}</span> <span style={{ fontSize: '0.85rem', opacity: 0.8 }}>({cards.length}/{limit})</span></div>
+                <div style={{ fontSize: '0.65rem', opacity: 0.6 }}>{user.email}</div>
               </div>
               <button onClick={handleLogout} className="icon-btn" title="Sign Out">
                 <LogOut size={20} className="text-white" />
