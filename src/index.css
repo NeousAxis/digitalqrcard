@@ -692,6 +692,7 @@ body {
 }
 
 /* --- PRO CARD DESIGN --- */
+/* Wallet Card Style */
 .pro-card {
   background: white;
   border-radius: 1.5rem;
@@ -701,48 +702,58 @@ body {
   display: flex;
   flex-direction: column;
   position: relative;
-  transition: transform 0.2s;
-  height: 100%;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  width: 100%;
+  max-width: 320px;
+  /* Default Compact Width */
+  margin: 0 auto;
+  /* Center it */
 }
 
-.pro-card:hover {
-  transform: translateY(-5px);
+.pro-card.expanded {
+  max-width: 100%;
+  /* Allow full width for QR */
+  transform: scale(1.02);
+  z-index: 10;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
 }
 
 .pro-header-banner {
-  height: 120px;
+  height: 80px;
+  /* Smaller header */
   width: 100%;
-  position: relative;
+}
+
+.pro-card.expanded .pro-header-banner {
+  height: 120px;
+  /* Restore header size for QR view */
 }
 
 .pro-avatar-wrapper {
-  width: 100px;
-  height: 100px;
-  border-radius: 50%;
-  background: white;
-  padding: 4px;
+  width: 80px;
+  /* Smaller avatar */
+  height: 80px;
+  top: 40px;
+  /* Adjust pos */
+  padding: 3px;
   position: absolute;
-  top: 70px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 10;
+  border-radius: 50%;
+  background: white;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.pro-avatar {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  background: #f1f5f9;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
+.pro-card.expanded .pro-avatar-wrapper {
+  width: 100px;
+  height: 100px;
+  top: 70px;
 }
 
 .pro-content {
-  padding: 3.5rem 1.5rem 2rem 1.5rem;
-  /* Top padding clears avatar */
+  padding: 3rem 1rem 1.5rem 1rem;
+  /* Compact padding */
   text-align: center;
   flex: 1;
   display: flex;
@@ -750,78 +761,78 @@ body {
   align-items: center;
 }
 
+.pro-card.expanded .pro-content {
+  padding: 4.5rem 1.5rem 2rem 1.5rem;
+  /* Expanded padding */
+}
+
 .pro-name {
-  font-size: 1.5rem;
+  font-size: 1.25rem;
+  /* Smaller name */
   font-weight: 800;
   color: #0f172a;
-  margin: 0 0 0.25rem 0;
-  line-height: 1.2;
+  margin: 0.5rem 0 0.1rem 0;
+}
+
+.pro-card.expanded .pro-name {
+  font-size: 1.75rem;
+  /* Full name */
 }
 
 .pro-title {
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   color: #64748b;
-  margin: 0 0 1.5rem 0;
-  font-weight: 500;
+  margin: 0 0 1rem 0;
+}
+
+.pro-card.expanded .pro-title {
+  font-size: 1rem;
+  margin-bottom: 2rem;
 }
 
 .pro-actions-row {
-  display: flex;
-  justify-content: center;
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-  width: 100%;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
 }
 
 .pro-action-btn {
+  width: 2.75rem;
+  /* Smaller buttons */
+  height: 2.75rem;
+  font-size: 1.25rem;
+}
+
+.pro-card.expanded .pro-action-btn {
   width: 3.5rem;
   height: 3.5rem;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #f8fafc;
-  color: #334155;
-  transition: all 0.2s;
-  border: 1px solid #e2e8f0;
   font-size: 1.5rem;
 }
 
-.pro-action-btn:hover {
-  transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+.card-actions {
+  /* CLEAN ROW under the card, NO OVERLAP */
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1rem;
+  /* Separation */
+  padding: 0;
+  background: transparent;
+  border: none;
 }
 
-/* Specific colors for actions */
-.action-phone {
-  color: #0ea5e9;
-  background: #e0f2fe;
-  border-color: #bae6fd;
+.share-btn {
+  background: var(--primary);
+  color: #0f172a;
+  font-weight: 600;
+  border-radius: 2rem;
+  padding: 0.5rem 1.25rem;
+  box-shadow: 0 4px 15px rgba(56, 189, 248, 0.3);
 }
 
-.action-email {
-  color: #f43f5e;
-  background: #ffe4e6;
-  border-color: #fecdd3;
-}
-
-.action-web {
-  color: #8b5cf6;
-  background: #ede9fe;
-  border-color: #ddd6fe;
-}
-
-.action-map {
-  color: #10b981;
-  background: #d1fae5;
-  border-color: #6ee7b7;
-}
-
-.pro-details-list {
-  width: 100%;
-  margin-top: auto;
-  padding-top: 1.5rem;
-  border-top: 1px solid #f1f5f9;
+.share-btn.active {
+  background: #f1f5f9;
+  color: #334155;
+  box-shadow: none;
 }
 
 .pro-detail-item {

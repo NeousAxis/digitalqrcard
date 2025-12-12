@@ -301,7 +301,7 @@ const CardPreview = ({ card, showQR, onClick, t }) => {
   return (
     <div
       onClick={onClick}
-      className="pro-card"
+      className={`pro-card ${showQR ? 'expanded' : ''}`}
       style={{ cursor: 'pointer' }}
     >
       {/* 1. Header Banner */}
