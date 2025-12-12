@@ -327,14 +327,14 @@ const CardPreview = ({ card, showQR, onClick, t }) => {
         {showQR ? (
           <div style={{ margin: '1rem 0' }}>
             <QRCodeSVG
-              value={`BEGIN: VCARD
-VERSION: 3.0
-N: ;${card.name || ''};;;
+              value={`BEGIN:VCARD
+VERSION:3.0
+N:;${card.name || ''};;;
 FN:${card.name || ''}
 ORG:${company || ''}
 TITLE:${title || ''}
 ${fields
-                  .filter(f => f.type !== 'title' && f.type !== 'company') // <--- FIX: Exclude title/company from loop to avoid duplication in Notes
+                  .filter(f => f.type !== 'title' && f.type !== 'company')
                   .map(f => {
                     // Smart VCard Mapping
                     const val = f.value;
@@ -357,7 +357,7 @@ ${fields
                     return `NOTE:${noteLabel.toUpperCase()}: ${val}`;
                   }).join('\n')
                 }
-END: VCARD`}
+END:VCARD`}
               size={160}
               level="M"
             />
