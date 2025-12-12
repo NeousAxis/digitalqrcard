@@ -288,12 +288,15 @@ const CardPreview = ({ card, showQR, onClick, t }) => {
   // Remaining fields for the list
   const listFields = fields.filter(f => !['title', 'company', 'phone', 'email', 'website', 'location'].includes(f.type));
 
-  const themeBg = THEME_COLORS[card.theme || 'card-bg-1'];
+  /* Safe Theme Resolution */
+  const safeTheme = (card.theme && THEME_COLORS[card.theme]) ? card.theme : 'card-bg-1';
+  const themeBg = THEME_COLORS[safeTheme];
+
   // Heuristic to get a solid color from the theme for the button/accents
   // If gradient, take the first color. If solid, use it.
-  const accentColor = themeBg.includes('gradient')
+  const accentColor = (themeBg && themeBg.includes('gradient'))
     ? themeBg.match(/#[a-fA-F0-9]{6}/)?.[0] || '#38bdf8'
-    : themeBg;
+    : themeBg || '#38bdf8';
 
   return (
     <div
