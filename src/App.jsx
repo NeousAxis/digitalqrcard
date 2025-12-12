@@ -803,6 +803,37 @@ const AuthModal = ({ onClose, onLoginGoogle }) => {
 
 // --- Main App ---
 
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error("Uncaught error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: '2rem', color: 'white', textAlign: 'center' }}>
+          <h1>Something went wrong.</h1>
+          <p style={{ color: '#ef4444' }}>{this.state.error && this.state.error.toString()}</p>
+          <button onClick={() => window.location.reload()} className="btn-primary" style={{ marginTop: '1rem' }}>
+            Reload Application
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 function App() {
   const [cards, setCards] = useState([]);
 
@@ -818,6 +849,7 @@ function App() {
   const [showAuthModal, setShowAuthModal] = useState(false); // New State for Auth Modal
   const [sharedCardId, setSharedCardId] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [statusMessage, setStatusMessage] = useState(null);
 
   const [user, setUser] = useState(null); // Firebase Auth user
 
@@ -980,227 +1012,229 @@ function App() {
   };
 
   return (
-    <div className="app-container">
-      {/* Header */}
-      <header className="app-header">
-        <div className="brand">
-          <div className="brand-icon">
-            <Smartphone className="text-white" size={24} />
-          </div>
-          <h1 className="brand-name">
-            {t.appName} <span style={{ fontSize: '0.4em', background: '#ef4444', padding: '2px 5px', borderRadius: '4px', verticalAlign: 'middle' }}>v2.4 (10:25)</span>
-          </h1>
-        </div>
-
-        <div className="header-controls">
-          <button
-            onClick={toggleLang}
-            className="lang-btn"
-            title="Switch Language"
-            style={{
-              background: 'rgba(255, 255, 255, 0.1)',
-              border: 'none',
-              borderRadius: '50%',
-              width: '32px',
-              height: '32px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '0.75rem',
-              fontWeight: 'bold',
-              color: 'white',
-              cursor: 'pointer',
-              padding: 0
-            }}
-          >
-            {lang === 'en' ? 'FR' : 'EN'}
-          </button>
-
-          {user ? (
-            <>
-              <div className="plan-info" style={{ display: 'flex', flexDirection: 'column', alignItems: 'end', lineHeight: '1.1' }}>
-                <div><span className="plan-badge">{subscription}</span> <span style={{ fontSize: '0.85rem', opacity: 0.8 }}>({cards.length}/{limit})</span></div>
-                <div style={{ fontSize: '0.65rem', opacity: 0.6 }}>{user.email}</div>
-              </div>
-              <button onClick={handleLogout} className="icon-btn" title="Sign Out">
-                <LogOut size={20} className="text-white" />
-              </button>
-            </>
-          ) : (
-            <button onClick={() => setShowAuthModal(true)} className="btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
-              <LogIn size={16} style={{ marginRight: '0.5rem' }} /> Connexion / Inscription
-            </button>
-          )}
-        </div>
-      </header>
-
-      {/* Auth Modal */}
-      {showAuthModal && !user && (
-        <AuthModal
-          onClose={() => setShowAuthModal(false)}
-          onLoginGoogle={() => {
-            setShowAuthModal(false);
-            handleLogin();
-          }}
-        />
-      )}
-
-      {/* Main Content */}
-      <main className="main-content" style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
-        {view === 'dashboard' ? (
-          <>
-            <div className="dashboard-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-              <h2 className="section-title">{t.yourCards}</h2>
-              {user && (
-                <button
-                  onClick={() => {
-                    if (canAddCard) {
-                      setEditingCard(null);
-                      setView('editor');
-                    } else {
-                      setShowPricing(true);
-                    }
-                  }}
-                  className="btn-primary"
-                >
-                  <Plus size={20} /> {t.newCard}
-                </button>
-              )}
+    <ErrorBoundary>
+      <div className="app-container">
+        {/* Header */}
+        <header className="app-header">
+          <div className="brand">
+            <div className="brand-icon">
+              <Smartphone className="text-white" size={24} />
             </div>
+            <h1 className="brand-name">
+              {t.appName} <span style={{ fontSize: '0.4em', background: '#ef4444', padding: '2px 5px', borderRadius: '4px', verticalAlign: 'middle' }}>v2.4 (10:25)</span>
+            </h1>
+          </div>
 
-            {cards.length === 0 ? (
-              <div className="glass-panel empty-state">
-                <div className="empty-icon">
-                  <CreditCard size={40} className="text-gray-500" />
+          <div className="header-controls">
+            <button
+              onClick={toggleLang}
+              className="lang-btn"
+              title="Switch Language"
+              style={{
+                background: 'rgba(255, 255, 255, 0.1)',
+                border: 'none',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '0.75rem',
+                fontWeight: 'bold',
+                color: 'white',
+                cursor: 'pointer',
+                padding: 0
+              }}
+            >
+              {lang === 'en' ? 'FR' : 'EN'}
+            </button>
+
+            {user ? (
+              <>
+                <div className="plan-info" style={{ display: 'flex', flexDirection: 'column', alignItems: 'end', lineHeight: '1.1' }}>
+                  <div><span className="plan-badge">{subscription}</span> <span style={{ fontSize: '0.85rem', opacity: 0.8 }}>({cards.length}/{limit})</span></div>
+                  <div style={{ fontSize: '0.65rem', opacity: 0.6 }}>{user.email}</div>
                 </div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>{t.noCards}</h3>
-                <p style={{ color: '#94a3b8', marginBottom: '2rem' }}>
-                  {t.startCreating}
-                </p>
-                {user ? (
+                <button onClick={handleLogout} className="icon-btn" title="Sign Out">
+                  <LogOut size={20} className="text-white" />
+                </button>
+              </>
+            ) : (
+              <button onClick={() => setShowAuthModal(true)} className="btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
+                <LogIn size={16} style={{ marginRight: '0.5rem' }} /> Connexion / Inscription
+              </button>
+            )}
+          </div>
+        </header>
+
+        {/* Auth Modal */}
+        {showAuthModal && !user && (
+          <AuthModal
+            onClose={() => setShowAuthModal(false)}
+            onLoginGoogle={() => {
+              setShowAuthModal(false);
+              handleLogin();
+            }}
+          />
+        )}
+
+        {/* Main Content */}
+        <main className="main-content" style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
+          {view === 'dashboard' ? (
+            <>
+              <div className="dashboard-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                <h2 className="section-title">{t.yourCards}</h2>
+                {user && (
                   <button
                     onClick={() => {
-                      setEditingCard(null);
-                      setView('editor');
+                      if (canAddCard) {
+                        setEditingCard(null);
+                        setView('editor');
+                      } else {
+                        setShowPricing(true);
+                      }
                     }}
                     className="btn-primary"
                   >
-                    {t.createFirst}
+                    <Plus size={20} /> {t.newCard}
                   </button>
-                ) : (
-                  <div style={{ marginTop: '1rem' }}>
-                    <p style={{ marginBottom: '1rem' }}>Connectez-vous pour sauvegarder et synchroniser vos cartes sur tous vos appareils.</p>
-                    <button onClick={() => setShowAuthModal(true)} className="btn-primary">
-                      <LogIn size={18} style={{ marginRight: '0.5rem' }} /> Se connecter / Créer un compte
-                    </button>
-                  </div>
                 )}
               </div>
-            ) : (
-              <div className="cards-grid">
-                {cards.map(card => (
-                  <div key={card.id} className="glass-panel card-wrapper">
-                    <div className="card-preview-container">
-                      <CardPreview
-                        card={card}
-                        showQR={sharedCardId === card.id}
-                        onClick={() => setSharedCardId(sharedCardId === card.id ? null : card.id)}
-                        t={t}
-                      />
-                      {/* Sync Status Indicator */}
-                      <div style={{
-                        position: 'absolute',
-                        top: '10px',
-                        right: '10px',
-                        background: 'rgba(0,0,0,0.6)',
-                        backdropFilter: 'blur(4px)',
-                        padding: '4px 8px',
-                        borderRadius: '12px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        fontSize: '0.75rem',
-                        color: 'white',
-                        pointerEvents: 'none'
-                      }}>
-                        {card._error ? (
-                          <>
-                            <AlertCircle size={12} className="text-red-500" />
-                            <span style={{ color: '#ef4444', fontWeight: 'bold' }} title={card._error}>Erreur Synchro</span>
-                          </>
-                        ) : card._isPending ? (
-                          <>
-                            <RefreshCw size={12} className="spin-slow" />
-                            <span>En attente...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Cloud size={12} className="text-green-400" />
-                            <span style={{ color: '#4ade80' }}>Synchronisé</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
 
-                    <div className="card-actions">
-                      <div className="action-group">
-                        <button
-                          onClick={() => {
-                            setEditingCard(card);
-                            setView('editor');
-                          }}
-                          className="icon-btn"
-                          title={t.edit}
-                        >
-                          <Edit2 size={18} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(card.id)}
-                          className="icon-btn delete"
-                          title={t.delete}
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-
-                      <button
-                        onClick={() => setSharedCardId(sharedCardId === card.id ? null : card.id)}
-                        className={`share - btn ${sharedCardId === card.id ? 'active' : ''} `}
-                      >
-                        <Share2 size={18} />
-                        {sharedCardId === card.id ? t.close : t.share}
+              {cards.length === 0 ? (
+                <div className="glass-panel empty-state">
+                  <div className="empty-icon">
+                    <CreditCard size={40} className="text-gray-500" />
+                  </div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>{t.noCards}</h3>
+                  <p style={{ color: '#94a3b8', marginBottom: '2rem' }}>
+                    {t.startCreating}
+                  </p>
+                  {user ? (
+                    <button
+                      onClick={() => {
+                        setEditingCard(null);
+                        setView('editor');
+                      }}
+                      className="btn-primary"
+                    >
+                      {t.createFirst}
+                    </button>
+                  ) : (
+                    <div style={{ marginTop: '1rem' }}>
+                      <p style={{ marginBottom: '1rem' }}>Connectez-vous pour sauvegarder et synchroniser vos cartes sur tous vos appareils.</p>
+                      <button onClick={() => setShowAuthModal(true)} className="btn-primary">
+                        <LogIn size={18} style={{ marginRight: '0.5rem' }} /> Se connecter / Créer un compte
                       </button>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
-        ) : (
-          <Editor
-            card={editingCard}
-            onSave={handleSaveCard}
-            onCancel={() => {
-              setView('dashboard');
-              setEditingCard(null);
-            }}
+                  )}
+                </div>
+              ) : (
+                <div className="cards-grid">
+                  {cards.map(card => (
+                    <div key={card.id} className="glass-panel card-wrapper">
+                      <div className="card-preview-container">
+                        <CardPreview
+                          card={card}
+                          showQR={sharedCardId === card.id}
+                          onClick={() => setSharedCardId(sharedCardId === card.id ? null : card.id)}
+                          t={t}
+                        />
+                        {/* Sync Status Indicator */}
+                        <div style={{
+                          position: 'absolute',
+                          top: '10px',
+                          right: '10px',
+                          background: 'rgba(0,0,0,0.6)',
+                          backdropFilter: 'blur(4px)',
+                          padding: '4px 8px',
+                          borderRadius: '12px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          fontSize: '0.75rem',
+                          color: 'white',
+                          pointerEvents: 'none'
+                        }}>
+                          {card._error ? (
+                            <>
+                              <AlertCircle size={12} className="text-red-500" />
+                              <span style={{ color: '#ef4444', fontWeight: 'bold' }} title={card._error}>Erreur Synchro</span>
+                            </>
+                          ) : card._isPending ? (
+                            <>
+                              <RefreshCw size={12} className="spin-slow" />
+                              <span>En attente...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Cloud size={12} className="text-green-400" />
+                              <span style={{ color: '#4ade80' }}>Synchronisé</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="card-actions">
+                        <div className="action-group">
+                          <button
+                            onClick={() => {
+                              setEditingCard(card);
+                              setView('editor');
+                            }}
+                            className="icon-btn"
+                            title={t.edit}
+                          >
+                            <Edit2 size={18} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(card.id)}
+                            className="icon-btn delete"
+                            title={t.delete}
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+
+                        <button
+                          onClick={() => setSharedCardId(sharedCardId === card.id ? null : card.id)}
+                          className={`share - btn ${sharedCardId === card.id ? 'active' : ''} `}
+                        >
+                          <Share2 size={18} />
+                          {sharedCardId === card.id ? t.close : t.share}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            <Editor
+              card={editingCard}
+              onSave={handleSaveCard}
+              onCancel={() => {
+                setView('dashboard');
+                setEditingCard(null);
+              }}
+              t={t}
+              isSaving={isSaving}
+              statusMessage={statusMessage}
+            />
+          )}
+        </main>
+
+        {/* Pricing Modal */}
+        {showPricing && (
+          <PricingModal
+            currentPlan={subscription}
+            onUpgrade={handleUpgrade}
+            onClose={() => setShowPricing(false)}
             t={t}
-            isSaving={isSaving}
-            statusMessage={statusMessage}
           />
         )}
-      </main>
-
-      {/* Pricing Modal */}
-      {showPricing && (
-        <PricingModal
-          currentPlan={subscription}
-          onUpgrade={handleUpgrade}
-          onClose={() => setShowPricing(false)}
-          t={t}
-        />
-      )}
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 }
 
