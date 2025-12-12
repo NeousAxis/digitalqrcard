@@ -328,36 +328,51 @@ const CardPreview = ({ card, showQR, onClick, t }) => {
           <div style={{ margin: '1rem 0' }}>
             <QRCodeSVG
               value={(() => {
+                // Helper to split name for N field (Family;Given;Middle;Prefix;Suffix)
+                const parts = (card.name || '').trim().split(/\s+/);
+                const lastName = parts.length > 1 ? parts.pop() : '';
+                const firstName = parts.join(' ') || '';
+
+                // Use CRLF for maximum compatibility
                 const vCardData = [
                   'BEGIN:VCARD',
                   'VERSION:3.0',
-                  `N:;${card.name || ''};;;`,
+                  `N:${lastName};${firstName};;;`,
                   `FN:${card.name || ''}`,
                   `ORG:${company || ''}`,
                   `TITLE:${title || ''}`,
                   ...fields
                     .filter(f => f.type !== 'title' && f.type !== 'company')
                     .map(f => {
-                      const val = f.value;
+                      const val = (f.value || '').trim();
+                      if (!val) return null; // Skip empty
+
                       const lbl = (f.label || '').toLowerCase();
+
+                      // Fix: Clean up value for TEL/URL/EMAIL
                       if (f.type === 'phone' || lbl.includes('phone') || lbl.includes('tel') || lbl.includes('mobile')) {
-                        return `TEL;TYPE=CELL,VOICE:${val}`;
+                        return `TEL;TYPE=CELL:${val}`;
                       }
                       if (f.type === 'email' || lbl.includes('email') || lbl.includes('mail')) {
-                        return `EMAIL;TYPE=WORK,INTERNET:${val}`;
+                        return `EMAIL;TYPE=WORK:${val}`;
                       }
                       if (f.type === 'website' || lbl.includes('web') || lbl.includes('site')) {
-                        return `URL:${val}`;
+                        // URL must be absolute or some scanners fail
+                        return `URL:${val.startsWith('http') ? val : 'https://' + val}`;
                       }
                       if (f.type === 'location' || lbl.includes('address') || lbl.includes('adresse')) {
+                        // ADR expects semicolon separated components
+                        // Post Office Box; Extended Address; Street; Locality; Region; Postal Code; Country
                         return `ADR;TYPE=WORK:;;${val};;;;`;
                       }
                       const noteLabel = f.label || f.type || 'Info';
                       return `NOTE:${noteLabel.toUpperCase()}: ${val}`;
-                    }),
+                    })
+                    .filter(Boolean), // Remove nulls
                   'END:VCARD'
-                ].join('\n');
-                console.log('Generated VCard:', vCardData);
+                ].join('\r\n');
+
+                console.log('VCARD DEBUG:', vCardData);
                 return vCardData;
               })()}
               size={160}
