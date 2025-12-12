@@ -24,6 +24,7 @@ import {
   Cloud,
   CloudOff,
   RefreshCw,
+  AlertCircle,
   // New Icons for Pro Design
   Linkedin,
   Facebook,
@@ -912,7 +913,7 @@ function App() {
 
     } catch (error) {
       console.error("Save Error:", error);
-      alert("Erreur de sauvegarde: " + error.message);
+      alert(`Erreur de sauvegarde (${error.code || 'unknown'}): ${error.message}`);
       setStatusMessage({ type: 'error', text: error.message });
       setIsSaving(false);
     }
