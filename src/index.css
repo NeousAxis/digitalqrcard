@@ -731,18 +731,32 @@ body {
 
 .pro-avatar-wrapper {
   width: 80px;
-  /* Smaller avatar */
   height: 80px;
-  top: 40px;
-  /* Adjust pos */
-  padding: 3px;
   position: absolute;
+  top: 40px;
+  /* Half of header (80px) - Half of avatar (40px) = 0? No. Header 80. Center line 80. Avatar 80. Top should be 40 to center on line. */
   left: 50%;
   transform: translateX(-50%);
-  z-index: 10;
+  z-index: 20;
   border-radius: 50%;
   background: white;
+  padding: 4px;
+  /* White border effect */
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.pro-avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
 
 .pro-card.expanded .pro-avatar-wrapper {
@@ -791,8 +805,12 @@ body {
 }
 
 .pro-actions-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
   gap: 1rem;
   margin-bottom: 1.5rem;
+  width: 100%;
 }
 
 .pro-action-btn {
@@ -821,18 +839,29 @@ body {
 }
 
 .share-btn {
-  background: var(--primary);
+  background: white;
+  /* Make it clean white by default to match screenshot feedback preference or reset */
   color: #0f172a;
+  border: 1px solid #e2e8f0;
   font-weight: 600;
   border-radius: 2rem;
   padding: 0.5rem 1.25rem;
-  box-shadow: 0 4px 15px rgba(56, 189, 248, 0.3);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.share-btn:hover {
+  background: #f8fafc;
+  transform: translateY(-1px);
 }
 
 .share-btn.active {
-  background: #f1f5f9;
-  color: #334155;
-  box-shadow: none;
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
 }
 
 .pro-detail-item {
