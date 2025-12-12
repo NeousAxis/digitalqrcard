@@ -463,19 +463,30 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.9);
+  /* Darker BG */
   backdrop-filter: blur(8px);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  /* FIX: Allow scrolling from top */
   justify-content: center;
-  z-index: 1000;
-  padding: 1rem;
+  z-index: 2000;
+  padding: 0;
+  /* Full bleed */
+  overflow-y: auto;
+  /* Enable vertical scroll */
+  -webkit-overflow-scrolling: touch;
+  /* Smooth iOS scroll */
 }
 
 .pricing-modal {
   width: 100%;
   max-width: 60rem;
-  padding: 2rem;
+  padding: 2rem 1.5rem 6rem 1.5rem;
+  /* Huge bottom padding for scroll */
+  margin: auto 0;
+  /* Center vertically if space allows */
+  position: relative;
 }
 
 .pricing-header {
