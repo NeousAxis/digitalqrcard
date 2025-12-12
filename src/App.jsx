@@ -1052,7 +1052,7 @@ function App() {
             {user ? (
               <>
                 <div className="plan-info" style={{ display: 'flex', flexDirection: 'column', alignItems: 'end', lineHeight: '1.1' }}>
-                  <div><span className="plan-badge">{subscription}</span> <span style={{ fontSize: '0.85rem', opacity: 0.8 }}>({cards.length}/{limit})</span></div>
+                  <div><span className="plan-badge">{subscription}</span> <span style={{ fontSize: '0.85rem', opacity: 0.8 }}>({cards.length}/{SUBSCRIPTION_LIMITS[subscription]})</span></div>
                   <div style={{ fontSize: '0.65rem', opacity: 0.6 }}>{user.email}</div>
                 </div>
                 <button onClick={handleLogout} className="icon-btn" title="Sign Out">
