@@ -773,6 +773,8 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
+  width: 100%;
+  /* Ensure full width for internal interactions */
 }
 
 .pro-card.expanded .pro-content {
