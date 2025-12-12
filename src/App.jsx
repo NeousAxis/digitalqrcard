@@ -1021,7 +1021,7 @@ function App() {
               <Smartphone className="text-white" size={24} />
             </div>
             <h1 className="brand-name">
-              {t.appName} <span style={{ fontSize: '0.4em', background: '#ef4444', padding: '2px 5px', borderRadius: '4px', verticalAlign: 'middle' }}>v2.4 (10:25)</span>
+              {t.appName}
             </h1>
           </div>
 
