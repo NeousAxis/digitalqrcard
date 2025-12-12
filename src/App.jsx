@@ -327,37 +327,39 @@ const CardPreview = ({ card, showQR, onClick, t }) => {
         {showQR ? (
           <div style={{ margin: '1rem 0' }}>
             <QRCodeSVG
-              value={`BEGIN:VCARD
-VERSION:3.0
-N:;${card.name || ''};;;
-FN:${card.name || ''}
-ORG:${company || ''}
-TITLE:${title || ''}
-${fields
-                  .filter(f => f.type !== 'title' && f.type !== 'company')
-                  .map(f => {
-                    // Smart VCard Mapping
-                    const val = f.value;
-                    const lbl = (f.label || '').toLowerCase();
-
-                    if (f.type === 'phone' || lbl.includes('phone') || lbl.includes('tel') || lbl.includes('mobile')) {
-                      return `TEL;TYPE=CELL,VOICE:${val}`;
-                    }
-                    if (f.type === 'email' || lbl.includes('email') || lbl.includes('mail')) {
-                      return `EMAIL;TYPE=WORK,INTERNET:${val}`;
-                    }
-                    if (f.type === 'website' || lbl.includes('web') || lbl.includes('site')) {
-                      return `URL:${val}`;
-                    }
-                    if (f.type === 'location' || lbl.includes('address') || lbl.includes('adresse')) {
-                      return `ADR;TYPE=WORK:;;${val};;;;`;
-                    }
-                    // Fallback to Note
-                    const noteLabel = f.label || f.type || 'Info';
-                    return `NOTE:${noteLabel.toUpperCase()}: ${val}`;
-                  }).join('\n')
-                }
-END:VCARD`}
+              value={(() => {
+                const vCardData = [
+                  'BEGIN:VCARD',
+                  'VERSION:3.0',
+                  `N:;${card.name || ''};;;`,
+                  `FN:${card.name || ''}`,
+                  `ORG:${company || ''}`,
+                  `TITLE:${title || ''}`,
+                  ...fields
+                    .filter(f => f.type !== 'title' && f.type !== 'company')
+                    .map(f => {
+                      const val = f.value;
+                      const lbl = (f.label || '').toLowerCase();
+                      if (f.type === 'phone' || lbl.includes('phone') || lbl.includes('tel') || lbl.includes('mobile')) {
+                        return `TEL;TYPE=CELL,VOICE:${val}`;
+                      }
+                      if (f.type === 'email' || lbl.includes('email') || lbl.includes('mail')) {
+                        return `EMAIL;TYPE=WORK,INTERNET:${val}`;
+                      }
+                      if (f.type === 'website' || lbl.includes('web') || lbl.includes('site')) {
+                        return `URL:${val}`;
+                      }
+                      if (f.type === 'location' || lbl.includes('address') || lbl.includes('adresse')) {
+                        return `ADR;TYPE=WORK:;;${val};;;;`;
+                      }
+                      const noteLabel = f.label || f.type || 'Info';
+                      return `NOTE:${noteLabel.toUpperCase()}: ${val}`;
+                    }),
+                  'END:VCARD'
+                ].join('\n');
+                console.log('Generated VCard:', vCardData);
+                return vCardData;
+              })()}
               size={160}
               level="M"
             />
