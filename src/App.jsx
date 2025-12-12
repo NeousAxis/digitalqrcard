@@ -161,7 +161,9 @@ const TRANSLATIONS = {
     logout: 'Déconnexion',
     welcome: 'Bienvenue',
     extraFieldLabel: 'Label Champ Supplémentaire',
-    extraFieldValue: 'Valeur Champ Supplémentaire'
+    extraFieldValue: 'Valeur Champ Supplémentaire',
+    clickMoreInfo: 'Cliquez ici pour plus d\'informations',
+    lessInfo: 'Moins d\'informations'
   },
   en: {
     appName: 'DigitalQRCard',
@@ -219,7 +221,9 @@ const TRANSLATIONS = {
     extraFieldValue: 'Extra Field Value',
     login: 'Login',
     logout: 'Logout',
-    welcome: 'Welcome'
+    welcome: 'Welcome',
+    clickMoreInfo: 'Click here for more information',
+    lessInfo: 'Less information'
   }
 };
 
@@ -445,7 +449,7 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
               className="pro-footer-btn"
               style={{ color: accentColor, borderColor: accentColor }}
             >
-              {isExpanded ? 'Less information' : 'Click here for more information'}
+              {isExpanded ? t.lessInfo : t.clickMoreInfo}
             </button>
           </>
         )}
