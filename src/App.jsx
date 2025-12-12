@@ -2,34 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
-  Plus,
-  Edit2,
-  Trash2,
-  Share2,
-  Smartphone,
-  CreditCard,
-  Check,
-  X,
-  User,
-  Phone,
-  Mail,
-  Globe,
-  Briefcase,
-  Languages,
-  LogIn,
-  LogOut,
-  Building2,
-  MapPin,
-  Star,
-  Cloud,
-  CloudOff,
-  RefreshCw,
-  AlertCircle,
-  // New Icons for Pro Design
-  Linkedin,
-  Facebook,
-  Twitter,
-  Instagram
+  Smartphone, Edit2, Trash2, Plus, Share2, Download,
+  MapPin, Globe, Mail, Phone, Building2, Briefcase,
+  User, Star, X, Check, Copy, LogIn, LogOut,
+  CreditCard, Layout, Zap, Cloud, CloudOff, AlertCircle, RefreshCw, Diamond
 } from 'lucide-react';
 // Firebase imports
 import { initializeApp } from 'firebase/app';
@@ -264,7 +240,7 @@ const FIELD_TYPES = [
   { value: 'custom', label: 'Custom', icon: Star }
 ];
 
-const CardPreview = ({ card, showQR, onClick, t }) => {
+const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
   // Pro Design Implementation
   const fields = card.fields || [
     { type: 'title', value: card.title },
@@ -279,6 +255,7 @@ const CardPreview = ({ card, showQR, onClick, t }) => {
   // Extract core fields for the top section
   const title = fields.find(f => f.type === 'title')?.value || '';
   const company = fields.find(f => f.type === 'company')?.value || '';
+  // eslint-disable-next-line no-unused-vars
   const displayTitle = [title, company].filter(Boolean).join(' @ ');
   const phone = fields.find(f => f.type === 'phone')?.value;
   const email = fields.find(f => f.type === 'email')?.value;
@@ -292,51 +269,50 @@ const CardPreview = ({ card, showQR, onClick, t }) => {
   const safeTheme = (card.theme && THEME_COLORS[card.theme]) ? card.theme : 'card-bg-1';
   const themeBg = THEME_COLORS[safeTheme];
 
-  // Heuristic to get a solid color from the theme for the button/accents
-  // If gradient, take the first color. If solid, use it.
   const accentColor = (themeBg && themeBg.includes('gradient'))
     ? themeBg.match(/#[a-fA-F0-9]{6}/)?.[0] || '#38bdf8'
     : themeBg || '#38bdf8';
 
   return (
     <div
-      onClick={onClick}
-      className={`pro-card ${showQR ? 'expanded' : ''}`}
-      style={{ cursor: 'pointer' }}
+      className={`pro-card ${isExpanded ? 'expanded' : ''}`}
     >
       {/* 1. Header Banner */}
-      <div
-        className="pro-header-banner"
-        style={{ background: themeBg }}
-      ></div>
+      <div className={`pro-header-banner ${safeTheme}`}></div>
 
-      {/* 2. Avatar (Overlapping) */}
+      {/* 2. Avatar */}
       <div className="pro-avatar-wrapper">
         <div className="pro-avatar">
           {/* Use first letter of name or User icon */}
-          {card.name ? (
-            <span style={{ fontSize: '2.5rem', fontWeight: 'bold', color: accentColor }}>{card.name.charAt(0).toUpperCase()}</span>
+          {card.image ? (
+            <img src={card.image} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           ) : (
-            <User size={48} color={accentColor} />
+            card.name ? (
+              <span style={{ fontSize: '2.5rem', fontWeight: 'bold', color: accentColor }}>{card.name.charAt(0).toUpperCase()}</span>
+            ) : (
+              <User size={48} color={accentColor} />
+            )
           )}
         </div>
       </div>
 
-      {/* 3. Main Content */}
+      {/* 3. Content */}
       <div className="pro-content">
         <h3 className="pro-name">{card.name || t.yourName}</h3>
         <p className="pro-title">{displayTitle || t.yourTitle}</p>
 
+        {/* QR Overlay - Only visible if showQR is passed as true */}
         {showQR ? (
-          <div style={{ margin: '1rem 0' }}>
+          <div className="animate-fade-in" style={{
+            position: 'absolute', inset: 0, background: 'white', zIndex: 100,
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            padding: '2rem', borderRadius: '1.5rem'
+          }}>
             <QRCodeSVG
               value={(() => {
-                // Helper to split name for N field (Family;Given;Middle;Prefix;Suffix)
                 const parts = (card.name || '').trim().split(/\s+/);
                 const lastName = parts.length > 1 ? parts.pop() : '';
                 const firstName = parts.join(' ') || '';
-
-                // Use CRLF for maximum compatibility
                 const vCardData = [
                   'BEGIN:VCARD',
                   'VERSION:3.0',
@@ -348,11 +324,8 @@ const CardPreview = ({ card, showQR, onClick, t }) => {
                     .filter(f => f.type !== 'title' && f.type !== 'company')
                     .map(f => {
                       const val = (f.value || '').trim();
-                      if (!val) return null; // Skip empty
-
+                      if (!val) return null;
                       const lbl = (f.label || '').toLowerCase();
-
-                      // Fix: Clean up value for TEL/URL/EMAIL
                       if (f.type === 'phone' || lbl.includes('phone') || lbl.includes('tel') || lbl.includes('mobile')) {
                         return `TEL;TYPE=CELL:${val}`;
                       }
@@ -360,47 +333,42 @@ const CardPreview = ({ card, showQR, onClick, t }) => {
                         return `EMAIL;TYPE=WORK:${val}`;
                       }
                       if (f.type === 'website' || lbl.includes('web') || lbl.includes('site')) {
-                        // URL must be absolute or some scanners fail
                         return `URL:${val.startsWith('http') ? val : 'https://' + val}`;
                       }
                       if (f.type === 'location' || lbl.includes('address') || lbl.includes('adresse')) {
-                        // ADR expects semicolon separated components
-                        // Post Office Box; Extended Address; Street; Locality; Region; Postal Code; Country
                         return `ADR;TYPE=WORK:;;${val};;;;`;
                       }
                       const noteLabel = f.label || f.type || 'Info';
                       return `NOTE:${noteLabel.toUpperCase()}: ${val}`;
                     })
-                    .filter(Boolean), // Remove nulls
+                    .filter(Boolean),
                   'END:VCARD'
                 ].join('\r\n');
-
-                console.log('VCARD DEBUG:', vCardData);
                 return vCardData;
               })()}
-              size={160}
+              size={200}
               level="M"
             />
-            <p style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#94a3b8' }}>Scan to save contact</p>
+            <p style={{ marginTop: '1rem', fontWeight: 'bold', color: '#334155' }}>Scan to save contact</p>
           </div>
         ) : (
           <>
             {/* 4. Action Buttons Row */}
             <div className="pro-actions-row">
               {phone && (
-                <div className="pro-action-btn action-phone" title={phone}>
+                <a href={`tel:${phone}`} className="pro-action-btn action-phone" title={phone} style={{ textDecoration: 'none' }}>
                   <Phone size={20} />
-                </div>
+                </a>
               )}
               {email && (
-                <div className="pro-action-btn action-email" title={email}>
+                <a href={`mailto:${email}`} className="pro-action-btn action-email" title={email} style={{ textDecoration: 'none' }}>
                   <Mail size={20} />
-                </div>
+                </a>
               )}
               {website && (
-                <div className="pro-action-btn action-web" title={website}>
+                <a href={website.startsWith('http') ? website : `https://${website}`} target="_blank" rel="noopener noreferrer" className="pro-action-btn action-web" title={website} style={{ textDecoration: 'none' }}>
                   <Globe size={20} />
-                </div>
+                </a>
               )}
               {location && (
                 <div className="pro-action-btn action-map" title={location}>
@@ -409,24 +377,44 @@ const CardPreview = ({ card, showQR, onClick, t }) => {
               )}
             </div>
 
-            {/* 5. Additional Info List (if any) */}
-            {listFields.length > 0 && (
-              <div className="pro-details-list">
-                {listFields.map((field, idx) => (
-                  <div key={idx} className="pro-detail-item">
-                    <span className="pro-detail-icon"><Star size={14} /></span>
-                    <span>{field.value}</span>
+            {/* 5. Additional Info List (Expanded View) */}
+            {isExpanded && (
+              <div className="pro-details-list animate-fade-in" style={{ width: '100%', textAlign: 'left', marginTop: '1rem' }}>
+                {listFields.length > 0 ? (
+                  listFields.map((field, idx) => (
+                    <div key={idx} className="pro-detail-item" style={{ borderBottom: '1px solid #f1f5f9', padding: '0.75rem 0' }}>
+                      <span className="pro-detail-icon" style={{ minWidth: '24px', color: accentColor }}><Star size={16} /></span>
+                      <div>
+                        <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: '#94a3b8' }}>{field.label || field.type}</div>
+                        <div style={{ color: '#334155' }}>{field.value}</div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '0.8rem', textAlign: 'center', width: '100%', padding: '1rem' }}>No additional detailed info.</p>
+                )}
+                {location && (
+                  <div className="pro-detail-item" style={{ borderBottom: '1px solid #f1f5f9', padding: '0.75rem 0' }}>
+                    <span className="pro-detail-icon" style={{ minWidth: '24px', color: accentColor }}><MapPin size={16} /></span>
+                    <div>
+                      <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: '#94a3b8' }}>Address</div>
+                      <div style={{ color: '#334155' }}>{location}</div>
+                    </div>
                   </div>
-                ))}
+                )}
               </div>
             )}
 
-            {/* 6. Main CTA */}
+            {/* 6. Main CTA - Toggles Expansion */}
             <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleExpand();
+              }}
               className="pro-footer-btn"
               style={{ color: accentColor, borderColor: accentColor }}
             >
-              Click here for more information
+              {isExpanded ? 'Less information' : 'Click here for more information'}
             </button>
           </>
         )}
@@ -848,6 +836,7 @@ function App() {
   const [showPricing, setShowPricing] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false); // New State for Auth Modal
   const [sharedCardId, setSharedCardId] = useState(null);
+  const [expandedCardId, setExpandedCardId] = useState(null); // Expanded Details View
   const [isSaving, setIsSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState(null);
 
@@ -1055,6 +1044,14 @@ function App() {
                   <div><span className="plan-badge">{subscription}</span> <span style={{ fontSize: '0.85rem', opacity: 0.8 }}>({cards.length}/{SUBSCRIPTION_LIMITS[subscription]})</span></div>
                   <div style={{ fontSize: '0.65rem', opacity: 0.6 }}>{user.email}</div>
                 </div>
+                <button
+                  onClick={() => setShowPricing(true)}
+                  className="icon-btn"
+                  title="Plans & Pricing"
+                  style={{ color: '#fbbf24' }}
+                >
+                  <Diamond size={20} />
+                </button>
                 <button onClick={handleLogout} className="icon-btn" title="Sign Out">
                   <LogOut size={20} className="text-white" />
                 </button>
@@ -1137,7 +1134,8 @@ function App() {
                         <CardPreview
                           card={card}
                           showQR={sharedCardId === card.id}
-                          onClick={() => setSharedCardId(sharedCardId === card.id ? null : card.id)}
+                          isExpanded={expandedCardId === card.id}
+                          onToggleExpand={() => setExpandedCardId(expandedCardId === card.id ? null : card.id)}
                           t={t}
                         />
                         {/* Sync Status Indicator */}
