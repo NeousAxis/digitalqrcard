@@ -5,7 +5,7 @@ import {
   Smartphone, Edit2, Trash2, Plus, Share2, Download,
   MapPin, Globe, Mail, Phone, Building2, Briefcase,
   User, Star, X, Check, Copy, LogIn, LogOut,
-  CreditCard, Layout, Zap, Cloud, CloudOff, AlertCircle, RefreshCw, Diamond
+  CreditCard, Layout, Zap, Cloud, CloudOff, AlertCircle, RefreshCw, Gem
 } from 'lucide-react';
 // Firebase imports
 import { initializeApp } from 'firebase/app';
@@ -346,10 +346,9 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
                 ].join('\r\n');
                 return vCardData;
               })()}
-              size={200}
+              size={240}
               level="M"
             />
-            <p style={{ marginTop: '1rem', fontWeight: 'bold', color: '#334155' }}>Scan to save contact</p>
           </div>
         ) : (
           <>
@@ -377,21 +376,42 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
               )}
             </div>
 
-            {/* 5. Additional Info List (Expanded View) */}
+            {/* 5. Additional Info List (Expanded View) - NOW SHOWS ALL CONTACT DETAILS */}
             {isExpanded && (
               <div className="pro-details-list animate-fade-in" style={{ width: '100%', textAlign: 'left', marginTop: '1rem' }}>
-                {listFields.length > 0 ? (
-                  listFields.map((field, idx) => (
-                    <div key={idx} className="pro-detail-item" style={{ borderBottom: '1px solid #f1f5f9', padding: '0.75rem 0' }}>
-                      <span className="pro-detail-icon" style={{ minWidth: '24px', color: accentColor }}><Star size={16} /></span>
-                      <div>
-                        <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: '#94a3b8' }}>{field.label || field.type}</div>
-                        <div style={{ color: '#334155' }}>{field.value}</div>
+                {/* Standard Contact Fields in List */}
+                {phone && (
+                  <div className="pro-detail-item" style={{ borderBottom: '1px solid #f1f5f9', padding: '0.75rem 0' }}>
+                    <span className="pro-detail-icon" style={{ minWidth: '24px', color: accentColor }}><Phone size={16} /></span>
+                    <div>
+                      <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: '#94a3b8' }}>Mobile</div>
+                      <div style={{ color: '#334155' }}>
+                        <a href={`tel:${phone}`} style={{ color: 'inherit', textDecoration: 'none' }}>{phone}</a>
                       </div>
                     </div>
-                  ))
-                ) : (
-                  <p style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '0.8rem', textAlign: 'center', width: '100%', padding: '1rem' }}>No additional detailed info.</p>
+                  </div>
+                )}
+                {email && (
+                  <div className="pro-detail-item" style={{ borderBottom: '1px solid #f1f5f9', padding: '0.75rem 0' }}>
+                    <span className="pro-detail-icon" style={{ minWidth: '24px', color: accentColor }}><Mail size={16} /></span>
+                    <div>
+                      <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: '#94a3b8' }}>Email</div>
+                      <div style={{ color: '#334155' }}>
+                        <a href={`mailto:${email}`} style={{ color: 'inherit', textDecoration: 'none' }}>{email}</a>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {website && (
+                  <div className="pro-detail-item" style={{ borderBottom: '1px solid #f1f5f9', padding: '0.75rem 0' }}>
+                    <span className="pro-detail-icon" style={{ minWidth: '24px', color: accentColor }}><Globe size={16} /></span>
+                    <div>
+                      <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: '#94a3b8' }}>Website</div>
+                      <div style={{ color: '#334155' }}>
+                        <a href={website.startsWith('http') ? website : `https://${website}`} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>{website}</a>
+                      </div>
+                    </div>
+                  </div>
                 )}
                 {location && (
                   <div className="pro-detail-item" style={{ borderBottom: '1px solid #f1f5f9', padding: '0.75rem 0' }}>
@@ -402,6 +422,17 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
                     </div>
                   </div>
                 )}
+
+                {/* Custom Fields */}
+                {listFields.map((field, idx) => (
+                  <div key={idx} className="pro-detail-item" style={{ borderBottom: '1px solid #f1f5f9', padding: '0.75rem 0' }}>
+                    <span className="pro-detail-icon" style={{ minWidth: '24px', color: accentColor }}><Star size={16} /></span>
+                    <div>
+                      <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: '#94a3b8' }}>{field.label || field.type}</div>
+                      <div style={{ color: '#334155' }}>{field.value}</div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
 
@@ -1050,7 +1081,7 @@ function App() {
                   title="Plans & Pricing"
                   style={{ color: '#fbbf24' }}
                 >
-                  <Diamond size={20} />
+                  <Gem size={20} />
                 </button>
                 <button onClick={handleLogout} className="icon-btn" title="Sign Out">
                   <LogOut size={20} className="text-white" />
