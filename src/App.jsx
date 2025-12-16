@@ -492,18 +492,66 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage }) => {
             type="file"
             accept="image/*"
             style={{ display: 'none' }}
-            onChange={(e) => {
+            onChange={async (e) => {
               const file = e.target.files[0];
-              if (file) {
-                if (file.size > 1000000) { // 1MB limit check
-                  alert("Image too large. Max 1MB.");
+              if (!file) return;
+
+              // Helper to resize and compress image
+              const compressImage = (file) => {
+                return new Promise((resolve, reject) => {
+                  const reader = new FileReader();
+                  reader.readAsDataURL(file);
+                  reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                      const canvas = document.createElement('canvas');
+                      const MAX_WIDTH = 800;
+                      const MAX_HEIGHT = 800;
+                      let width = img.width;
+                      let height = img.height;
+
+                      if (width > height) {
+                        if (width > MAX_WIDTH) {
+                          height *= MAX_WIDTH / width;
+                          width = MAX_WIDTH;
+                        }
+                      } else {
+                        if (height > MAX_HEIGHT) {
+                          width *= MAX_HEIGHT / height;
+                          height = MAX_HEIGHT;
+                        }
+                      }
+                      canvas.width = width;
+                      canvas.height = height;
+                      const ctx = canvas.getContext('2d');
+                      ctx.drawImage(img, 0, 0, width, height);
+                      // Compress to JPEG at 70% quality
+                      const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                      resolve(dataUrl);
+                    };
+                    img.onerror = (err) => reject(err);
+                  };
+                  reader.onerror = (err) => reject(err);
+                });
+              };
+
+              try {
+                // Allow up to 20MB input now that we compress
+                if (file.size > 20 * 1024 * 1024) {
+                  alert("L'image est trop volumineuse (Max 20MB).");
                   return;
                 }
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                  setImage(reader.result);
-                };
-                reader.readAsDataURL(file);
+
+                setStatusMessage({ type: 'info', text: 'Optimisation de l\'image...' });
+                const compressedBase64 = await compressImage(file);
+                setImage(compressedBase64);
+                setStatusMessage(null);
+
+              } catch (error) {
+                console.error("Image processing error:", error);
+                alert("Erreur lors du traitement de l'image.");
+                setStatusMessage(null);
               }
             }}
           />
