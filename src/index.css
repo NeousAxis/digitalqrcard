@@ -49,6 +49,10 @@ body {
   padding: 1rem 1.5rem;
   border-bottom: 1px solid var(--glass-border);
   box-shadow: var(--shadow-sm);
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  width: 100%;
 }
 
 /* Brand container - ALIGNMENT FIX */
