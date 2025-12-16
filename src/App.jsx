@@ -811,6 +811,17 @@ function App() {
     return localStorage.getItem('subscription') || 'free';
   });
 
+  const [view, setView] = useState('dashboard'); // dashboard, editor
+  const [editingCard, setEditingCard] = useState(null);
+  const [showPricing, setShowPricing] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false); // New State for Auth Modal
+  const [sharedCardId, setSharedCardId] = useState(null);
+  const [expandedCardId, setExpandedCardId] = useState(null); // Expanded Details View
+  const [isSaving, setIsSaving] = useState(false);
+  const [statusMessage, setStatusMessage] = useState(null);
+
+  const [user, setUser] = useState(null); // Firebase Auth user
+
   /* --- PRO CAROUSEL COMPONENT --- */
   // eslint-disable-next-line react/prop-types
   const Carousel = ({ items, renderItem }) => {
