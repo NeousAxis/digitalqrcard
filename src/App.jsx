@@ -421,6 +421,7 @@ const migrateCard = (card) => {
 
 const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage }) => {
   const [name, setName] = useState(card?.name || '');
+  const [image, setImage] = useState(card?.image || null); // New Image State
   const [theme, setTheme] = useState(card?.theme || 'radiant-ocean'); // Default to a nice radiant
   const [fields, setFields] = useState(card ? migrateCard(card) : [
     { type: 'title', value: '' },
@@ -450,6 +451,7 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage }) => {
     onSave({
       id: card?.id,
       name,
+      image, // Save the base64 image
       theme,
       fields: fields.filter(f => f.value && String(f.value).trim() !== '')
     });
@@ -460,6 +462,60 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage }) => {
       <h2 className="editor-title">{card ? t.edit : t.createNewCard}</h2>
 
       <form onSubmit={handleSubmit} className="editor-form">
+        {/* Image Upload Section */}
+        <div className="form-group" style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+          <div
+            style={{
+              width: '100px',
+              height: '100px',
+              borderRadius: '50%',
+              background: '#f1f5f9',
+              margin: '0 auto 1rem auto',
+              overflow: 'hidden',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: '2px dashed #cbd5e1',
+              cursor: 'pointer',
+              position: 'relative'
+            }}
+            onClick={() => document.getElementById('card-image-input').click()}
+          >
+            {image ? (
+              <img src={image} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>+ Photo</span>
+            )}
+          </div>
+          <input
+            id="card-image-input"
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              const file = e.target.files[0];
+              if (file) {
+                if (file.size > 1000000) { // 1MB limit check
+                  alert("Image too large. Max 1MB.");
+                  return;
+                }
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                  setImage(reader.result);
+                };
+                reader.readAsDataURL(file);
+              }
+            }}
+          />
+          <label
+            htmlFor="card-image-input"
+            className="btn-secondary"
+            style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem', cursor: 'pointer' }}
+          >
+            Upload Photo / Logo
+          </label>
+        </div>
+
         {/* Fixed Name Field */}
         <div className="form-group">
           <label className="field-label">{t.fullName}</label>

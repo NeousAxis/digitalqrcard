@@ -71,6 +71,15 @@ body {
   margin: 0;
 }
 
+/* Header Controls: Pushed to right */
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-left: auto;
+  /* CRITICAL: Pushes everything to the right */
+}
+
 .plan-badge-pro {
   background: #f1f5f9;
   color: #475569;
@@ -80,6 +89,9 @@ body {
   font-weight: 700;
   letter-spacing: 0.05em;
   border: 1px solid #e2e8f0;
+  white-space: nowrap;
+  /* Prevent wrapping */
+  /* Remove any width:100% if it exists */
 }
 
 .btn-primary-pro {
@@ -265,17 +277,15 @@ body {
 }
 
 @media (max-width: 480px) {
-
-  /* Keep header horizontal on mobile */
   .app-header {
-    flex-direction: row;
-    align-items: center;
-    padding: 1rem;
+    padding: 0.75rem 1rem;
   }
 
   .brand-name-pro {
-    display: none;
-    /* Hide text on very small screens if needed, or keep smaller */
+    display: block !important;
+    /* FORCE DISPLAY */
+    font-size: 1rem;
+    margin-left: 0.5rem;
   }
 }
 
