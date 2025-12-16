@@ -597,22 +597,27 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage }) => {
               </span>
             ) : t.save}
           </button>
+
         </div>
-        {statusMessage && (
-          <div style={{
-            marginTop: '1rem',
-            padding: '0.75rem',
-            borderRadius: '0.5rem',
-            background: statusMessage.type === 'error' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(59, 130, 246, 0.2)',
-            color: statusMessage.type === 'error' ? '#fca5a5' : '#93c5fd',
-            fontSize: '0.9rem',
-            textAlign: 'center'
-          }}>
-            {statusMessage.text}
-          </div>
-        )}
-      </form>
-    </div>
+        {/* Spacer for Fixed Footer */}
+        <div style={{ height: '80px' }}></div>
+        {
+          statusMessage && (
+            <div style={{
+              marginTop: '1rem',
+              padding: '0.75rem',
+              borderRadius: '0.5rem',
+              background: statusMessage.type === 'error' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(59, 130, 246, 0.2)',
+              color: statusMessage.type === 'error' ? '#fca5a5' : '#93c5fd',
+              fontSize: '0.9rem',
+              textAlign: 'center'
+            }}>
+              {statusMessage.text}
+            </div>
+          )
+        }
+      </form >
+    </div >
   );
 };
 
@@ -1038,7 +1043,7 @@ function App() {
           </div>
 
           <div className="header-controls">
-            {user ? (
+            {user && (
               <>
                 <div className="plan-badge-pro">
                   {subscription.toUpperCase()}
@@ -1047,10 +1052,6 @@ function App() {
                   {t.logout} <LogOut size={16} />
                 </button>
               </>
-            ) : (
-              <button onClick={() => setShowAuthModal(true)} className="btn-primary-pro">
-                <LogIn size={18} /> {t.login}
-              </button>
             )}
           </div>
         </header>
