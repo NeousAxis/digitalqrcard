@@ -496,6 +496,8 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage }) => {
               const file = e.target.files[0];
               if (!file) return;
 
+              setStatusMessage({ type: 'info', text: 'Traitement...' });
+
               // Helper to resize and compress image
               const compressImage = (file) => {
                 return new Promise((resolve, reject) => {
@@ -506,8 +508,8 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage }) => {
                     img.src = event.target.result;
                     img.onload = () => {
                       const canvas = document.createElement('canvas');
-                      const MAX_WIDTH = 800;
-                      const MAX_HEIGHT = 800;
+                      const MAX_WIDTH = 500; // Reduced for safety & speed
+                      const MAX_HEIGHT = 500;
                       let width = img.width;
                       let height = img.height;
 
@@ -526,32 +528,39 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage }) => {
                       canvas.height = height;
                       const ctx = canvas.getContext('2d');
                       ctx.drawImage(img, 0, 0, width, height);
-                      // Compress to JPEG at 70% quality
-                      const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                      // Compress to JPEG at 80% quality
+                      const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
                       resolve(dataUrl);
                     };
-                    img.onerror = (err) => reject(err);
+                    img.onerror = (err) => reject(new Error("Failed to load image"));
                   };
-                  reader.onerror = (err) => reject(err);
+                  reader.onerror = (err) => reject(new Error("Failed to read file"));
                 });
               };
 
               try {
-                // Allow up to 20MB input now that we compress
-                if (file.size > 20 * 1024 * 1024) {
-                  alert("L'image est trop volumineuse (Max 20MB).");
-                  return;
-                }
-
-                setStatusMessage({ type: 'info', text: 'Optimisation de l\'image...' });
+                // Try to compress
                 const compressedBase64 = await compressImage(file);
                 setImage(compressedBase64);
-                setStatusMessage(null);
+                setStatusMessage({ type: 'success', text: 'Image ajoutée !' });
+                setTimeout(() => setStatusMessage(null), 2000);
 
               } catch (error) {
                 console.error("Image processing error:", error);
-                alert("Erreur lors du traitement de l'image.");
-                setStatusMessage(null);
+
+                // FALLBACK: If compression fails but file is reasonably small (< 4MB), use it raw
+                if (file.size < 4 * 1024 * 1024) {
+                  const reader = new FileReader();
+                  reader.onload = (e) => {
+                    setImage(e.target.result);
+                    setStatusMessage({ type: 'success', text: 'Image (originale) ajoutée !' });
+                    setTimeout(() => setStatusMessage(null), 2000);
+                  };
+                  reader.readAsDataURL(file);
+                } else {
+                  alert("Erreur technique: " + (error.message || "L'image ne peut pas être traitée"));
+                  setStatusMessage({ type: 'error', text: 'Erreur image' });
+                }
               }
             }}
           />
