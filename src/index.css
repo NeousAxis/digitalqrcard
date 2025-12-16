@@ -264,6 +264,21 @@ body {
   align-items: center;
 }
 
+@media (max-width: 480px) {
+
+  /* Keep header horizontal on mobile */
+  .app-header {
+    flex-direction: row;
+    align-items: center;
+    padding: 1rem;
+  }
+
+  .brand-name-pro {
+    display: none;
+    /* Hide text on very small screens if needed, or keep smaller */
+  }
+}
+
 .pro-card-actions {
   display: flex;
   gap: 1.5rem;
@@ -343,6 +358,7 @@ body {
   height: 80px;
   background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border-top: 1px solid var(--glass-border);
   display: flex;
   justify-content: space-around;
@@ -393,9 +409,11 @@ body {
   gap: 1.5rem;
   max-width: 600px;
   margin: 0 auto;
+  padding: 2rem;
+  padding-bottom: 150px;
+  /* Ensure huge space for fixed footer */
+  max-width: 1200px;
 }
-
-
 
 .empty-state {
   text-align: center;
