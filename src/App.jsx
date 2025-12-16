@@ -760,7 +760,7 @@ const AuthModal = ({ onClose, onLoginGoogle }) => {
           <span style={{ background: '#fff', padding: '0 10px', color: '#64748b' }}>OU</span>
         </div>
 
-        <button onClick={onLoginGoogle} className="btn-secondary" style={{ width: '100%', justifyContent: 'center' }}>
+        <button onClick={onLoginGoogle} className="btn-google" style={{ width: '100%', justifyContent: 'center' }}>
           <LogIn size={18} style={{ marginRight: '0.5rem' }} /> Continuer avec Google
         </button>
 
