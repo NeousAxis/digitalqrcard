@@ -1153,7 +1153,7 @@ function App() {
                   {subscription.toUpperCase()}
                 </div>
                 <button onClick={handleLogout} className="btn-logout" title="Sign Out">
-                  {t.logout} <LogOut size={16} />
+                  <LogOut size={20} />
                 </button>
               </>
             )}
