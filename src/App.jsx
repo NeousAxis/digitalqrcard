@@ -422,6 +422,7 @@ const migrateCard = (card) => {
 const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage }) => {
   const [name, setName] = useState(card?.name || '');
   const [image, setImage] = useState(card?.image || null); // New Image State
+  const [uploadStatus, setUploadStatus] = useState(null); // Local state for image upload feedback
   const [theme, setTheme] = useState(card?.theme || 'radiant-ocean'); // Default to a nice radiant
   const [fields, setFields] = useState(card ? migrateCard(card) : [
     { type: 'title', value: '' },
@@ -496,7 +497,7 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage }) => {
               const file = e.target.files[0];
               if (!file) return;
 
-              setStatusMessage({ type: 'info', text: 'Traitement...' });
+              setUploadStatus({ type: 'info', text: 'Traitement en cours...' });
 
               // Helper to resize and compress image
               const compressImage = (file) => {
@@ -542,8 +543,8 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage }) => {
                 // Try to compress
                 const compressedBase64 = await compressImage(file);
                 setImage(compressedBase64);
-                setStatusMessage({ type: 'success', text: 'Image ajoutée !' });
-                setTimeout(() => setStatusMessage(null), 2000);
+                setUploadStatus({ type: 'success', text: 'Photo ajoutée !' });
+                setTimeout(() => setUploadStatus(null), 3000);
 
               } catch (error) {
                 console.error("Image processing error:", error);
@@ -553,13 +554,13 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage }) => {
                   const reader = new FileReader();
                   reader.onload = (e) => {
                     setImage(e.target.result);
-                    setStatusMessage({ type: 'success', text: 'Image (originale) ajoutée !' });
-                    setTimeout(() => setStatusMessage(null), 2000);
+                    setUploadStatus({ type: 'success', text: 'Photo (brute) ajoutée !' });
+                    setTimeout(() => setUploadStatus(null), 3000);
                   };
                   reader.readAsDataURL(file);
                 } else {
                   alert("Erreur technique: " + (error.message || "L'image ne peut pas être traitée"));
-                  setStatusMessage({ type: 'error', text: 'Erreur image' });
+                  setUploadStatus({ type: 'error', text: 'Erreur image' });
                 }
               }
             }}
@@ -571,6 +572,17 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage }) => {
           >
             Upload Photo / Logo
           </label>
+          {/* Feedback Message Display */}
+          {uploadStatus && (
+            <div style={{
+              marginTop: '0.5rem',
+              fontSize: '0.8rem',
+              color: uploadStatus.type === 'error' ? '#ef4444' : uploadStatus.type === 'success' ? '#10b981' : '#64748b',
+              fontWeight: '600'
+            }}>
+              {uploadStatus.text}
+            </div>
+          )}
         </div>
 
         {/* Fixed Name Field */}
