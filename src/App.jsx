@@ -306,22 +306,22 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
             {/* 4. Action Buttons Row */}
             <div className="pro-actions-row">
               {phone && (
-                <a href={`tel:${phone}`} className="pro-action-btn action-phone" title={phone} style={{ textDecoration: 'none' }}>
+                <a href={`tel:${phone}`} className="pro-action-btn action-phone" title={phone} style={{ textDecoration: 'none', color: accentColor }}>
                   <Phone size={20} />
                 </a>
               )}
               {email && (
-                <a href={`mailto:${email}`} className="pro-action-btn action-email" title={email} style={{ textDecoration: 'none' }}>
+                <a href={`mailto:${email}`} className="pro-action-btn action-email" title={email} style={{ textDecoration: 'none', color: accentColor }}>
                   <Mail size={20} />
                 </a>
               )}
               {website && (
-                <a href={website.startsWith('http') ? website : `https://${website}`} target="_blank" rel="noopener noreferrer" className="pro-action-btn action-web" title={website} style={{ textDecoration: 'none' }}>
+                <a href={website.startsWith('http') ? website : `https://${website}`} target="_blank" rel="noopener noreferrer" className="pro-action-btn action-web" title={website} style={{ textDecoration: 'none', color: accentColor }}>
                   <Globe size={20} />
                 </a>
               )}
               {location && (
-                <div className="pro-action-btn action-map" title={location}>
+                <div className="pro-action-btn action-map" title={location} style={{ color: accentColor }}>
                   <MapPin size={20} />
                 </div>
               )}
