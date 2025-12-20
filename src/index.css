@@ -935,6 +935,27 @@ body {
   background: linear-gradient(135deg, #667eea, #764ba2);
 }
 
+/* Radiant Themes - Harmonization */
+.radiant-ocean {
+  background: linear-gradient(135deg, #00c6fb 0%, #005bea 100%);
+}
+
+.radiant-sunset {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.radiant-nature {
+  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+}
+
+.radiant-purple {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.radiant-dark {
+  background: linear-gradient(to right, #434343 0%, black 100%);
+}
+
 /* Animations */
 @keyframes fadeIn {
   from {
