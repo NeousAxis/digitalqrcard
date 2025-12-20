@@ -46,6 +46,7 @@ const THEME_COLORS = {
   'pantone-emerald': 'linear-gradient(135deg, #009473 0%, #00BC91 100%)', // 2013
   'pantone-honeysuckle': 'linear-gradient(135deg, #D65076 0%, #E86E8D 100%)', // 2011
   'pantone-turquoise': 'linear-gradient(135deg, #45B8AC 0%, #5ECFC4 100%)', // 2010
+  'pantone-olivine': 'linear-gradient(135deg, #6A7051 0%, #8A916B 100%)', // Olive
 };
 
 // --- Firebase Config (replace with your own values) ---

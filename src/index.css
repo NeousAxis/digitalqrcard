@@ -968,6 +968,10 @@ body {
   background: linear-gradient(135deg, #45B8AC 0%, #5ECFC4 100%);
 }
 
+.pantone-olivine {
+  background: linear-gradient(135deg, #6A7051 0%, #8A916B 100%);
+}
+
 /* Animations */
 @keyframes fadeIn {
   from {
