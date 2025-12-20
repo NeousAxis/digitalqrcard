@@ -1270,3 +1270,69 @@ body {
   opacity: 0.9;
   transform: translateY(-2px);
 }
+/* Pricing Modal Styles - Improved Readability & No Scroll */
+.pricing-modal {
+  width: 95% !important;
+  max-width: 900px !important;
+  max-height: 90vh !important;
+  margin: auto;
+  padding: 1.5rem !important;
+  display: flex !important;
+  flex-direction: column !important;
+  background: #0f172a !important; /* Solid dark background */
+  border: 1px solid #334155 !important;
+  overflow: hidden !important; /* Prevent body scroll */
+}
+
+/* Horizontal Scroll Container for Mobile */
+.pricing-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 1rem !important;
+  overflow-y: auto !important; /* Scroll content inside if needed */
+  padding-bottom: 1rem !important;
+}
+
+@media (max-width: 768px) {
+  .pricing-grid {
+    grid-template-columns: 1fr !important; /* Stack for mobile but compacted */
+    overflow-y: auto !important;
+    max-height: 60vh !important;
+  }
+}
+
+.pricing-card {
+  background: #1e293b !important;
+  border-radius: 1rem !important;
+  padding: 1.5rem !important;
+  text-align: center !important;
+  border: 1px solid #334155 !important;
+  color: white !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+}
+
+.pricing-card h3 {
+  font-size: 1.25rem !important;
+  margin-bottom: 0.5rem !important;
+  color: white !important;
+}
+
+.pricing-card .features-list li {
+  color: #cbd5e1 !important; /* Light gray text for readability */
+  margin-bottom: 0.5rem !important;
+  font-size: 0.85rem !important;
+  justify-content: center !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+}
+
+.pricing-header h2 {
+  color: white !important;
+}
+
+.pricing-header p {
+  color: #94a3b8 !important;
+}
