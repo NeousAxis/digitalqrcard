@@ -32,18 +32,16 @@ import {
 } from 'firebase/auth';
 // --- Utils ---
 const THEME_COLORS = {
-  // Gradients (Radiants)
-  'radiant-ocean': 'linear-gradient(135deg, #00c6fb 0%, #005bea 100%)',
-  'radiant-sunset': 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-  'radiant-nature': 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-  'radiant-purple': 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-  'radiant-dark': 'linear-gradient(to right, #434343 0%, black 100%)',
-  // Solids
-  'card-bg-1': '#FF6B6B',
-  'card-bg-2': '#4facfe',
-  'card-bg-3': '#43e97b',
-  'card-bg-4': '#fa709a',
-  'card-bg-5': '#a18cd1'
+  // Pantone Trends (2013-2024)
+  'pantone-peach-fuzz': 'linear-gradient(135deg, #FFBE98 0%, #FFD1B3 100%)', // 2024
+  'pantone-viva-magenta': 'linear-gradient(135deg, #BE3455 0%, #E63E6D 100%)', // 2023
+  'pantone-very-peri': 'linear-gradient(135deg, #6667AB 0%, #8A8BCF 100%)', // 2022
+  'pantone-ultimate-gray': 'linear-gradient(135deg, #939597 0%, #B0B2B4 100%)', // 2021
+  'pantone-classic-blue': 'linear-gradient(135deg, #0F4C81 0%, #1A6FB0 100%)', // 2020
+  'pantone-living-coral': 'linear-gradient(135deg, #FF6F61 0%, #FF8F85 100%)', // 2019
+  'pantone-ultra-violet': 'linear-gradient(135deg, #5F4B8B 0%, #7D63B8 100%)', // 2018
+  'pantone-greenery': 'linear-gradient(135deg, #88B04B 0%, #AACC66 100%)', // 2017
+  'pantone-emerald': 'linear-gradient(135deg, #009473 0%, #00BC91 100%)', // 2013
 };
 
 // --- Firebase Config (replace with your own values) ---
@@ -211,7 +209,7 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
   const listFields = fields.filter(f => !['title', 'company', 'phone', 'email', 'website', 'location'].includes(f.type));
 
   /* Safe Theme Resolution */
-  const safeTheme = (card.theme && THEME_COLORS[card.theme]) ? card.theme : 'card-bg-1';
+  const safeTheme = (card.theme && THEME_COLORS[card.theme]) ? card.theme : 'pantone-classic-blue';
   const themeBg = THEME_COLORS[safeTheme];
 
   const accentColor = (themeBg && themeBg.includes('gradient'))
@@ -423,7 +421,7 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage }) => {
   const [name, setName] = useState(card?.name || '');
   const [image, setImage] = useState(card?.image || null); // New Image State
   const [uploadStatus, setUploadStatus] = useState(null); // Local state for image upload feedback
-  const [theme, setTheme] = useState(card?.theme || 'radiant-ocean'); // Default to a nice radiant
+  const [theme, setTheme] = useState(card?.theme || 'pantone-classic-blue'); // Default to Classic Blue
   const [fields, setFields] = useState(card ? migrateCard(card) : [
     { type: 'title', value: '' },
     { type: 'company', value: '' },

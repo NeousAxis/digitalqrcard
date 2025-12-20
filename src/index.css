@@ -915,45 +915,41 @@ body {
 }
 
 /* Gradients */
-.card-bg-1 {
-  background: linear-gradient(135deg, #FF6B6B, #556270);
+/* Pantone Trendy Themes */
+.pantone-peach-fuzz {
+  background: linear-gradient(135deg, #FFBE98 0%, #FFD1B3 100%);
 }
 
-.card-bg-2 {
-  background: linear-gradient(135deg, #4facfe, #00f2fe);
+.pantone-viva-magenta {
+  background: linear-gradient(135deg, #BE3455 0%, #E63E6D 100%);
 }
 
-.card-bg-3 {
-  background: linear-gradient(135deg, #43e97b, #38f9d7);
+.pantone-very-peri {
+  background: linear-gradient(135deg, #6667AB 0%, #8A8BCF 100%);
 }
 
-.card-bg-4 {
-  background: linear-gradient(135deg, #fa709a, #fee140);
+.pantone-ultimate-gray {
+  background: linear-gradient(135deg, #939597 0%, #B0B2B4 100%);
 }
 
-.card-bg-5 {
-  background: linear-gradient(135deg, #667eea, #764ba2);
+.pantone-classic-blue {
+  background: linear-gradient(135deg, #0F4C81 0%, #1A6FB0 100%);
 }
 
-/* Radiant Themes - Harmonization */
-.radiant-ocean {
-  background: linear-gradient(135deg, #00c6fb 0%, #005bea 100%);
+.pantone-living-coral {
+  background: linear-gradient(135deg, #FF6F61 0%, #FF8F85 100%);
 }
 
-.radiant-sunset {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+.pantone-ultra-violet {
+  background: linear-gradient(135deg, #5F4B8B 0%, #7D63B8 100%);
 }
 
-.radiant-nature {
-  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+.pantone-greenery {
+  background: linear-gradient(135deg, #88B04B 0%, #AACC66 100%);
 }
 
-.radiant-purple {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
-.radiant-dark {
-  background: linear-gradient(to right, #434343 0%, black 100%);
+.pantone-emerald {
+  background: linear-gradient(135deg, #009473 0%, #00BC91 100%);
 }
 
 /* Animations */
