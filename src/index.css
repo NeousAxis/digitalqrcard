@@ -1270,6 +1270,7 @@ body {
   opacity: 0.9;
   transform: translateY(-2px);
 }
+
 /* Pricing Modal Styles - Improved Readability & No Scroll */
 .pricing-modal {
   width: 95% !important;
@@ -1279,25 +1280,40 @@ body {
   padding: 1.5rem !important;
   display: flex !important;
   flex-direction: column !important;
-  background: #0f172a !important; /* Solid dark background */
+  background: #0f172a !important;
   border: 1px solid #334155 !important;
-  overflow: hidden !important; /* Prevent body scroll */
+  border-radius: 1rem;
+  overflow: hidden !important;
 }
 
-/* Horizontal Scroll Container for Mobile */
+/* Base Grid (Desktop) */
 .pricing-grid {
   display: grid !important;
   grid-template-columns: repeat(3, 1fr) !important;
   gap: 1rem !important;
-  overflow-y: auto !important; /* Scroll content inside if needed */
+  overflow-y: auto !important;
   padding-bottom: 1rem !important;
+  height: 100%;
 }
 
+/* Mobile: Horizontal Snap Carousel (No Vertical Scroll) */
 @media (max-width: 768px) {
   .pricing-grid {
-    grid-template-columns: 1fr !important; /* Stack for mobile but compacted */
-    overflow-y: auto !important;
-    max-height: 60vh !important;
+    display: flex !important;
+    grid-template-columns: none !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scroll-snap-type: x mandatory;
+    gap: 1rem !important;
+    padding-bottom: 1rem;
+    height: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .pricing-card {
+    min-width: 85% !important;
+    scroll-snap-align: center;
+    margin-right: 0.5rem;
   }
 }
 
@@ -1320,7 +1336,7 @@ body {
 }
 
 .pricing-card .features-list li {
-  color: #cbd5e1 !important; /* Light gray text for readability */
+  color: #cbd5e1 !important;
   margin-bottom: 0.5rem !important;
   font-size: 0.85rem !important;
   justify-content: center !important;
@@ -1335,4 +1351,30 @@ body {
 
 .pricing-header p {
   color: #94a3b8 !important;
+}
+
+.pricing-card button {
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 1rem;
+}
+
+/* Fix "Select" button visibility on dark card */
+.pricing-card .btn-secondary {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: white !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+.pricing-card .btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.2) !important;
+}
+
+.pricing-card .btn-primary {
+  background: white !important;
+  color: #0f172a !important;
+  border: none !important;
 }
