@@ -32,16 +32,20 @@ import {
 } from 'firebase/auth';
 // --- Utils ---
 const THEME_COLORS = {
-  // Pantone Trends (2013-2024)
+  // Pantone Trends (2010-2024)
   'pantone-peach-fuzz': 'linear-gradient(135deg, #FFBE98 0%, #FFD1B3 100%)', // 2024
   'pantone-viva-magenta': 'linear-gradient(135deg, #BE3455 0%, #E63E6D 100%)', // 2023
   'pantone-very-peri': 'linear-gradient(135deg, #6667AB 0%, #8A8BCF 100%)', // 2022
-  'pantone-ultimate-gray': 'linear-gradient(135deg, #939597 0%, #B0B2B4 100%)', // 2021
   'pantone-classic-blue': 'linear-gradient(135deg, #0F4C81 0%, #1A6FB0 100%)', // 2020
   'pantone-living-coral': 'linear-gradient(135deg, #FF6F61 0%, #FF8F85 100%)', // 2019
   'pantone-ultra-violet': 'linear-gradient(135deg, #5F4B8B 0%, #7D63B8 100%)', // 2018
   'pantone-greenery': 'linear-gradient(135deg, #88B04B 0%, #AACC66 100%)', // 2017
+  'pantone-serenity': 'linear-gradient(135deg, #91A8D0 0%, #B3CDE0 100%)', // 2016 (Blue)
+  'pantone-rose-quartz': 'linear-gradient(135deg, #F7CAC9 0%, #FAD0C4 100%)', // 2016 (Pink)
+  'pantone-radiant-orchid': 'linear-gradient(135deg, #B565A7 0%, #D691C9 100%)', // 2014
   'pantone-emerald': 'linear-gradient(135deg, #009473 0%, #00BC91 100%)', // 2013
+  'pantone-honeysuckle': 'linear-gradient(135deg, #D65076 0%, #E86E8D 100%)', // 2011
+  'pantone-turquoise': 'linear-gradient(135deg, #45B8AC 0%, #5ECFC4 100%)', // 2010
 };
 
 // --- Firebase Config (replace with your own values) ---

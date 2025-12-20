@@ -928,10 +928,6 @@ body {
   background: linear-gradient(135deg, #6667AB 0%, #8A8BCF 100%);
 }
 
-.pantone-ultimate-gray {
-  background: linear-gradient(135deg, #939597 0%, #B0B2B4 100%);
-}
-
 .pantone-classic-blue {
   background: linear-gradient(135deg, #0F4C81 0%, #1A6FB0 100%);
 }
@@ -948,8 +944,28 @@ body {
   background: linear-gradient(135deg, #88B04B 0%, #AACC66 100%);
 }
 
+.pantone-serenity {
+  background: linear-gradient(135deg, #91A8D0 0%, #B3CDE0 100%);
+}
+
+.pantone-rose-quartz {
+  background: linear-gradient(135deg, #F7CAC9 0%, #FAD0C4 100%);
+}
+
+.pantone-radiant-orchid {
+  background: linear-gradient(135deg, #B565A7 0%, #D691C9 100%);
+}
+
 .pantone-emerald {
   background: linear-gradient(135deg, #009473 0%, #00BC91 100%);
+}
+
+.pantone-honeysuckle {
+  background: linear-gradient(135deg, #D65076 0%, #E86E8D 100%);
+}
+
+.pantone-turquoise {
+  background: linear-gradient(135deg, #45B8AC 0%, #5ECFC4 100%);
 }
 
 /* Animations */
