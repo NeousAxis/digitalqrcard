@@ -1271,6 +1271,20 @@ function App() {
                       </div>
                     )}
                   />
+                  {cards.length < (subscription === 'pro' ? PRICING.pro.limit : (subscription === 'basic' ? PRICING.basic.limit : 1)) && (
+                    <div style={{ textAlign: 'center', marginTop: '1.5rem', marginBottom: '1rem' }}>
+                      <button
+                        onClick={() => {
+                          setEditingCard(null);
+                          setView('editor');
+                        }}
+                        className="btn-create-pro"
+                        style={{ margin: '0 auto' }}
+                      >
+                        <Plus size={20} /> {t.createNewCard}
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </>
