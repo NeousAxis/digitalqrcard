@@ -763,57 +763,56 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t }) => {
 
         <div className="pricing-grid">
           {/* Free Plan */}
-          <div className={`pricing - card ${currentPlan === 'free' ? 'highlight' : ''} `}>
+          <div className={`pricing-card ${currentPlan === 'free' ? 'highlight' : ''}`}>
             <h3>{t.free}</h3>
             <div className="price">0 CHF<span>{t.month}</span></div>
             <ul className="features-list">
-              <li><Check size={16} className="text-primary" /> 1 {t.digitalCard}</li>
-              <li><Check size={16} className="text-primary" /> {t.unlimitedShare}</li>
-              <li><Check size={16} className="text-primary" /> {t.universalQR}</li>
+              <li>1 {t.digitalCard}</li>
+              <li>{t.unlimitedShare}</li>
+              <li>{t.universalQR}</li>
             </ul>
             <button
-              disabled={currentPlan === 'free'}
-              className={`btn - full ${currentPlan === 'free' ? 'btn-secondary' : 'btn-secondary'} `}
-              style={{ opacity: currentPlan === 'free' ? 0.5 : 1 }}
+              disabled={true}
+              className="btn-secondary btn-full"
+              style={{ opacity: 0.7, cursor: 'default' }}
             >
               {currentPlan === 'free' ? t.currentPlan : t.select}
             </button>
           </div>
 
           {/* Basic Plan */}
-          <div className={`pricing - card ${currentPlan === 'basic' ? 'highlight' : ''} `}>
-            <div className="popular-badge">{t.popular}</div>
+          <div className={`pricing-card ${currentPlan === 'basic' ? 'highlight' : ''}`}>
+            {currentPlan !== 'basic' && <div className="popular-badge">{t.popular}</div>}
             <h3>{t[PRICING.basic.key]}</h3>
             <div className="price">{PRICING.basic.price}<span>{t.month}</span></div>
             <ul className="features-list">
-              <li><Check size={16} className="text-primary" /> {PRICING.basic.limit} {t.digitalCards}</li>
-              <li><Check size={16} className="text-primary" /> {t.premiumStyles}</li>
-              <li><Check size={16} className="text-primary" /> {t.prioritySupport}</li>
+              <li>{PRICING.basic.limit} {t.digitalCards}</li>
+              <li>{t.premiumStyles}</li>
+              <li>{t.prioritySupport}</li>
             </ul>
             <button
               onClick={() => onUpgrade('basic')}
               disabled={currentPlan === 'basic'}
-              className={`btn - full ${currentPlan === 'basic' ? 'btn-secondary' : 'btn-primary'} `}
-              style={{ opacity: currentPlan === 'basic' ? 0.5 : 1 }}
+              className={`btn-full ${currentPlan === 'basic' ? 'btn-secondary' : 'btn-primary'}`}
             >
               {currentPlan === 'basic' ? t.currentPlan : t.chooseThis}
             </button>
           </div>
 
           {/* Pro Plan */}
-          <div className={`pricing - card ${currentPlan === 'pro' ? 'highlight' : ''} `}>
+          <div className={`pricing-card ${currentPlan === 'pro' ? 'highlight' : ''}`}>
             <h3>{t[PRICING.pro.key]}</h3>
             <div className="price">{PRICING.pro.price}<span>{t.month}</span></div>
             <ul className="features-list">
-              <li><Check size={16} className="text-primary" /> {PRICING.pro.limit} {t.digitalCards}</li>
-              <li><Check size={16} className="text-primary" /> {t.unlimitedAll}</li>
-              <li><Check size={16} className="text-primary" /> {t.proBadge}</li>
+              <li>{PRICING.pro.limit} {t.digitalCards}</li>
+              <li>{t.unlimitedAll}</li>
+              <li>{t.proBadge}</li>
             </ul>
             <button
               onClick={() => onUpgrade('pro')}
               disabled={currentPlan === 'pro'}
-              className={`btn - full ${currentPlan === 'pro' ? 'btn-secondary' : 'btn-secondary'} `}
-              style={{ opacity: currentPlan === 'pro' ? 0.5 : 1 }}
+              className={`btn-full ${currentPlan === 'pro' ? 'btn-secondary' : 'btn-secondary'}`}
+              style={currentPlan !== 'pro' ? { border: '1px solid white' } : {}}
             >
               {currentPlan === 'pro' ? t.currentPlan : t.chooseThis}
             </button>
