@@ -988,6 +988,58 @@ class ErrorBoundary extends React.Component {
   }
 }
 
+/* --- PRO CAROUSEL COMPONENT --- */
+// eslint-disable-next-line react/prop-types
+const Carousel = ({ items, renderItem }) => {
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  // Safety: Adjust index if items are removed
+  useEffect(() => {
+    if (activeIndex >= items.length && items.length > 0) {
+      setActiveIndex(items.length - 1);
+    }
+  }, [items.length, activeIndex]);
+
+  const next = () => setActiveIndex(current => (current + 1) % items.length);
+  const prev = () => setActiveIndex(current => (current - 1 + items.length) % items.length);
+
+  if (!items.length) return null;
+
+  return (
+    <div className="carousel-container">
+      <div className="carousel-track" style={{ transform: `translateX(-${activeIndex * 100}%)` }}>
+        {items.map((item, index) => (
+          <div key={item.id || index} className={`carousel-item ${index === activeIndex ? 'active' : ''}`}>
+            {renderItem(item, index === activeIndex)}
+          </div>
+        ))}
+      </div>
+
+      {items.length > 1 && (
+        <>
+          <button onClick={prev} className="carousel-nav prev" aria-label="Previous">
+            <ChevronLeft size={24} />
+          </button>
+          <button onClick={next} className="carousel-nav next" aria-label="Next">
+            <ChevronRight size={24} />
+          </button>
+
+          <div className="carousel-dots">
+            {items.map((_, idx) => (
+              <button
+                key={idx}
+                className={`dot ${idx === activeIndex ? 'active' : ''}`}
+                onClick={() => setActiveIndex(idx)}
+                aria-label={`Go to slide ${idx + 1}`}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
 function App() {
   const [cards, setCards] = useState([]);
 
@@ -1006,50 +1058,7 @@ function App() {
 
   const [user, setUser] = useState(null); // Firebase Auth user
 
-  /* --- PRO CAROUSEL COMPONENT --- */
-  // eslint-disable-next-line react/prop-types
-  const Carousel = ({ items, renderItem }) => {
-    const [activeIndex, setActiveIndex] = useState(0);
 
-    const next = () => setActiveIndex(current => (current + 1) % items.length);
-    const prev = () => setActiveIndex(current => (current - 1 + items.length) % items.length);
-
-    if (!items.length) return null;
-
-    return (
-      <div className="carousel-container">
-        <div className="carousel-track" style={{ transform: `translateX(-${activeIndex * 100}%)` }}>
-          {items.map((item, index) => (
-            <div key={item.id || index} className={`carousel-item ${index === activeIndex ? 'active' : ''}`}>
-              {renderItem(item, index === activeIndex)}
-            </div>
-          ))}
-        </div>
-
-        {items.length > 1 && (
-          <>
-            <button onClick={prev} className="carousel-nav prev" aria-label="Previous">
-              <ChevronLeft size={24} />
-            </button>
-            <button onClick={next} className="carousel-nav next" aria-label="Next">
-              <ChevronRight size={24} />
-            </button>
-
-            <div className="carousel-dots">
-              {items.map((_, idx) => (
-                <button
-                  key={idx}
-                  className={`dot ${idx === activeIndex ? 'active' : ''}`}
-                  onClick={() => setActiveIndex(idx)}
-                  aria-label={`Go to slide ${idx + 1}`}
-                />
-              ))}
-            </div>
-          </>
-        )}
-      </div>
-    );
-  };
 
   const t = TRANSLATIONS['en'];
 
