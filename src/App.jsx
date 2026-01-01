@@ -6,7 +6,8 @@ import {
   MapPin, Globe, Mail, Phone, Building2, Briefcase,
   User, Star, X, Check, Copy, LogIn, LogOut,
   CreditCard, Layout, Zap, Cloud, CloudOff, AlertCircle, RefreshCw, Gem,
-  ChevronLeft, ChevronRight, Settings, ArrowUp, ArrowDown
+  ChevronLeft, ChevronRight, Settings, ArrowUp, ArrowDown,
+  Facebook, Linkedin, Instagram, Twitter, Youtube, MessageCircle
 } from 'lucide-react';
 // Firebase imports
 import { initializeApp } from 'firebase/app';
@@ -104,7 +105,7 @@ const generateVCard = (card) => {
 
 const SUBSCRIPTION_LIMITS = {
   free: 1,
-  basic: 2,
+  basic: 3,
   pro: 5
 };
 
@@ -172,20 +173,33 @@ const TRANSLATIONS = {
 };
 
 const PRICING = {
-  basic: { price: '2 CHF', limit: 2, key: 'standardPack' },
+  basic: { price: '2 CHF', limit: 3, key: 'standardPack' },
   pro: { price: '4 CHF', limit: 5, key: 'premiumPack' }
 };
 
 // --- Components ---
 
 const FIELD_TYPES = [
-  { value: 'title', label: 'Title/Position', icon: Briefcase },
-  { value: 'company', label: 'Company', icon: Building2 },
-  { value: 'phone', label: 'Phone', icon: Phone },
-  { value: 'email', label: 'Email', icon: Mail },
-  { value: 'website', label: 'Website', icon: Globe },
-  { value: 'location', label: 'Address', icon: MapPin },
-  { value: 'custom', label: 'Custom', icon: Star }
+  { value: 'title', label: 'Title/Position', icon: Briefcase, tier: 'free' },
+  { value: 'phone', label: 'Phone', icon: Phone, tier: 'free' },
+  { value: 'email', label: 'Email', icon: Mail, tier: 'free' },
+  { value: 'company', label: 'Company', icon: Building2, tier: 'basic' },
+  { value: 'location', label: 'Address', icon: MapPin, tier: 'basic' },
+  { value: 'website', label: 'Website', icon: Globe, tier: 'basic' },
+  // Socials
+  { value: 'facebook', label: 'Facebook', icon: Facebook, tier: 'basic' },
+  { value: 'whatsapp', label: 'WhatsApp', icon: MessageCircle, tier: 'basic' },
+  { value: 'instagram', label: 'Instagram', icon: Instagram, tier: 'basic' },
+  { value: 'youtube', label: 'YouTube', icon: Youtube, tier: 'basic' },
+  { value: 'tiktok', label: 'TikTok', icon: MessageCircle, tier: 'basic' },
+  { value: 'wechat', label: 'WeChat', icon: MessageCircle, tier: 'basic' },
+  { value: 'telegram', label: 'Telegram', icon: MessageCircle, tier: 'basic' },
+  { value: 'linkedin', label: 'LinkedIn', icon: Linkedin, tier: 'basic' },
+  { value: 'twitter', label: 'X (Twitter)', icon: Twitter, tier: 'basic' },
+  { value: 'pinterest', label: 'Pinterest', icon: Globe, tier: 'basic' },
+
+  { value: 'zalo', label: 'Zalo', icon: MessageCircle, tier: 'basic' },
+  { value: 'custom', label: 'Custom', icon: Star, tier: 'pro' }
 ];
 
 const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
@@ -432,7 +446,7 @@ const migrateCard = (card) => {
   ].filter(f => f.value);
 };
 
-const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage }) => {
+const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage, subscription = 'free' }) => {
   const [name, setName] = useState(card?.name || '');
   const [image, setImage] = useState(card?.image || null); // New Image State
   const [uploadStatus, setUploadStatus] = useState(null); // Local state for image upload feedback
@@ -486,8 +500,19 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage }) => {
       <h2 className="editor-title">{card ? t.edit : t.createNewCard}</h2>
 
       <form onSubmit={handleSubmit} className="editor-form">
-        {/* Image Upload Section */}
-        <div className="form-group" style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+
+
+        {/* Locked Feature: Image Upload */}
+        <div className="form-group" style={{ textAlign: 'center', marginBottom: '1.5rem', position: 'relative' }}>
+          {subscription === 'free' && (
+            <div style={{
+              position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(2px)', zIndex: 10,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderRadius: '0.5rem'
+            }}>
+              <Gem size={24} color="#8b5cf6" />
+              <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#1e293b', marginTop: '0.5rem' }}>Standard Feature</span>
+            </div>
+          )}
           <div
             style={{
               width: '100px',
@@ -500,10 +525,10 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage }) => {
               alignItems: 'center',
               justifyContent: 'center',
               border: '2px dashed #cbd5e1',
-              cursor: 'pointer',
+              cursor: subscription === 'free' ? 'not-allowed' : 'pointer',
               position: 'relative'
             }}
-            onClick={() => document.getElementById('card-image-input').click()}
+            onClick={() => subscription !== 'free' && document.getElementById('card-image-input').click()}
           >
             {image ? (
               <img src={image} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -516,6 +541,7 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage }) => {
             type="file"
             accept="image/*"
             style={{ display: 'none' }}
+            disabled={subscription === 'free'}
             onChange={async (e) => {
               const file = e.target.files[0];
               if (!file) return;
@@ -591,7 +617,7 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage }) => {
           <label
             htmlFor="card-image-input"
             className="btn-secondary"
-            style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem', cursor: 'pointer' }}
+            style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem', cursor: subscription === 'free' ? 'not-allowed' : 'pointer', opacity: subscription === 'free' ? 0.5 : 1 }}
           >
             Upload Photo / Logo
           </label>
@@ -639,9 +665,15 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage }) => {
                       className="form-select"
                       style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
                     >
-                      {FIELD_TYPES.map(ft => (
-                        <option key={ft.value} value={ft.value}>{ft.label}</option>
-                      ))}
+                      {FIELD_TYPES
+                        .filter(ft => {
+                          if (subscription === 'pro') return true; // Pro gets everything
+                          if (subscription === 'basic') return ft.tier !== 'pro'; // Basic gets free + basic
+                          return ft.tier === 'free'; // Free only gets free
+                        })
+                        .map(ft => (
+                          <option key={ft.value} value={ft.value}>{ft.label}</option>
+                        ))}
                     </select>
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -1353,6 +1385,7 @@ function App() {
             <Editor
               card={editingCard}
               onSave={handleSaveCard}
+              subscription={subscription} // PASS SUBSCRIPTION
               onCancel={() => {
                 setView('dashboard');
                 setEditingCard(null);
