@@ -7,7 +7,7 @@ import {
   User, Star, X, Check, Copy, LogIn, LogOut,
   CreditCard, Layout, Zap, Cloud, CloudOff, AlertCircle, RefreshCw, Gem,
   ChevronLeft, ChevronRight, Settings, ArrowUp, ArrowDown,
-  Facebook, Linkedin, Instagram, Twitter, Youtube, MessageCircle, Twitch
+  Facebook, Linkedin, Instagram, Twitter, Youtube, MessageCircle, Twitch, Music
 } from 'lucide-react';
 // Firebase imports
 import { initializeApp } from 'firebase/app';
@@ -205,6 +205,9 @@ const FIELD_TYPES = [
   { value: 'linkedin', label: 'LinkedIn', icon: Linkedin, tier: 'basic' },
   { value: 'twitter', label: 'X (Twitter)', icon: Twitter, tier: 'basic' },
   { value: 'pinterest', label: 'Pinterest', icon: Globe, tier: 'basic' },
+  { value: 'soundcloud', label: 'SoundCloud', icon: Music, tier: 'basic' },
+  { value: 'mixcloud', label: 'Mixcloud', icon: Music, tier: 'basic' },
+  { value: 'bandcamp', label: 'Bandcamp', icon: Music, tier: 'basic' },
 
   { value: 'zalo', label: 'Zalo', icon: MessageCircle, tier: 'basic' },
   { value: 'custom', label: 'Custom', icon: Star, tier: 'pro' }
