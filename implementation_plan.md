@@ -1,45 +1,69 @@
-# Implementation Plan - Fix Display Order to Strictly Match Editor
+# Implementation Plan - Update Pricing Modal UI Text
 
-**The Issue**: The user is angry because the "More Information" list reorders items.
-**The Cause**: The current code *hardcodes* the display of the **primary** Phone, Email, Website, and Location at the top of the list, and *only then* renders the rest of the fields. This forces "Email" to appear before a "Secondary Phone" even if the user ordered them differently in the editor.
+The user wants the "Upgrading" screen (Pricing Modal) to accurately reflect the new plan limitations/features derived from their instructions.
 
-**The Fix**:
-1.  **Remove Hardcoded Render**: In `CardPreview`, inside the `isExpanded` block, remove the manual rendering of `phone`, `email`, `website`, `location`.
-2.  **Unified Rendering Loop**: Instead, iterate through the entire `fields` array (which preserves user order).
-3.  **Dynamic Rendering**: For each field in the loop, determine the styling (Icon, Label) based on its `type`.
-    -   If type is 'title' or 'company', skip it (as it's in the header).
-    -   For 'phone', 'email', 'website', 'location', 'facebook', etc., render them using a generic renderer that picks the right icon from `FIELD_TYPES`.
+## UI Updates Required in `PricingModal` component:
 
-## Detailed Logic in `App.jsx`
+### **Free Plan**
+- **Cards**: 1
+- **Features**:
+  - Name, Title, Email, Phone only.
+  - **No Photo/Logo** (Explicitly mention this limitation if needed, or just list what IS included).
+  - Unlimited Sharing, Universal QR (Keep generic features).
 
-Inside `CardPreview`:
-```javascript
-{isExpanded && (
-  <div className="pro-details-list">
-    {fields.map((field, idx) => {
-       // Skip Title/Company as they are in the header
-       if (['title', 'company'].includes(field.type)) return null;
+### **Standard/Basic Plan**
+- **Cards**: 3
+- **Features**:
+  - **Everything in Free** +
+  - Company & Location
+  - Social Networks (Facebook, LinkedIn, etc.)
+  - **Add Photo/Logo**
 
-       // Find definition to get Icon and Label
-       const def = FIELD_TYPES.find(t => t.value === field.type);
-       const Icon = def ? def.icon : Star;
-       const label = field.label || def?.label || field.type;
+### **Premium/Pro Plan**
+- **Cards**: 5
+- **Features**:
+  - **Everything in Standard** +
+  - **Custom Fields** (Unlimited flexibility)
+  - All Music & Messenger Platforms
 
-       return (
-         <div key={idx} className="pro-detail-item">
-            {/* Render Icon and Value */}
-         </div>
-       )
-    })}
-  </div>
-)}
+## Code Changes in `src/App.jsx`
+
+Locate `PricingModal` (~line 830).
+Update the `<ul>` features list for each card.
+
+```jsx
+// Free
+<ul>
+  <li>1 Digital Card</li>
+  <li>Basic Info (Name, Phone, Email)</li>
+  <li style={{color: '#94a3b8', textDecoration: 'line-through'}}>No Photo/Logo</li>
+  <li style={{color: '#94a3b8', textDecoration: 'line-through'}}>No Social Links</li>
+</ul>
+
+// Standard
+<ul>
+  <li>3 Digital Cards</li>
+  <li>Add Photo/Logo</li>
+  <li>Company & Location</li>
+  <li>Social Networks (FB, Insta +)</li>
+</ul>
+
+// Premium
+<ul>
+  <li>5 Digital Cards</li>
+  <li>All Socials & Music Platforms</li>
+  <li>Unlimited Custom Fields</li>
+  <li>Priority Support</li>
+</ul>
 ```
 
-This guarantees that if the user puts `Phone1`, `Phone2`, `Email`, the list will show `Phone1`, `Phone2`, `Email`.
+I'll use the translation keys if possible or hardcode for now as the user gave specific French text, but the app seems to use English keys mostly. I will try to update the Text directly for clarity or add new keys if I was editing the translations object, but editing the component directly is faster and safer given the user's urgency. Actually, looking at the code, it uses `t.unlimitedShare` etc. I should probably just replace the list items with direct text or new logic to match the request exactly.
 
-## Verification
--   User's specific case: Phone 1, Phone 2, Email.
--   Result: Phone 1, Phone 2, Email.
+**Wait**, the user IS French. The app has `TRANSLATIONS['en']`. There is no French translation visible in the snippets I saw (it was just `t = TRANSLATIONS['en']`).
+However, the user's prompt is in French.
+I will update the **English** text in `TRANSLATIONS` to match the *logic* of the request (since the app seems to be running in English mode `const t = TRANSLATIONS['en']`), OR I can just hardcode the features in the modal for now to get it right.
+Given the user's frustration, I will update the `PricingModal` JSX directly to show accurate feature lists.
 
-## Additional Note
-The user also asked to add **Signal** and **BitChat**. I already did this in the previous step, but I will double check they are there and working with this new logic.
+**Plan**:
+1.  Update `PricingModal` in `src/App.jsx`.
+2.  Change the `<ul>` content for Free, Basic, Pro.
