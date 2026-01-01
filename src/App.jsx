@@ -6,7 +6,7 @@ import {
   MapPin, Globe, Mail, Phone, Building2, Briefcase,
   User, Star, X, Check, Copy, LogIn, LogOut,
   CreditCard, Layout, Zap, Cloud, CloudOff, AlertCircle, RefreshCw, Gem,
-  ChevronLeft, ChevronRight, Settings
+  ChevronLeft, ChevronRight, Settings, ArrowUp, ArrowDown
 } from 'lucide-react';
 // Firebase imports
 import { initializeApp } from 'firebase/app';
@@ -211,7 +211,17 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
   const location = fields.find(f => f.type === 'location')?.value;
 
   // Remaining fields for the list
-  const listFields = fields.filter(f => !['title', 'company', 'phone', 'email', 'website', 'location'].includes(f.type));
+  // Remaining fields for the list - show all fields NOT used in the main display
+  const titleField = fields.find(f => f.type === 'title');
+  const companyField = fields.find(f => f.type === 'company');
+  const phoneField = fields.find(f => f.type === 'phone');
+  const emailField = fields.find(f => f.type === 'email');
+  const websiteField = fields.find(f => f.type === 'website');
+  const locationField = fields.find(f => f.type === 'location');
+
+  const consumedFields = [titleField, companyField, phoneField, emailField, websiteField, locationField];
+
+  const listFields = fields.filter(f => !consumedFields.includes(f));
 
   /* Safe Theme Resolution */
   const safeTheme = (card.theme && THEME_COLORS[card.theme]) ? card.theme : 'pantone-classic-blue';
@@ -444,6 +454,16 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage }) => {
     setFields(newFields);
   };
 
+  const moveField = (index, direction) => {
+    const newFields = [...fields];
+    if (direction === -1 && index > 0) {
+      [newFields[index], newFields[index - 1]] = [newFields[index - 1], newFields[index]];
+    } else if (direction === 1 && index < newFields.length - 1) {
+      [newFields[index], newFields[index + 1]] = [newFields[index + 1], newFields[index]];
+    }
+    setFields(newFields);
+  };
+
   const updateField = (index, key, val) => {
     const newFields = [...fields];
     newFields[index][key] = val;
@@ -612,7 +632,7 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage }) => {
               <div key={index} className="dynamic-field-row glass-panel" style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)' }}>
                 {/* Header: Type + Delete */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                  <div className="select-wrapper" style={{ position: 'relative', width: '70%' }}>
+                  <div className="select-wrapper" style={{ position: 'relative', width: '50%' }}>
                     <select
                       value={field.type}
                       onChange={(e) => updateField(index, 'type', e.target.value)}
@@ -624,15 +644,37 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage }) => {
                       ))}
                     </select>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => removeField(index)}
-                    className="icon-btn delete"
-                    title="Remove field"
-                    style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}
-                  >
-                    <Trash2 size={18} />
-                  </button>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button
+                      type="button"
+                      onClick={() => moveField(index, -1)}
+                      disabled={index === 0}
+                      className="icon-btn"
+                      title="Move Up"
+                      style={{ background: 'rgba(255, 255, 255, 0.1)', color: 'white', opacity: index === 0 ? 0.3 : 1 }}
+                    >
+                      <ArrowUp size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveField(index, 1)}
+                      disabled={index === fields.length - 1}
+                      className="icon-btn"
+                      title="Move Down"
+                      style={{ background: 'rgba(255, 255, 255, 0.1)', color: 'white', opacity: index === fields.length - 1 ? 0.3 : 1 }}
+                    >
+                      <ArrowDown size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeField(index)}
+                      className="icon-btn delete"
+                      title="Remove field"
+                      style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Input Value */}
