@@ -210,6 +210,8 @@ const FIELD_TYPES = [
   { value: 'bandcamp', label: 'Bandcamp', icon: Music, tier: 'basic' },
 
   { value: 'zalo', label: 'Zalo', icon: MessageCircle, tier: 'basic' },
+  { value: 'signal', label: 'Signal', icon: MessageCircle, tier: 'basic' },
+  { value: 'bitchat', label: 'BitChat', icon: MessageCircle, tier: 'basic' },
   { value: 'custom', label: 'Custom', icon: Star, tier: 'pro' }
 ];
 
