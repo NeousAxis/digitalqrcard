@@ -887,9 +887,11 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t }) => {
             <div className="price">{PRICING.pro.price}<span>{t.month}</span></div>
             <ul className="features-list">
               <li><strong>{PRICING.pro.limit}</strong> Digital Cards</li>
-              <li>Everything in Standard</li>
+              <li>Everything in Free</li>
+              <li><strong>✅ Add Photo / Logo</strong></li>
+              <li>✅ Company & Location</li>
+              <li>✅ All Social Networks</li>
               <li><strong>✅ Unlimited Custom Fields</strong></li>
-              <li>✅ All Platforms (Music, Chat...)</li>
             </ul>
             <button
               onClick={() => onUpgrade('pro')}
