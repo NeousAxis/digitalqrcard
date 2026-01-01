@@ -845,9 +845,11 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t }) => {
             <h3>{t.free}</h3>
             <div className="price">0 CHF<span>{t.month}</span></div>
             <ul className="features-list">
-              <li>1 {t.digitalCard}</li>
-              <li>{t.unlimitedShare}</li>
-              <li>{t.universalQR}</li>
+              <li><strong>1</strong> Digital Card</li>
+              <li>Name, Title, Email, Phone</li>
+              <li style={{ opacity: 0.5, textDecoration: 'line-through' }}>Photo / Logo</li>
+              <li style={{ opacity: 0.5, textDecoration: 'line-through' }}>Social Networks</li>
+              <li style={{ opacity: 0.5, textDecoration: 'line-through' }}>Company Info</li>
             </ul>
             <button
               disabled={true}
@@ -864,9 +866,11 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t }) => {
             <h3>{t[PRICING.basic.key]}</h3>
             <div className="price">{PRICING.basic.price}<span>{t.month}</span></div>
             <ul className="features-list">
-              <li>{PRICING.basic.limit} {t.digitalCards}</li>
-              <li>{t.premiumStyles}</li>
-              <li>{t.prioritySupport}</li>
+              <li><strong>{PRICING.basic.limit}</strong> Digital Cards</li>
+              <li>Everything in Free</li>
+              <li><strong>✅ Add Photo / Logo</strong></li>
+              <li>✅ Company & Location</li>
+              <li>✅ Social Networks (FB, Insta, Linked...)</li>
             </ul>
             <button
               onClick={() => onUpgrade('basic')}
@@ -882,9 +886,11 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t }) => {
             <h3>{t[PRICING.pro.key]}</h3>
             <div className="price">{PRICING.pro.price}<span>{t.month}</span></div>
             <ul className="features-list">
-              <li>{PRICING.pro.limit} {t.digitalCards}</li>
-              <li>{t.unlimitedAll}</li>
-              <li>{t.proBadge}</li>
+              <li><strong>{PRICING.pro.limit}</strong> Digital Cards</li>
+              <li>Everything in Standard</li>
+              <li><strong>✅ Unlimited Custom Fields</strong></li>
+              <li>✅ All Platforms (Music, Chat...)</li>
+              <li>✅ Priority Support</li>
             </ul>
             <button
               onClick={() => onUpgrade('pro')}
