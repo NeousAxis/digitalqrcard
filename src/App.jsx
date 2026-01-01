@@ -890,7 +890,6 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t }) => {
               <li>Everything in Standard</li>
               <li><strong>✅ Unlimited Custom Fields</strong></li>
               <li>✅ All Platforms (Music, Chat...)</li>
-              <li>✅ Priority Support</li>
             </ul>
             <button
               onClick={() => onUpgrade('pro')}
