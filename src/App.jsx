@@ -651,7 +651,12 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage }) => {
                       disabled={index === 0}
                       className="icon-btn"
                       title="Move Up"
-                      style={{ background: 'rgba(255, 255, 255, 0.1)', color: 'white', opacity: index === 0 ? 0.3 : 1 }}
+                      style={{
+                        background: '#f1f5f9',
+                        color: '#334155',
+                        opacity: index === 0 ? 0.3 : 1,
+                        border: '1px solid #e2e8f0'
+                      }}
                     >
                       <ArrowUp size={16} />
                     </button>
@@ -661,7 +666,12 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage }) => {
                       disabled={index === fields.length - 1}
                       className="icon-btn"
                       title="Move Down"
-                      style={{ background: 'rgba(255, 255, 255, 0.1)', color: 'white', opacity: index === fields.length - 1 ? 0.3 : 1 }}
+                      style={{
+                        background: '#f1f5f9',
+                        color: '#334155',
+                        opacity: index === fields.length - 1 ? 0.3 : 1,
+                        border: '1px solid #e2e8f0'
+                      }}
                     >
                       <ArrowDown size={16} />
                     </button>
@@ -670,7 +680,7 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage }) => {
                       onClick={() => removeField(index)}
                       className="icon-btn delete"
                       title="Remove field"
-                      style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}
+                      style={{ background: '#fee2e2', color: '#ef4444' }}
                     >
                       <Trash2 size={18} />
                     </button>
