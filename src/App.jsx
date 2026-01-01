@@ -368,62 +368,43 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
             </div>
 
             {/* 5. Additional Info List (Expanded View) - NOW SHOWS ALL CONTACT DETAILS */}
+            {/* 5. Additional Info List (Expanded View) - NOW SHOWS ALL CONTACT DETAILS IN STRICT ORDER */}
             {isExpanded && (
               <div className="pro-details-list animate-fade-in" style={{ width: '100%', textAlign: 'left', marginTop: '1rem' }}>
-                {/* Standard Contact Fields in List */}
-                {phone && (
-                  <div className="pro-detail-item" style={{ borderBottom: '1px solid #f1f5f9', padding: '0.75rem 0' }}>
-                    <span className="pro-detail-icon" style={{ minWidth: '24px', color: accentColor }}><Phone size={16} /></span>
-                    <div>
-                      <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: '#94a3b8' }}>Mobile</div>
-                      <div style={{ color: '#334155' }}>
-                        <a href={`tel:${phone}`} style={{ color: 'inherit', textDecoration: 'none' }}>{phone}</a>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {email && (
-                  <div className="pro-detail-item" style={{ borderBottom: '1px solid #f1f5f9', padding: '0.75rem 0' }}>
-                    <span className="pro-detail-icon" style={{ minWidth: '24px', color: accentColor }}><Mail size={16} /></span>
-                    <div>
-                      <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: '#94a3b8' }}>Email</div>
-                      <div style={{ color: '#334155' }}>
-                        <a href={`mailto:${email}`} style={{ color: 'inherit', textDecoration: 'none' }}>{email}</a>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {website && (
-                  <div className="pro-detail-item" style={{ borderBottom: '1px solid #f1f5f9', padding: '0.75rem 0' }}>
-                    <span className="pro-detail-icon" style={{ minWidth: '24px', color: accentColor }}><Globe size={16} /></span>
-                    <div>
-                      <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: '#94a3b8' }}>Website</div>
-                      <div style={{ color: '#334155' }}>
-                        <a href={website.startsWith('http') ? website : `https://${website}`} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>{website}</a>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {location && (
-                  <div className="pro-detail-item" style={{ borderBottom: '1px solid #f1f5f9', padding: '0.75rem 0' }}>
-                    <span className="pro-detail-icon" style={{ minWidth: '24px', color: accentColor }}><MapPin size={16} /></span>
-                    <div>
-                      <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: '#94a3b8' }}>Address</div>
-                      <div style={{ color: '#334155' }}>{location}</div>
-                    </div>
-                  </div>
-                )}
+                {fields.map((field, idx) => {
+                  // Skip Header fields
+                  if (['title', 'company'].includes(field.type)) return null;
 
-                {/* Custom Fields */}
-                {listFields.map((field, idx) => (
-                  <div key={idx} className="pro-detail-item" style={{ borderBottom: '1px solid #f1f5f9', padding: '0.75rem 0' }}>
-                    <span className="pro-detail-icon" style={{ minWidth: '24px', color: accentColor }}><Star size={16} /></span>
-                    <div>
-                      <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: '#94a3b8' }}>{field.label || field.type}</div>
-                      <div style={{ color: '#334155' }}>{field.value}</div>
+                  // Find definition
+                  const def = FIELD_TYPES.find(t => t.value === field.type);
+                  const Icon = def ? def.icon : Star;
+                  const label = field.label || def?.label || field.type;
+                  const val = field.value;
+
+                  // Determine Link Wrapper
+                  let ContentWrapper = ({ children }) => <>{children}</>;
+                  if (field.type === 'phone' || field.type.includes('phone') || field.type.includes('mobile')) {
+                    ContentWrapper = ({ children }) => <a href={`tel:${val}`} style={{ color: 'inherit', textDecoration: 'none' }}>{children}</a>;
+                  } else if (field.type === 'email') {
+                    ContentWrapper = ({ children }) => <a href={`mailto:${val}`} style={{ color: 'inherit', textDecoration: 'none' }}>{children}</a>;
+                  } else if (field.type === 'website' || val.startsWith('http')) {
+                    ContentWrapper = ({ children }) => <a href={val.startsWith('http') ? val : `https://${val}`} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>{children}</a>;
+                  }
+
+                  return (
+                    <div key={idx} className="pro-detail-item" style={{ borderBottom: '1px solid #f1f5f9', padding: '0.75rem 0' }}>
+                      <span className="pro-detail-icon" style={{ minWidth: '24px', color: accentColor }}>
+                        <Icon size={16} />
+                      </span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: '#94a3b8' }}>{label}</div>
+                        <div style={{ color: '#334155' }}>
+                          <ContentWrapper>{val}</ContentWrapper>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
