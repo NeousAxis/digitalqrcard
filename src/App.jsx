@@ -7,7 +7,7 @@ import {
   User, Star, X, Check, Copy, LogIn, LogOut,
   CreditCard, Layout, Zap, Cloud, CloudOff, AlertCircle, RefreshCw, Gem,
   ChevronLeft, ChevronRight, Settings, ArrowUp, ArrowDown,
-  Facebook, Linkedin, Instagram, Twitter, Youtube, MessageCircle
+  Facebook, Linkedin, Instagram, Twitter, Youtube, MessageCircle, Twitch
 } from 'lucide-react';
 // Firebase imports
 import { initializeApp } from 'firebase/app';
@@ -192,6 +192,14 @@ const FIELD_TYPES = [
   { value: 'instagram', label: 'Instagram', icon: Instagram, tier: 'basic' },
   { value: 'youtube', label: 'YouTube', icon: Youtube, tier: 'basic' },
   { value: 'tiktok', label: 'TikTok', icon: MessageCircle, tier: 'basic' },
+  { value: 'snapchat', label: 'Snapchat', icon: MessageCircle, tier: 'basic' },
+  { value: 'twitch', label: 'Twitch', icon: Twitch, tier: 'basic' },
+  { value: 'line', label: 'Line', icon: MessageCircle, tier: 'basic' },
+  { value: 'messenger', label: 'Messenger', icon: MessageCircle, tier: 'basic' },
+  { value: 'discord', label: 'Discord', icon: MessageCircle, tier: 'basic' },
+  { value: 'reddit', label: 'Reddit', icon: MessageCircle, tier: 'basic' },
+  { value: 'mastodon', label: 'Mastodon', icon: MessageCircle, tier: 'basic' },
+  { value: 'bluesky', label: 'Bluesky', icon: Cloud, tier: 'basic' },
   { value: 'wechat', label: 'WeChat', icon: MessageCircle, tier: 'basic' },
   { value: 'telegram', label: 'Telegram', icon: MessageCircle, tier: 'basic' },
   { value: 'linkedin', label: 'LinkedIn', icon: Linkedin, tier: 'basic' },
