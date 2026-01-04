@@ -880,11 +880,6 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage, subscripti
                       style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
                     >
                       {FIELD_TYPES
-                        .filter(ft => {
-                          if (subscription === 'pro') return true; // Pro gets everything
-                          if (subscription === 'basic') return ft.tier !== 'pro'; // Basic gets free + basic
-                          return ft.tier === 'free'; // Free only gets free
-                        })
                         .map(ft => (
                           <option key={ft.value} value={ft.value}>{ft.label}</option>
                         ))}
