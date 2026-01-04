@@ -1283,7 +1283,7 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t }) => {
               <li>✅ Social Networks (FB, Insta, Linked...)</li>
             </ul>
             <button
-              onClick={() => onUpgrade('basic')}
+              onClick={() => window.open('https://buy.stripe.com/test_5kQ5kx2b91Sx1Vicha73G01', '_blank')}
               disabled={currentPlan === 'basic'}
               className={`btn-full ${currentPlan === 'basic' ? 'btn-secondary' : 'btn-primary'}`}
             >
@@ -1304,7 +1304,7 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t }) => {
               <li><strong>✅ Unlimited Custom Fields</strong></li>
             </ul>
             <button
-              onClick={() => onUpgrade('pro')}
+              onClick={() => window.open('https://buy.stripe.com/test_cNicMZ7vt8gVgQc4OI73G00', '_blank')}
               disabled={currentPlan === 'pro'}
               className={`btn-full ${currentPlan === 'pro' ? 'btn-secondary' : 'btn-secondary'}`}
               style={currentPlan !== 'pro' ? { border: '1px solid white' } : {}}
