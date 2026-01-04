@@ -998,7 +998,7 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage, subscripti
                       <option value="">🌐 Code</option>
                       {COUNTRY_OPTIONS.map(opt => (
                         <option key={opt.code} value={opt.dial}>
-                          {opt.flag} {opt.dial}
+                          {opt.flag} {opt.name} ({opt.dial})
                         </option>
                       ))}
                     </select>
