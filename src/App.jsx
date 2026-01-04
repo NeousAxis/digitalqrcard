@@ -413,7 +413,8 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
       {/* 3. Content */}
       <div className="pro-content">
         <h3 className="pro-name">{card.name || t.yourName}</h3>
-        <p className="pro-title">{displayTitle || t.yourTitle}</p>
+        <h3 className="pro-name">{card.name || t.yourName}</h3>
+        {displayTitle ? <p className="pro-title">{displayTitle}</p> : null}
 
         {/* QR Overlay - Only visible if showQR is passed as true */}
         {showQR ? (
@@ -499,22 +500,24 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
                 </div>
               )}
 
-              {/* Social Icons (Square with Initials) - Only when collapsed */}
+              {/* Social Icons (Square with Icon) - Only when collapsed */}
               {!isExpanded && socialFields.map((field, idx) => {
-                const initials = getSocialInitials(field.type);
+                // Find definition to get the proper Icon
+                const def = FIELD_TYPES.find(t => t.value === field.type);
+                const Icon = def ? def.icon : Star;
+
                 return (
                   <div key={idx} style={{
-                    width: 44, height: 44, // Matched size to pro-action-btn roughly
-                    borderRadius: 12, // Consistent rounding
+                    width: 44, height: 44,
+                    borderRadius: 12,
                     border: `2px solid ${accentColor}`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontWeight: '800', fontSize: '0.85rem',
                     color: accentColor,
                     background: 'transparent',
                     boxShadow: '0 2px 5px rgba(0,0,0,0.05)',
-                    cursor: 'pointer' // interactive feel
+                    cursor: 'pointer'
                   }} title={field.label || field.type}>
-                    {initials}
+                    <Icon size={20} />
                   </div>
                 )
               })}
@@ -1393,6 +1396,27 @@ function App() {
     });
     return () => unsubscribe();
   }, []);
+
+  // Fetch Subscription Status from DB when User Logs In
+  useEffect(() => {
+    const fetchSubscription = async () => {
+      if (user) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists()) {
+            const data = userDoc.data();
+            if (data.subscription) {
+              setSubscription(data.subscription);
+              localStorage.setItem('subscription', data.subscription);
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching subscription:", error);
+        }
+      }
+    };
+    fetchSubscription();
+  }, [user]);
 
   const handleLogin = async () => {
     try {
