@@ -2004,23 +2004,30 @@ function App() {
                 <div className="form-group" style={{ textAlign: 'center' }}>
                   <button
                     onClick={async () => {
+                      if (!window.confirm('Are you sure you want to cancel your subscription? It will stop at the end of the current billing period.')) {
+                        return;
+                      }
+
                       try {
-                        setStatusMessage({ type: 'info', text: 'Redirecting to Stripe Portal...' });
-                        const res = await fetch('/api/create-portal-session', {
+                        setStatusMessage({ type: 'info', text: 'Cancelling subscription...' });
+                        const res = await fetch('/api/cancel-subscription', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ userId: user.uid })
                         });
                         const data = await res.json();
-                        if (data.url) {
-                          window.location.href = data.url;
+
+                        if (data.success) {
+                          const date = new Date(data.cancelAt * 1000).toLocaleDateString();
+                          alert(`Subscription cancelled successfully. It will remain active until ${date}.`);
+                          setStatusMessage({ type: 'success', text: `Cancelled. Valid until ${date}` });
                         } else {
-                          alert('Error: ' + (data.error || 'Could not create portal session. Make sure you have an active subscription.'));
+                          alert('Error: ' + (data.error || 'Failed to cancel'));
                           setStatusMessage(null);
                         }
                       } catch (e) {
                         console.error(e);
-                        alert('Connection error. Please try again.');
+                        alert('Connection error.');
                         setStatusMessage(null);
                       }
                     }}
@@ -2029,14 +2036,14 @@ function App() {
                       display: 'block',
                       width: '100%',
                       marginBottom: '1rem',
-                      color: 'white',
-                      borderColor: 'rgba(255,255,255,0.2)',
+                      color: '#ef4444',
+                      borderColor: 'rgba(239, 68, 68, 0.2)',
                     }}
                   >
-                    Manage Subscription / Cancel
+                    Cancel Subscription
                   </button>
                   <p style={{ color: '#64748b', fontSize: '0.8rem' }}>
-                    Opens Stripe secure billing portal to cancel or update plan.
+                    Stops renewal. Account stays Pro until period ends.
                   </p>
                 </div>
               )}
