@@ -69,3 +69,9 @@ Si vous avez déployé mais que vous voyez toujours l'ancienne version ou l'anci
 - **Design :** Ajout du thème "Deep Forest" et ajustement dynamique de l'interface en mode partage.
 - **Abonnements :** Intégration complète Stripe avec annulation directe via API.
 - **Release :** Tag GitHub officiel `v1.0.0`.
+
+### V1.0.1 - 04/01/2026
+- **UI UX :** Amélioration intelligente du layout des boutons d'actions (Smart Grid).
+  - 1 à 4 boutons : Alignés sur une seule ligne.
+  - 5 boutons : Disposition en quinconce (3 en haut, 2 centrés en bas).
+  - 6+ boutons : Grille structurée de 3 colonnes.
