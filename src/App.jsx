@@ -475,8 +475,9 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
           </div>
         ) : (
           <>
-            {/* 4. Action Buttons Row (Primary Contacts) */}
-            <div className="pro-actions-row">
+            {/* 4. Unified Action Buttons Row (Primary Contacts + Socials) */}
+            <div className="pro-actions-row" style={{ flexWrap: 'wrap', justifyContent: 'center', gap: '1rem', width: '100%', marginBottom: '1.5rem' }}>
+              {/* Primary Icons */}
               {phone && (
                 <a href={`tel:${phone}`} className="pro-action-btn action-phone" title={phone} style={{ textDecoration: 'none', color: accentColor }}>
                   <Phone size={20} />
@@ -497,29 +498,29 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
                   <MapPin size={20} />
                 </div>
               )}
+
+              {/* Social Icons (Square with Initials) - Only when collapsed */}
+              {!isExpanded && socialFields.map((field, idx) => {
+                const initials = getSocialInitials(field.type);
+                return (
+                  <div key={idx} style={{
+                    width: 44, height: 44, // Matched size to pro-action-btn roughly
+                    borderRadius: 12, // Consistent rounding
+                    border: `2px solid ${accentColor}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontWeight: '800', fontSize: '0.85rem',
+                    color: accentColor,
+                    background: 'transparent',
+                    boxShadow: '0 2px 5px rgba(0,0,0,0.05)',
+                    cursor: 'pointer' // interactive feel
+                  }} title={field.label || field.type}>
+                    {initials}
+                  </div>
+                )
+              })}
             </div>
 
-            {/* 5. Additional Social Icons Row (Only visible when NOT expanded, replacing "Less Information" need) */}
-            {!isExpanded && socialFields.length > 0 && (
-              <div className="pro-socials-row animate-fade-in" style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.5rem', width: '100%' }}>
-                {socialFields.map((field, idx) => {
-                  const initials = getSocialInitials(field.type);
-                  return (
-                    <div key={idx} style={{
-                      width: 40, height: 40,
-                      borderRadius: 8,
-                      border: `2px solid ${accentColor}`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontWeight: 'bold', fontSize: '0.9rem',
-                      color: accentColor,
-                      background: 'transparent'
-                    }} title={field.label || field.type}>
-                      {initials}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
+            {/* 5. REMOVED SEPARATE SOCIAL ROW (Merged above) */}
 
             {/* 6. Full Details List (Expanded View) */}
             {isExpanded && (
@@ -538,34 +539,70 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
                   // Determine Layout & Content
                   let ContentWrapper = ({ children }) => <>{children}</>;
 
+                  // Core Types check
+                  const coreTypes = ['title', 'company', 'phone', 'email', 'website', 'location'];
+                  let isSocial = !coreTypes.includes(field.type);
+
                   // Phone Special Handling (Flags)
                   if (field.type === 'phone' || field.type.includes('phone') || field.type.includes('mobile')) {
                     val = formatPhoneWithFlag(val);
                     ContentWrapper = ({ children }) => <a href={`tel:${field.value}`} style={{ color: 'inherit', textDecoration: 'none' }}>{children}</a>;
+                    isSocial = false;
                   }
                   else if (field.type === 'email') {
                     ContentWrapper = ({ children }) => <a href={`mailto:${field.value}`} style={{ color: 'inherit', textDecoration: 'none' }}>{children}</a>;
+                    isSocial = false;
                   }
-                  // Socials/Websites: Show Label/Name instead of URL
-                  else if (field.type === 'website' || val.startsWith('http')) {
-                    // If it's a social link, don't show the full ugly URL. Show the Platform Name.
-                    // The user explicitly requested: "ne faut pas voir l'adresse... Il faut juste écrire Whatsapp"
-                    if (!coreTypes.includes(field.type)) {
-                      // It's a social/extra field
-                      val = def?.label || field.type.charAt(0).toUpperCase() + field.type.slice(1);
-                    }
-
+                  // Website Handling
+                  else if (field.type === 'website') {
                     ContentWrapper = ({ children }) => <a href={field.value.startsWith('http') ? field.value : `https://${field.value}`} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>{children}</a>;
+                    isSocial = false;
+                  }
+                  // Social / Platform Handling
+                  else if (isSocial) {
+                    // Get Platform Name
+                    const platformName = def?.label || field.type.charAt(0).toUpperCase() + field.type.slice(1);
+
+                    // Set Display Value to Platform Name (User Request: "Just write Whatsapp")
+                    val = platformName;
+
+                    // Helper to build URL
+                    const buildSocialUrl = (type, value) => {
+                      const v = value.trim();
+                      if (v.startsWith('http')) return v;
+                      switch (type) {
+                        case 'whatsapp': return `https://wa.me/${v.replace(/[^0-9]/g, '')}`;
+                        case 'instagram': return `https://instagram.com/${v.replace('@', '')}`;
+                        case 'twitter': return `https://twitter.com/${v.replace('@', '')}`;
+                        case 'linkedin': return `https://linkedin.com/in/${v}`;
+                        case 'facebook': return `https://facebook.com/${v}`;
+                        case 'tiktok': return `https://tiktok.com/@${v.replace('@', '')}`;
+                        case 'telegram': return `https://t.me/${v.replace('@', '')}`;
+                        case 'snapchat': return `https://snapchat.com/add/${v}`;
+                        case 'youtube': return `https://youtube.com/${v.startsWith('@') ? v : '@' + v}`;
+                        default: return v; // Fallback
+                      }
+                    };
+
+                    const href = buildSocialUrl(field.type, field.value);
+
+                    // Only link if valid
+                    if (href && (href !== field.value || href.startsWith('http'))) {
+                      ContentWrapper = ({ children }) => <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>{children}</a>;
+                    }
                   }
 
                   return (
-                    <div key={idx} className="pro-detail-item" style={{ borderBottom: '1px solid #f1f5f9', padding: '0.75rem 0' }}>
-                      <span className="pro-detail-icon" style={{ minWidth: '24px', color: accentColor }}>
+                    <div key={idx} className="pro-detail-item" style={{ borderBottom: '1px solid #f1f5f9', padding: '0.75rem 0', display: 'flex', alignItems: isSocial ? 'center' : 'flex-start' }}>
+                      <span className="pro-detail-icon" style={{ minWidth: '24px', color: accentColor, marginTop: isSocial ? '0' : '2px', display: 'flex', alignItems: 'center' }}>
                         <Icon size={16} />
                       </span>
-                      <div style={{ flex: 1, overflow: 'hidden' }}>
-                        <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: '#94a3b8' }}>{label}</div>
-                        <div style={{ color: '#334155', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                        {/* HIDE LABEL IF IT IS THE SAME AS THE VALUE OR IF IT IS A SOCIAL FIELD */}
+                        {!isSocial && label.toLowerCase() !== val.toLowerCase() && (
+                          <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: '#94a3b8' }}>{label}</div>
+                        )}
+                        <div style={{ color: '#334155', wordBreak: 'break-word', overflowWrap: 'anywhere', fontWeight: isSocial ? '600' : 'normal' }}>
                           <ContentWrapper>{val}</ContentWrapper>
                         </div>
                       </div>
