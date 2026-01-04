@@ -1552,12 +1552,16 @@ function App() {
   // Detect Stripe return with plan parameter and update subscription
   useEffect(() => {
     const updateSubscriptionFromURL = async () => {
-      if (!user) return;
-
       const urlParams = new URLSearchParams(window.location.search);
       const planFromURL = urlParams.get('plan');
 
       if (planFromURL && ['basic', 'pro'].includes(planFromURL)) {
+        // If user is not logged in yet, wait a bit for auth to initialize
+        if (!user) {
+          console.log('Waiting for user authentication...');
+          return;
+        }
+
         try {
           // Update Firestore
           await setDoc(doc(db, 'users', user.uid), {
