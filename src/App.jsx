@@ -2002,22 +2002,41 @@ function App() {
 
               {subscription !== 'free' && (
                 <div className="form-group" style={{ textAlign: 'center' }}>
-                  <a
-                    href={`mailto:support@digitalqrcard.xyz?subject=Cancel Subscription&body=Please cancel my subscription for account: ${user?.email}`}
+                  <button
+                    onClick={async () => {
+                      try {
+                        setStatusMessage({ type: 'info', text: 'Redirecting to Stripe Portal...' });
+                        const res = await fetch('/api/create-portal-session', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ userId: user.uid })
+                        });
+                        const data = await res.json();
+                        if (data.url) {
+                          window.location.href = data.url;
+                        } else {
+                          alert('Error: ' + (data.error || 'Could not create portal session. Make sure you have an active subscription.'));
+                          setStatusMessage(null);
+                        }
+                      } catch (e) {
+                        console.error(e);
+                        alert('Connection error. Please try again.');
+                        setStatusMessage(null);
+                      }
+                    }}
                     className="btn-secondary"
                     style={{
                       display: 'block',
                       width: '100%',
                       marginBottom: '1rem',
-                      color: '#ef4444',
-                      borderColor: 'rgba(239, 68, 68, 0.2)',
-                      textDecoration: 'none'
+                      color: 'white',
+                      borderColor: 'rgba(255,255,255,0.2)',
                     }}
                   >
-                    Cancel Subscription
-                  </a>
+                    Manage Subscription / Cancel
+                  </button>
                   <p style={{ color: '#64748b', fontSize: '0.8rem' }}>
-                    Click to email support for cancellation.
+                    Opens Stripe secure billing portal to cancel or update plan.
                   </p>
                 </div>
               )}
