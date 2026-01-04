@@ -1490,9 +1490,8 @@ const Carousel = ({ items, renderItem, activeIndex = 0, onIndexChange }) => {
 function App() {
   const [cards, setCards] = useState([]);
 
-  const [subscription, setSubscription] = useState(() => {
-    return localStorage.getItem('subscription') || 'free';
-  });
+  // Subscription always starts as 'free' and is loaded from Firestore
+  const [subscription, setSubscription] = useState('free');
 
   const [activeCardIndex, setActiveCardIndex] = useState(0); // Lifted state for Carousel
   const [view, setView] = useState('dashboard'); // dashboard, editor
@@ -1517,12 +1516,13 @@ function App() {
       if (!u) {
         setCards([]); // Clear data on logout
         setSubscription('free');
+        localStorage.removeItem('subscription'); // Clear cache on logout
       }
     });
     return () => unsubscribe();
   }, []);
 
-  // Fetch Subscription Status from DB when User Logs In
+  // Fetch Subscription Status from Firestore when User Logs In
   useEffect(() => {
     const fetchSubscription = async () => {
       if (user) {
@@ -1530,10 +1530,16 @@ function App() {
           const userDoc = await getDoc(doc(db, 'users', user.uid));
           if (userDoc.exists()) {
             const data = userDoc.data();
-            if (data.subscription) {
-              setSubscription(data.subscription);
-              localStorage.setItem('subscription', data.subscription);
-            }
+            const userSubscription = data.subscription || 'free';
+            setSubscription(userSubscription);
+            localStorage.setItem('subscription', userSubscription); // Cache for session
+          } else {
+            // User doc doesn't exist, create it with free plan
+            await setDoc(doc(db, 'users', user.uid), {
+              subscription: 'free',
+              createdAt: new Date().toISOString()
+            });
+            setSubscription('free');
           }
         } catch (error) {
           console.error("Error fetching subscription:", error);
