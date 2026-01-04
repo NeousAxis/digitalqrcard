@@ -1575,244 +1575,243 @@ function App() {
           console.error("Error fetching subscription:", error);
         }
       }
-    }
-  };
-  fetchSubscription();
-}, [user]);
+    };
+    fetchSubscription();
+  }, [user]);
 
-// Check for pending plan when tab becomes visible (returning from Stripe)
-useEffect(() => {
-  const handleVisibilityChange = async () => {
-    if (document.visibilityState === 'visible' && user) {
-      const pendingPlan = localStorage.getItem('pendingPlan');
-      console.log("Checking pending plan on visibility change:", pendingPlan);
+  // Check for pending plan when tab becomes visible (returning from Stripe)
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible' && user) {
+        const pendingPlan = localStorage.getItem('pendingPlan');
+        console.log("Checking pending plan on visibility change:", pendingPlan);
 
-      if (pendingPlan && ['basic', 'pro'].includes(pendingPlan)) {
-        // Confirm update
-        /* In a real app we might want to verifying payment status here via API 
-           but for this fix we assume if they clicked the link and came back, update it. 
-           The webhook will confirm it later. */
+        if (pendingPlan && ['basic', 'pro'].includes(pendingPlan)) {
+          // Confirm update
+          /* In a real app we might want to verifying payment status here via API 
+             but for this fix we assume if they clicked the link and came back, update it. 
+             The webhook will confirm it later. */
+
+          try {
+            await setDoc(doc(db, 'users', user.uid), {
+              subscription: pendingPlan,
+              updatedAt: new Date().toISOString()
+            }, { merge: true });
+
+            setSubscription(pendingPlan);
+            localStorage.setItem('subscription', pendingPlan);
+            localStorage.removeItem('pendingPlan');
+
+            setStatusMessage({
+              type: 'success',
+              text: `✅ Subscription upgraded to ${pendingPlan === 'basic' ? 'Standard' : 'Premium'} Pack!`
+            });
+            setTimeout(() => setStatusMessage(null), 5000);
+          } catch (err) {
+            console.error("Error updating pending plan:", err);
+          }
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    // Also check on mount in case of reload
+    handleVisibilityChange();
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [user]);
+
+  // Detect Stripe return with plan parameter and update subscription
+  useEffect(() => {
+    const updateSubscriptionFromURL = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const planFromURL = urlParams.get('plan');
+
+      if (planFromURL && ['basic', 'pro'].includes(planFromURL)) {
+        // If user is not logged in yet, wait a bit for auth to initialize
+        if (!user) {
+          console.log('Waiting for user authentication...');
+          return;
+        }
 
         try {
+          // Update Firestore
           await setDoc(doc(db, 'users', user.uid), {
-            subscription: pendingPlan,
+            subscription: planFromURL,
             updatedAt: new Date().toISOString()
           }, { merge: true });
 
-          setSubscription(pendingPlan);
-          localStorage.setItem('subscription', pendingPlan);
-          localStorage.removeItem('pendingPlan');
+          // Update local state
+          setSubscription(planFromURL);
+          localStorage.setItem('subscription', planFromURL);
 
+          // Clean URL (remove plan parameter)
+          window.history.replaceState({}, document.title, window.location.pathname);
+
+          // Show success message
           setStatusMessage({
             type: 'success',
-            text: `✅ Subscription upgraded to ${pendingPlan === 'basic' ? 'Standard' : 'Premium'} Pack!`
+            text: `✅ Subscription upgraded to ${planFromURL === 'basic' ? 'Standard' : 'Premium'} Pack!`
           });
           setTimeout(() => setStatusMessage(null), 5000);
-        } catch (err) {
-          console.error("Error updating pending plan:", err);
+        } catch (error) {
+          console.error("Error updating subscription from URL:", error);
+          setStatusMessage({
+            type: 'error',
+            text: '❌ Error updating subscription. Please contact support.'
+          });
         }
       }
-    }
-  };
+    };
 
-  document.addEventListener("visibilitychange", handleVisibilityChange);
-  // Also check on mount in case of reload
-  handleVisibilityChange();
+    updateSubscriptionFromURL();
+  }, [user]);
 
-  return () => {
-    document.removeEventListener("visibilitychange", handleVisibilityChange);
-  };
-}, [user]);
-
-// Detect Stripe return with plan parameter and update subscription
-useEffect(() => {
-  const updateSubscriptionFromURL = async () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const planFromURL = urlParams.get('plan');
-
-    if (planFromURL && ['basic', 'pro'].includes(planFromURL)) {
-      // If user is not logged in yet, wait a bit for auth to initialize
-      if (!user) {
-        console.log('Waiting for user authentication...');
-        return;
-      }
-
-      try {
-        // Update Firestore
-        await setDoc(doc(db, 'users', user.uid), {
-          subscription: planFromURL,
-          updatedAt: new Date().toISOString()
-        }, { merge: true });
-
-        // Update local state
-        setSubscription(planFromURL);
-        localStorage.setItem('subscription', planFromURL);
-
-        // Clean URL (remove plan parameter)
-        window.history.replaceState({}, document.title, window.location.pathname);
-
-        // Show success message
-        setStatusMessage({
-          type: 'success',
-          text: `✅ Subscription upgraded to ${planFromURL === 'basic' ? 'Standard' : 'Premium'} Pack!`
-        });
-        setTimeout(() => setStatusMessage(null), 5000);
-      } catch (error) {
-        console.error("Error updating subscription from URL:", error);
-        setStatusMessage({
-          type: 'error',
-          text: '❌ Error updating subscription. Please contact support.'
-        });
-      }
-    }
-  };
-
-  updateSubscriptionFromURL();
-}, [user]);
-
-const handleLogin = async () => {
-  try {
-    const provider = new GoogleAuthProvider();
-    await signInWithPopup(auth, provider);
-  } catch (error) {
-    console.error("Login Error:", error);
-    alert("Erreur de connexion : " + error.message);
-  }
-};
-
-const handleLogout = async () => {
-  await signOut(auth);
-};
-
-// Separate effect for data loading - depends specifically on user.uid to avoid object reference churn
-useEffect(() => {
-  if (!user?.uid) {
-    setCards([]); // Clear cards if no user
-    return;
-  }
-
-  console.log("Subscribing to cards for user:", user.uid);
-  const colRef = collection(db, 'users', user.uid, 'cards');
-
-  const unsubscribe = onSnapshot(colRef, (snapshot) => {
-    const loaded = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-    console.log("Cards loaded from server:", loaded.length);
-    setCards(loaded);
-  }, (error) => {
-    console.error("Error fetching cards:", error);
-    alert("ERREUR CRITIQUE DE CHARGEMENT:\n" + error.message);
-  });
-
-  return () => unsubscribe();
-}, [user?.uid]);
-
-
-const handleSaveCard = async (cardData) => {
-  setIsSaving(true);
-  setStatusMessage({ type: 'info', text: 'Sauvegarde...' });
-
-  if (!navigator.onLine) {
-    alert('Erreur: Pas de connexion internet.');
-    setIsSaving(false);
-    return;
-  }
-
-  const currentUser = auth.currentUser;
-  if (!currentUser) {
-    alert("Erreur: Vous n'êtes pas connecté. Veuillez vous reconnecter.");
-    setIsSaving(false);
-    return;
-  }
-
-  try {
-    // 1. Prepare Data
-    // eslint-disable-next-line no-unused-vars
-    const { id, ...rawData } = cardData;
-    const dataToSave = JSON.parse(JSON.stringify(rawData));
-    dataToSave.updatedAt = new Date().toISOString();
-    dataToSave.userId = currentUser.uid;
-
-    let savedId;
-
-    // 2. Write to Firestore
-    if (editingCard && !editingCard.id.startsWith('temp_')) {
-      // Update existing
-      savedId = editingCard.id;
-      const docRef = doc(db, 'users', currentUser.uid, 'cards', savedId);
-      await setDoc(docRef, dataToSave);
-
-      // Manual State Update (Update Item)
-      setCards(prev => prev.map(c => c.id === savedId ? { ...dataToSave, id: savedId } : c));
-    } else {
-      // Create new
-      const docRef = await addDoc(collection(db, 'users', currentUser.uid, 'cards'), dataToSave);
-      savedId = docRef.id;
-
-      // Manual State Update (Add Item)
-      setCards(prev => [...prev, { ...dataToSave, id: savedId }]);
-    }
-
-    // 3. Success feedback
-    setStatusMessage({ type: 'success', text: 'Sauvegardé !' });
-
-    // Short timeout to let the user see the "Saved" state before closing
-    setTimeout(() => {
-      setView('dashboard');
-
-      // FIND NEW INDEX to stay on this card
-      setCards(currentCards => {
-        const newIndex = currentCards.findIndex(c => c.id === savedId);
-        if (newIndex !== -1) setActiveCardIndex(newIndex);
-        return currentCards;
-      });
-
-      setEditingCard(null);
-      setStatusMessage(null);
-      setIsSaving(false);
-    }, 500);
-
-  } catch (error) {
-    console.error("Save Error:", error);
-    alert(`Erreur de sauvegarde (${error.code || 'unknown'}): ${error.message}`);
-    setStatusMessage({ type: 'error', text: error.message });
-    setIsSaving(false);
-  }
-};
-
-const handleDelete = async (id) => {
-  const currentUser = auth.currentUser;
-  if (!currentUser) return;
-
-  if (confirm(t.confirmDelete)) {
+  const handleLogin = async () => {
     try {
-      const docRef = doc(db, 'users', currentUser.uid, 'cards', id);
-      await deleteDoc(docRef);
-      // Optimistically remove from list to feel fast, onSnapshot will confirm
-      setCards(cards.filter(c => c.id !== id));
-    } catch (err) {
-      alert("Erreur lors de la suppression: " + err.message);
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      console.error("Login Error:", error);
+      alert("Erreur de connexion : " + error.message);
     }
-  }
-};
+  };
 
-const handleUpgrade = async (plan) => {
-  if (!user?.uid) return;
+  const handleLogout = async () => {
+    await signOut(auth);
+  };
 
-  // In a real app, here you would redirect to Stripe checkout.
-  // On success webhook, you update the DB. 
-  // For now, we simulate immediate upgrade:
+  // Separate effect for data loading - depends specifically on user.uid to avoid object reference churn
+  useEffect(() => {
+    if (!user?.uid) {
+      setCards([]); // Clear cards if no user
+      return;
+    }
 
-  const userRef = doc(db, 'users', user.uid);
-  // Merge true to avoid overwriting other fields
-  await setDoc(userRef, { subscription: plan }, { merge: true });
+    console.log("Subscribing to cards for user:", user.uid);
+    const colRef = collection(db, 'users', user.uid, 'cards');
 
-  setSubscription(plan);
-  setShowPricing(false);
-  alert(`${t.upgraded} ${plan === 'basic' ? t.standard : t.premium} plan.`);
-};
+    const unsubscribe = onSnapshot(colRef, (snapshot) => {
+      const loaded = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      console.log("Cards loaded from server:", loaded.length);
+      setCards(loaded);
+    }, (error) => {
+      console.error("Error fetching cards:", error);
+      alert("ERREUR CRITIQUE DE CHARGEMENT:\n" + error.message);
+    });
+
+    return () => unsubscribe();
+  }, [user?.uid]);
+
+
+  const handleSaveCard = async (cardData) => {
+    setIsSaving(true);
+    setStatusMessage({ type: 'info', text: 'Sauvegarde...' });
+
+    if (!navigator.onLine) {
+      alert('Erreur: Pas de connexion internet.');
+      setIsSaving(false);
+      return;
+    }
+
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      alert("Erreur: Vous n'êtes pas connecté. Veuillez vous reconnecter.");
+      setIsSaving(false);
+      return;
+    }
+
+    try {
+      // 1. Prepare Data
+      // eslint-disable-next-line no-unused-vars
+      const { id, ...rawData } = cardData;
+      const dataToSave = JSON.parse(JSON.stringify(rawData));
+      dataToSave.updatedAt = new Date().toISOString();
+      dataToSave.userId = currentUser.uid;
+
+      let savedId;
+
+      // 2. Write to Firestore
+      if (editingCard && !editingCard.id.startsWith('temp_')) {
+        // Update existing
+        savedId = editingCard.id;
+        const docRef = doc(db, 'users', currentUser.uid, 'cards', savedId);
+        await setDoc(docRef, dataToSave);
+
+        // Manual State Update (Update Item)
+        setCards(prev => prev.map(c => c.id === savedId ? { ...dataToSave, id: savedId } : c));
+      } else {
+        // Create new
+        const docRef = await addDoc(collection(db, 'users', currentUser.uid, 'cards'), dataToSave);
+        savedId = docRef.id;
+
+        // Manual State Update (Add Item)
+        setCards(prev => [...prev, { ...dataToSave, id: savedId }]);
+      }
+
+      // 3. Success feedback
+      setStatusMessage({ type: 'success', text: 'Sauvegardé !' });
+
+      // Short timeout to let the user see the "Saved" state before closing
+      setTimeout(() => {
+        setView('dashboard');
+
+        // FIND NEW INDEX to stay on this card
+        setCards(currentCards => {
+          const newIndex = currentCards.findIndex(c => c.id === savedId);
+          if (newIndex !== -1) setActiveCardIndex(newIndex);
+          return currentCards;
+        });
+
+        setEditingCard(null);
+        setStatusMessage(null);
+        setIsSaving(false);
+      }, 500);
+
+    } catch (error) {
+      console.error("Save Error:", error);
+      alert(`Erreur de sauvegarde (${error.code || 'unknown'}): ${error.message}`);
+      setStatusMessage({ type: 'error', text: error.message });
+      setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
+
+    if (confirm(t.confirmDelete)) {
+      try {
+        const docRef = doc(db, 'users', currentUser.uid, 'cards', id);
+        await deleteDoc(docRef);
+        // Optimistically remove from list to feel fast, onSnapshot will confirm
+        setCards(cards.filter(c => c.id !== id));
+      } catch (err) {
+        alert("Erreur lors de la suppression: " + err.message);
+      }
+    }
+  };
+
+  const handleUpgrade = async (plan) => {
+    if (!user?.uid) return;
+
+    // In a real app, here you would redirect to Stripe checkout.
+    // On success webhook, you update the DB. 
+    // For now, we simulate immediate upgrade:
+
+    const userRef = doc(db, 'users', user.uid);
+    // Merge true to avoid overwriting other fields
+    await setDoc(userRef, { subscription: plan }, { merge: true });
+
+    setSubscription(plan);
+    setShowPricing(false);
+    alert(`${t.upgraded} ${plan === 'basic' ? t.standard : t.premium} plan.`);
+  };
 
 
 
@@ -1820,242 +1819,242 @@ const handleUpgrade = async (plan) => {
 
 
 
-return (
-  <ErrorBoundary>
-    <div className="app-container">
-      {/* Header */}
-      <header className="app-header glass-header">
-        <div className="brand">
-          <div className="brand-icon-pro">
-            <Smartphone className="text-white" size={24} />
+  return (
+    <ErrorBoundary>
+      <div className="app-container">
+        {/* Header */}
+        <header className="app-header glass-header">
+          <div className="brand">
+            <div className="brand-icon-pro">
+              <Smartphone className="text-white" size={24} />
+            </div>
+            <h1 className="brand-name-pro">
+              {t.appName}
+            </h1>
           </div>
-          <h1 className="brand-name-pro">
-            {t.appName}
-          </h1>
-        </div>
 
-        <div className="header-controls">
-          {user && (
-            <>
-              <div className="plan-badge-pro">
-                {subscription === 'pro' ? 'PREMIUM' : (subscription === 'basic' ? 'STANDARD' : 'FREE')}
-              </div>
-              <button onClick={handleLogout} className="btn-logout" title="Sign Out">
-                <LogOut size={20} />
-              </button>
-            </>
-          )}
-        </div>
-      </header>
-
-      {/* Auth Modal */}
-      {showAuthModal && !user && (
-        <AuthModal
-          onClose={() => setShowAuthModal(false)}
-          onLoginGoogle={() => {
-            setShowAuthModal(false);
-            handleLogin();
-          }}
-        />
-      )}
-
-      {/* Main Content */}
-      <main className="main-content-pro">
-        {view === 'dashboard' ? (
-          <>
-            {cards.length === 0 ? (
-              <div className="empty-state-pro">
-                <div className="empty-icon-pro">
-                  <CreditCard size={48} />
+          <div className="header-controls">
+            {user && (
+              <>
+                <div className="plan-badge-pro">
+                  {subscription === 'pro' ? 'PREMIUM' : (subscription === 'basic' ? 'STANDARD' : 'FREE')}
                 </div>
-                <h3>{t.noCards}</h3>
-                <p>{t.startCreating}</p>
-                {user ? (
-                  <button
-                    onClick={() => {
-                      setEditingCard(null);
-                      setView('editor');
-                    }}
-                    className="btn-create-pro"
-                  >
-                    <Plus size={20} /> {t.createFirst}
-                  </button>
-                ) : (
-                  <button onClick={() => setShowAuthModal(true)} className="btn-create-pro">
-                    <LogIn size={18} /> {t.login}
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div className="carousel-wrapper">
-                <Carousel
-                  items={cards}
-                  activeIndex={activeCardIndex}
-                  onIndexChange={setActiveCardIndex}
-                  renderItem={(card, isActive) => (
-                    <div className="card-slide-container">
-                      <div className="pro-card-container-wrapper">
-                        <CardPreview
-                          card={card}
-                          showQR={sharedCardId === card.id}
-                          isExpanded={expandedCardId === card.id}
-                          onToggleExpand={() => setExpandedCardId(expandedCardId === card.id ? null : card.id)}
-                          t={t}
-                        />
-                        {/* Floating Actions for this card */}
-                        <div className={`pro-card-actions ${isActive ? 'visible' : ''}`}>
-                          <button
-                            onClick={() => {
-                              setEditingCard(card);
-                              setView('editor');
-                            }}
-                            className="action-circle-btn edit"
-                            title={t.edit}
-                          >
-                            <Edit2 size={20} />
-                            <span className="btn-label">{t.edit}</span>
-                          </button>
+                <button onClick={handleLogout} className="btn-logout" title="Sign Out">
+                  <LogOut size={20} />
+                </button>
+              </>
+            )}
+          </div>
+        </header>
 
-                          <button
-                            onClick={() => setSharedCardId(sharedCardId === card.id ? null : card.id)}
-                            className={`action-circle-btn share ${sharedCardId === card.id ? 'active' : ''}`}
-                            title={t.share}
-                          >
-                            {sharedCardId === card.id ? <X size={20} /> : <Share2 size={20} />}
-                            <span className="btn-label">{sharedCardId === card.id ? t.close : t.share}</span>
-                          </button>
+        {/* Auth Modal */}
+        {showAuthModal && !user && (
+          <AuthModal
+            onClose={() => setShowAuthModal(false)}
+            onLoginGoogle={() => {
+              setShowAuthModal(false);
+              handleLogin();
+            }}
+          />
+        )}
 
-                          <button
-                            onClick={() => handleDelete(card.id)}
-                            className="action-circle-btn delete"
-                            title={t.delete}
-                          >
-                            <Trash2 size={20} />
-                            <span className="btn-label">Delete</span>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                />
-                {cards.length < (subscription === 'pro' ? PRICING.pro.limit : (subscription === 'basic' ? PRICING.basic.limit : 1)) && (
-                  <div style={{ textAlign: 'center', marginTop: '1.5rem', marginBottom: '1rem' }}>
+        {/* Main Content */}
+        <main className="main-content-pro">
+          {view === 'dashboard' ? (
+            <>
+              {cards.length === 0 ? (
+                <div className="empty-state-pro">
+                  <div className="empty-icon-pro">
+                    <CreditCard size={48} />
+                  </div>
+                  <h3>{t.noCards}</h3>
+                  <p>{t.startCreating}</p>
+                  {user ? (
                     <button
                       onClick={() => {
                         setEditingCard(null);
                         setView('editor');
                       }}
                       className="btn-create-pro"
-                      style={{ margin: '0 auto' }}
                     >
-                      <Plus size={20} /> {t.createNewCard}
+                      <Plus size={20} /> {t.createFirst}
                     </button>
-                  </div>
-                )}
-              </div>
-            )}
-          </>
-        ) : view === 'settings' ? (
-          <div className="glass-panel" style={{ padding: '2rem', maxWidth: '600px', margin: '2rem auto' }}>
-            <h2 className="section-title" style={{ textAlign: 'center', marginBottom: '1.5rem' }}>Settings</h2>
+                  ) : (
+                    <button onClick={() => setShowAuthModal(true)} className="btn-create-pro">
+                      <LogIn size={18} /> {t.login}
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="carousel-wrapper">
+                  <Carousel
+                    items={cards}
+                    activeIndex={activeCardIndex}
+                    onIndexChange={setActiveCardIndex}
+                    renderItem={(card, isActive) => (
+                      <div className="card-slide-container">
+                        <div className="pro-card-container-wrapper">
+                          <CardPreview
+                            card={card}
+                            showQR={sharedCardId === card.id}
+                            isExpanded={expandedCardId === card.id}
+                            onToggleExpand={() => setExpandedCardId(expandedCardId === card.id ? null : card.id)}
+                            t={t}
+                          />
+                          {/* Floating Actions for this card */}
+                          <div className={`pro-card-actions ${isActive ? 'visible' : ''}`}>
+                            <button
+                              onClick={() => {
+                                setEditingCard(card);
+                                setView('editor');
+                              }}
+                              className="action-circle-btn edit"
+                              title={t.edit}
+                            >
+                              <Edit2 size={20} />
+                              <span className="btn-label">{t.edit}</span>
+                            </button>
 
-            <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: '1rem', padding: '1.5rem', marginBottom: '1rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                <span style={{ color: '#94a3b8' }}>Current Plan</span>
-                <span className="plan-badge-pro" style={{ margin: 0 }}>
-                  {subscription === 'pro' ? 'PREMIUM PACK' : (subscription === 'basic' ? 'STANDARD PACK' : 'FREE')}
-                </span>
+                            <button
+                              onClick={() => setSharedCardId(sharedCardId === card.id ? null : card.id)}
+                              className={`action-circle-btn share ${sharedCardId === card.id ? 'active' : ''}`}
+                              title={t.share}
+                            >
+                              {sharedCardId === card.id ? <X size={20} /> : <Share2 size={20} />}
+                              <span className="btn-label">{sharedCardId === card.id ? t.close : t.share}</span>
+                            </button>
+
+                            <button
+                              onClick={() => handleDelete(card.id)}
+                              className="action-circle-btn delete"
+                              title={t.delete}
+                            >
+                              <Trash2 size={20} />
+                              <span className="btn-label">Delete</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  />
+                  {cards.length < (subscription === 'pro' ? PRICING.pro.limit : (subscription === 'basic' ? PRICING.basic.limit : 1)) && (
+                    <div style={{ textAlign: 'center', marginTop: '1.5rem', marginBottom: '1rem' }}>
+                      <button
+                        onClick={() => {
+                          setEditingCard(null);
+                          setView('editor');
+                        }}
+                        className="btn-create-pro"
+                        style={{ margin: '0 auto' }}
+                      >
+                        <Plus size={20} /> {t.createNewCard}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          ) : view === 'settings' ? (
+            <div className="glass-panel" style={{ padding: '2rem', maxWidth: '600px', margin: '2rem auto' }}>
+              <h2 className="section-title" style={{ textAlign: 'center', marginBottom: '1.5rem' }}>Settings</h2>
+
+              <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: '1rem', padding: '1.5rem', marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                  <span style={{ color: '#94a3b8' }}>Current Plan</span>
+                  <span className="plan-badge-pro" style={{ margin: 0 }}>
+                    {subscription === 'pro' ? 'PREMIUM PACK' : (subscription === 'basic' ? 'STANDARD PACK' : 'FREE')}
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                  <span style={{ color: '#94a3b8' }}>Status</span>
+                  <span style={{ color: '#4ade80', fontWeight: 'bold' }}>Active</span>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                  <span style={{ color: '#94a3b8' }}>Renewal Date</span>
+                  <span style={{ color: 'white' }}>{new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toLocaleDateString()}</span>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ color: '#94a3b8' }}>Cards Used</span>
+                  <span style={{ color: 'white' }}>
+                    {cards.length} / {subscription === 'pro' ? PRICING.pro.limit : (subscription === 'basic' ? PRICING.basic.limit : 1)}
+                  </span>
+                </div>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                <span style={{ color: '#94a3b8' }}>Status</span>
-                <span style={{ color: '#4ade80', fontWeight: 'bold' }}>Active</span>
+              <div className="form-group">
+                <p style={{ textAlign: 'center', color: '#64748b', fontSize: '0.9rem' }}>
+                  To manage your billing or cancel your subscription, please contact support.
+                </p>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                <span style={{ color: '#94a3b8' }}>Renewal Date</span>
-                <span style={{ color: 'white' }}>{new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toLocaleDateString()}</span>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: '#94a3b8' }}>Cards Used</span>
-                <span style={{ color: 'white' }}>
-                  {cards.length} / {subscription === 'pro' ? PRICING.pro.limit : (subscription === 'basic' ? PRICING.basic.limit : 1)}
-                </span>
-              </div>
+              <button
+                onClick={() => setView('dashboard')}
+                className="btn-secondary"
+                style={{ width: '100%', marginTop: '1rem' }}
+              >
+                Back to Dashboard
+              </button>
             </div>
+          ) : (
+            <Editor
+              card={editingCard}
+              onSave={handleSaveCard}
+              subscription={subscription}
+              onCancel={() => {
+                setView('dashboard');
+                setEditingCard(null);
+              }}
+              t={t}
+              isSaving={isSaving}
+              statusMessage={statusMessage}
+            />
+          )}
+        </main>
 
-            <div className="form-group">
-              <p style={{ textAlign: 'center', color: '#64748b', fontSize: '0.9rem' }}>
-                To manage your billing or cancel your subscription, please contact support.
-              </p>
-            </div>
+        {/* Footer Navigation */}
+        <nav className="app-footer">
+          <button
+            className={`footer-nav-item ${view === 'dashboard' ? 'active' : ''}`}
+            onClick={() => setView('dashboard')}
+          >
+            <CreditCard size={24} />
+            <span>Cards</span>
+          </button>
 
-            <button
-              onClick={() => setView('dashboard')}
-              className="btn-secondary"
-              style={{ width: '100%', marginTop: '1rem' }}
-            >
-              Back to Dashboard
-            </button>
-          </div>
-        ) : (
-          <Editor
-            card={editingCard}
-            onSave={handleSaveCard}
-            subscription={subscription}
-            onCancel={() => {
-              setView('dashboard');
-              setEditingCard(null);
-            }}
-            t={t}
-            isSaving={isSaving}
-            statusMessage={statusMessage}
-          />
-        )}
-      </main>
+          <button
+            className="footer-nav-item highlight"
+            onClick={() => setShowPricing(true)}
+          >
+            <Gem size={24} />
+            <span>Upgrade</span>
+          </button>
 
-      {/* Footer Navigation */}
-      <nav className="app-footer">
-        <button
-          className={`footer-nav-item ${view === 'dashboard' ? 'active' : ''}`}
-          onClick={() => setView('dashboard')}
-        >
-          <CreditCard size={24} />
-          <span>Cards</span>
-        </button>
+          <button
+            className={`footer-nav-item ${view === 'settings' ? 'active' : ''}`}
+            onClick={() => setView('settings')}
+          >
+            <Settings size={24} />
+            <span>Settings</span>
+          </button>
+        </nav>
 
-        <button
-          className="footer-nav-item highlight"
-          onClick={() => setShowPricing(true)}
-        >
-          <Gem size={24} />
-          <span>Upgrade</span>
-        </button>
-
-        <button
-          className={`footer-nav-item ${view === 'settings' ? 'active' : ''}`}
-          onClick={() => setView('settings')}
-        >
-          <Settings size={24} />
-          <span>Settings</span>
-        </button>
-      </nav>
-
-      {/* Pricing Modal */}
-      {
-        showPricing && (
-          <PricingModal
-            currentPlan={subscription}
-            onUpgrade={handleUpgrade}
-            onClose={() => setShowPricing(false)}
-            t={t}
-          />
-        )
-      }
-    </div >
-  </ErrorBoundary >
-);
+        {/* Pricing Modal */}
+        {
+          showPricing && (
+            <PricingModal
+              currentPlan={subscription}
+              onUpgrade={handleUpgrade}
+              onClose={() => setShowPricing(false)}
+              t={t}
+            />
+          )
+        }
+      </div >
+    </ErrorBoundary >
+  );
 }
 
 export default App;
