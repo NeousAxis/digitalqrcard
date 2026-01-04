@@ -496,7 +496,7 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
           <div className="animate-fade-in" style={{
             position: 'absolute', inset: 0, background: 'white', zIndex: 100,
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            padding: '2rem', borderRadius: '1.5rem'
+            padding: isExpanded ? '1rem' : '3rem', borderRadius: '1.5rem'
           }}>
             <QRCodeSVG
               value={(() => {
