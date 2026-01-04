@@ -356,6 +356,11 @@ const RedditIcon = (props) => (
   <BrandIcon {...props} path="M24 11.779c0-1.459-1.192-2.645-2.657-2.645-.715 0-1.363.286-1.84.746-1.81-1.191-4.259-1.949-6.971-2.046l1.483-4.669 4.016.941-.006.058c0 1.193.975 2.163 2.174 2.163 1.198 0 2.172-.97 2.172-2.163s-.975-2.164-2.172-2.164c-.92 0-1.704.574-2.021 1.379l-4.329-1.015c-.189-.046-.336.05-.432.223L11.841 8.987c-2.744.129-5.223.909-7.03 2.138-.489-.481-1.168-.786-1.921-.786-1.519 0-2.755 1.235-2.755 2.756 0 .869.412 1.64.954 2.15-.053.308-.094.622-.094.945 0 4.53 5.012 8.216 11.205 8.216s11.206-3.686 11.206-8.216c0-.327-.042-.644-.099-.955.515-.502.894-1.248.894-2.086v-.016zM12.016 20.35c-4.908 0-7.398-2.033-7.465-2.091-.167-.148-.19-.4-.055-.568.127-.16.368-.184.545-.049.034.025 2.279 1.658 6.975 1.658 4.673 0 6.943-1.635 6.974-1.658.177-.134.417-.11.545.049.135.167.112.419-.056.568-.066.058-2.556 2.091-7.463 2.091zM7.747 13.79c0-.985.795-1.794 1.774-1.794s1.774.809 1.774 1.794-.795 1.794-1.774 1.794-1.774-.809-1.774-1.794zm11.002 0c0-.985.795-1.794 1.774-1.794.98 0 1.775.809 1.775 1.794s-.795 1.794-1.775 1.794c-.98 0-1.774-.809-1.774-1.794z" />
 );
 
+const ZaloIcon = (props) => (
+  // Speech bubble with Z dot
+  <BrandIcon {...props} path="M2 8.5c0 3.5 2.5 6.5 6 7.5v3.5l4-3.5c4 0 8-2.5 8-7.5s-4-7.5-9-7.5-9 3.5-9 7.5zm5 2.5h8v2H7v-2zm0-4h8v2H7V7z" />
+);
+
 
 // --- Components ---
 
@@ -389,7 +394,7 @@ const FIELD_TYPES = [
   { value: 'mixcloud', label: 'Mixcloud', icon: Music, tier: 'basic' },
   { value: 'bandcamp', label: 'Bandcamp', icon: Music, tier: 'basic' },
 
-  { value: 'zalo', label: 'Zalo', icon: MessageCircle, tier: 'basic' },
+  { value: 'zalo', label: 'Zalo', icon: ZaloIcon, tier: 'basic' },
   { value: 'signal', label: 'Signal', icon: MessageCircle, tier: 'basic' },
   { value: 'bitchat', label: 'BitChat', icon: MessageCircle, tier: 'basic' },
   { value: 'custom', label: 'Custom', icon: Star, tier: 'pro' }
@@ -445,6 +450,8 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
       case 'telegram': return `https://t.me/${v.replace('@', '')}`;
       case 'snapchat': return `https://snapchat.com/add/${v}`;
       case 'youtube': return `https://youtube.com/${v.startsWith('@') ? v : '@' + v}`;
+      case 'youtube': return `https://youtube.com/${v.startsWith('@') ? v : '@' + v}`;
+      case 'zalo': return `https://zalo.me/${v.replace(/[^0-9]/g, '')}`;
       default: return v; // Fallback
     }
   };
@@ -1003,7 +1010,7 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage, subscripti
 
                 {/* Input Value */}
                 {/* Input Value - SPECIAL HANDING FOR PHONE with Dropdown */}
-                {['phone', 'whatsapp'].includes(field.type) ? (
+                {['phone', 'whatsapp', 'zalo'].includes(field.type) ? (
                   <div className="input-group" style={{ display: 'flex', gap: '0.5rem' }}>
                     {/* Country Select */}
                     <select
