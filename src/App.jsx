@@ -1500,6 +1500,7 @@ function App() {
 
   // Subscription always starts as 'free' and is loaded from Firestore
   const [subscription, setSubscription] = useState('free');
+  const [subscriptionDate, setSubscriptionDate] = useState(null);
 
   const [activeCardIndex, setActiveCardIndex] = useState(0); // Lifted state for Carousel
   const [view, setView] = useState('dashboard'); // dashboard, editor
@@ -1524,6 +1525,7 @@ function App() {
       if (!u) {
         setCards([]); // Clear data on logout
         setSubscription('free');
+        setSubscriptionDate(null);
         localStorage.removeItem('subscription'); // Clear cache on logout
       }
     });
@@ -1541,10 +1543,12 @@ function App() {
         if (docSnap.exists()) {
           const data = docSnap.data();
           const newSubscription = data.subscription || 'free';
+          const newDate = data.updatedAt || null;
 
           // Update local state immediately if changed
-          if (newSubscription !== subscription) {
+          if (newSubscription !== subscription || newDate !== subscriptionDate) {
             setSubscription(newSubscription);
+            setSubscriptionDate(newDate);
             localStorage.setItem('subscription', newSubscription);
           }
 
@@ -1977,10 +1981,16 @@ function App() {
                   <span style={{ color: '#4ade80', fontWeight: 'bold' }}>Active</span>
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                  <span style={{ color: '#94a3b8' }}>Renewal Date</span>
-                  <span style={{ color: 'white' }}>{new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toLocaleDateString()}</span>
-                </div>
+                {subscription !== 'free' && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <span style={{ color: '#94a3b8' }}>Renewal Date</span>
+                    <span style={{ color: 'white' }}>
+                      {subscriptionDate
+                        ? new Date(new Date(subscriptionDate).setDate(new Date(subscriptionDate).getDate() + 30)).toLocaleDateString()
+                        : 'N/A'}
+                    </span>
+                  </div>
+                )}
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ color: '#94a3b8' }}>Cards Used</span>
@@ -1990,11 +2000,27 @@ function App() {
                 </div>
               </div>
 
-              <div className="form-group">
-                <p style={{ textAlign: 'center', color: '#64748b', fontSize: '0.9rem' }}>
-                  To manage your billing or cancel your subscription, please contact support.
-                </p>
-              </div>
+              {subscription !== 'free' && (
+                <div className="form-group" style={{ textAlign: 'center' }}>
+                  <a
+                    href={`mailto:support@digitalqrcard.xyz?subject=Cancel Subscription&body=Please cancel my subscription for account: ${user?.email}`}
+                    className="btn-secondary"
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      marginBottom: '1rem',
+                      color: '#ef4444',
+                      borderColor: 'rgba(239, 68, 68, 0.2)',
+                      textDecoration: 'none'
+                    }}
+                  >
+                    Cancel Subscription
+                  </a>
+                  <p style={{ color: '#64748b', fontSize: '0.8rem' }}>
+                    Click to email support for cancellation.
+                  </p>
+                </div>
+              )}
 
               <button
                 onClick={() => setView('dashboard')}
