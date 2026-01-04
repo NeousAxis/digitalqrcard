@@ -476,51 +476,64 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
         ) : (
           <>
             {/* 4. Unified Action Buttons Row (Primary Contacts + Socials) */}
-            <div className="pro-actions-row" style={{ flexWrap: 'wrap', justifyContent: 'center', gap: '1rem', width: '100%', marginBottom: '1.5rem' }}>
-              {/* Primary Icons */}
-              {phone && (
-                <a href={`tel:${phone}`} className="pro-action-btn action-phone" title={phone} style={{ textDecoration: 'none', color: accentColor }}>
-                  <Phone size={20} />
-                </a>
-              )}
-              {email && (
-                <a href={`mailto:${email}`} className="pro-action-btn action-email" title={email} style={{ textDecoration: 'none', color: accentColor }}>
-                  <Mail size={20} />
-                </a>
-              )}
-              {website && (
-                <a href={website.startsWith('http') ? website : `https://${website}`} target="_blank" rel="noopener noreferrer" className="pro-action-btn action-web" title={website} style={{ textDecoration: 'none', color: accentColor }}>
-                  <Globe size={20} />
-                </a>
-              )}
-              {location && (
-                <div className="pro-action-btn action-map" title={location} style={{ color: accentColor }}>
-                  <MapPin size={20} />
-                </div>
-              )}
-
-              {/* Social Icons (Square with Icon) - Always visible now */}
-              {socialFields.map((field, idx) => {
-                // Find definition to get the proper Icon
-                const def = FIELD_TYPES.find(t => t.value === field.type);
-                const Icon = def ? def.icon : Star;
+            <div className="pro-actions-row" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '1rem', width: '100%', marginBottom: '1.5rem', alignItems: 'center' }}>
+              {/* Common Style for consistency */}
+              {(() => {
+                const btnStyle = {
+                  width: '44px', height: '44px',
+                  borderRadius: '12px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  textDecoration: 'none',
+                  color: accentColor,
+                  border: `1px solid ${accentColor}`, // Normalized border
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                  transition: 'transform 0.1s'
+                };
 
                 return (
-                  <div key={idx}
-                    className="pro-action-btn"
-                    style={{
-                      textDecoration: 'none',
-                      color: accentColor,
-                      borderColor: accentColor, // Ensure border matches logic of other buttons if they use partial styles
-                      cursor: 'pointer',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center'
-                    }}
-                    title={field.label || field.type}
-                  >
-                    <Icon size={20} />
-                  </div>
-                )
-              })}
+                  <>
+                    {/* Primary Icons */}
+                    {phone && (
+                      <a href={`tel:${phone}`} className="pro-action-btn" title={phone} style={btnStyle}>
+                        <Phone size={20} />
+                      </a>
+                    )}
+                    {email && (
+                      <a href={`mailto:${email}`} className="pro-action-btn" title={email} style={btnStyle}>
+                        <Mail size={20} />
+                      </a>
+                    )}
+                    {website && (
+                      <a href={website.startsWith('http') ? website : `https://${website}`} target="_blank" rel="noopener noreferrer" className="pro-action-btn" title={website} style={btnStyle}>
+                        <Globe size={20} />
+                      </a>
+                    )}
+                    {location && (
+                      <div className="pro-action-btn" title={location} style={btnStyle}>
+                        <MapPin size={20} />
+                      </div>
+                    )}
+
+                    {/* Social Icons */}
+                    {socialFields.map((field, idx) => {
+                      const def = FIELD_TYPES.find(t => t.value === field.type);
+                      const Icon = def ? def.icon : Star;
+
+                      return (
+                        <div key={idx}
+                          className="pro-action-btn"
+                          style={btnStyle}
+                          title={field.label || field.type}
+                        >
+                          <Icon size={20} />
+                        </div>
+                      )
+                    })}
+                  </>
+                );
+              })()}
             </div>
 
             {/* 5. REMOVED SEPARATE SOCIAL ROW (Merged above) */}
