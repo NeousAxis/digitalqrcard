@@ -1284,10 +1284,10 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t }) => {
             </ul>
             <button
               onClick={() => {
+                if (!user) return alert('Please login first');
                 localStorage.setItem('pendingPlan', 'basic');
-                // Pass user ID to Stripe for reliable webhook identification
-                const stripeUrl = 'https://buy.stripe.com/test_5kQ5kx2b91Sx1Vicha73G01';
-                window.open(`${stripeUrl}?client_reference_id=${user?.uid}`, '_blank');
+                const url = `https://buy.stripe.com/test_5kQ5kx2b91Sx1Vicha73G01?client_reference_id=${user.uid}`;
+                window.location.href = url; // Use direct navigation instead of popup
               }}
               disabled={currentPlan === 'basic'}
               className={`btn-full ${currentPlan === 'basic' ? 'btn-secondary' : 'btn-primary'}`}
@@ -1310,10 +1310,10 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t }) => {
             </ul>
             <button
               onClick={() => {
+                if (!user) return alert('Please login first');
                 localStorage.setItem('pendingPlan', 'pro');
-                // Pass user ID to Stripe for reliable webhook identification
-                const stripeUrl = 'https://buy.stripe.com/test_cNicMZ7vt8gVgQc4OI73G00';
-                window.open(`${stripeUrl}?client_reference_id=${user?.uid}`, '_blank');
+                const url = `https://buy.stripe.com/test_cNicMZ7vt8gVgQc4OI73G00?client_reference_id=${user.uid}`;
+                window.location.href = url; // Use direct navigation instead of popup
               }}
               disabled={currentPlan === 'pro'}
               className={`btn-full ${currentPlan === 'pro' ? 'btn-secondary' : 'btn-secondary'}`}
