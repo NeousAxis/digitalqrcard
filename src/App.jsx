@@ -1285,7 +1285,9 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t }) => {
             <button
               onClick={() => {
                 localStorage.setItem('pendingPlan', 'basic');
-                window.open('https://buy.stripe.com/test_5kQ5kx2b91Sx1Vicha73G01', '_blank');
+                // Pass user ID to Stripe for reliable webhook identification
+                const stripeUrl = 'https://buy.stripe.com/test_5kQ5kx2b91Sx1Vicha73G01';
+                window.open(`${stripeUrl}?client_reference_id=${user?.uid}`, '_blank');
               }}
               disabled={currentPlan === 'basic'}
               className={`btn-full ${currentPlan === 'basic' ? 'btn-secondary' : 'btn-primary'}`}
@@ -1309,7 +1311,9 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t }) => {
             <button
               onClick={() => {
                 localStorage.setItem('pendingPlan', 'pro');
-                window.open('https://buy.stripe.com/test_cNicMZ7vt8gVgQc4OI73G00', '_blank');
+                // Pass user ID to Stripe for reliable webhook identification
+                const stripeUrl = 'https://buy.stripe.com/test_cNicMZ7vt8gVgQc4OI73G00';
+                window.open(`${stripeUrl}?client_reference_id=${user?.uid}`, '_blank');
               }}
               disabled={currentPlan === 'pro'}
               className={`btn-full ${currentPlan === 'pro' ? 'btn-secondary' : 'btn-secondary'}`}

@@ -29,28 +29,45 @@ export default async function handler(req, res) {
         if (event.type === 'checkout.session.completed') {
             const session = event.data.object;
 
-            // Extract customer email and metadata
+            // Extract details
+            const userId = session.client_reference_id; // Added by frontend
             const customerEmail = session.customer_email || session.customer_details?.email;
             const plan = session.metadata?.plan; // 'basic' or 'pro'
 
-            console.log('Processing checkout:', { email: customerEmail, plan });
+            console.log('Processing checkout:', { userId, email: customerEmail, plan });
 
-            if (!customerEmail || !plan) {
-                console.error('Missing email or plan in session');
-                return res.status(400).json({ error: 'Missing required data' });
+            if (!plan) {
+                console.error('Missing plan in session metadata');
+                return res.status(400).json({ error: 'Missing plan metadata' });
             }
 
-            // Find user by email in Firestore
-            const usersRef = db.collection('users');
-            const snapshot = await usersRef.where('email', '==', customerEmail).get();
+            let userDoc = null;
 
-            if (snapshot.empty) {
-                console.error('No user found with email:', customerEmail);
+            // 1. Try to find user by ID (Most reliable)
+            if (userId) {
+                const docSnap = await db.collection('users').doc(userId).get();
+                if (docSnap.exists) {
+                    userDoc = docSnap;
+                    console.log('User found by ID:', userId);
+                }
+            }
+
+            // 2. Fallback: Find user by email
+            if (!userDoc && customerEmail) {
+                const usersRef = db.collection('users');
+                const snapshot = await usersRef.where('email', '==', customerEmail).get();
+                if (!snapshot.empty) {
+                    userDoc = snapshot.docs[0];
+                    console.log('User found by email:', customerEmail);
+                }
+            }
+
+            if (!userDoc) {
+                console.error('No user found for checkout.');
                 return res.status(404).json({ error: 'User not found' });
             }
 
             // Update subscription for the user
-            const userDoc = snapshot.docs[0];
             await userDoc.ref.update({
                 subscription: plan,
                 updatedAt: new Date().toISOString(),
@@ -58,10 +75,7 @@ export default async function handler(req, res) {
                 stripeSessionId: session.id,
             });
 
-            console.log('Subscription updated successfully:', {
-                userId: userDoc.id,
-                plan,
-            });
+            console.log('Subscription updated successfully for user:', userDoc.id);
 
             return res.status(200).json({ success: true });
         }
