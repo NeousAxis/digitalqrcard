@@ -413,7 +413,6 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
       {/* 3. Content */}
       <div className="pro-content">
         <h3 className="pro-name">{card.name || t.yourName}</h3>
-        <h3 className="pro-name">{card.name || t.yourName}</h3>
         {displayTitle ? <p className="pro-title">{displayTitle}</p> : null}
 
         {/* QR Overlay - Only visible if showQR is passed as true */}
@@ -1578,7 +1577,7 @@ function App() {
             {user && (
               <>
                 <div className="plan-badge-pro">
-                  {subscription.toUpperCase()}
+                  {subscription === 'pro' ? 'PREMIUM' : (subscription === 'basic' ? 'STANDARD' : 'FREE')}
                 </div>
                 <button onClick={handleLogout} className="btn-logout" title="Sign Out">
                   <LogOut size={20} />
@@ -1693,11 +1692,55 @@ function App() {
                 </div>
               )}
             </>
+          ) : view === 'settings' ? (
+            <div className="glass-panel" style={{ padding: '2rem', maxWidth: '600px', margin: '2rem auto' }}>
+              <h2 className="section-title" style={{ textAlign: 'center', marginBottom: '1.5rem' }}>Settings</h2>
+
+              <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: '1rem', padding: '1.5rem', marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                  <span style={{ color: '#94a3b8' }}>Current Plan</span>
+                  <span className="plan-badge-pro" style={{ margin: 0 }}>
+                    {subscription === 'pro' ? 'PREMIUM PACK' : (subscription === 'basic' ? 'STANDARD PACK' : 'FREE')}
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                  <span style={{ color: '#94a3b8' }}>Status</span>
+                  <span style={{ color: '#4ade80', fontWeight: 'bold' }}>Active</span>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                  <span style={{ color: '#94a3b8' }}>Renewal Date</span>
+                  <span style={{ color: 'white' }}>{new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toLocaleDateString()}</span>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ color: '#94a3b8' }}>Cards Used</span>
+                  <span style={{ color: 'white' }}>
+                    {cards.length} / {subscription === 'pro' ? PRICING.pro.limit : (subscription === 'basic' ? PRICING.basic.limit : 1)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <p style={{ textAlign: 'center', color: '#64748b', fontSize: '0.9rem' }}>
+                  To manage your billing or cancel your subscription, please contact support.
+                </p>
+              </div>
+
+              <button
+                onClick={() => setView('dashboard')}
+                className="btn-secondary"
+                style={{ width: '100%', marginTop: '1rem' }}
+              >
+                Back to Dashboard
+              </button>
+            </div>
           ) : (
             <Editor
               card={editingCard}
               onSave={handleSaveCard}
-              subscription={subscription} // PASS SUBSCRIPTION
+              subscription={subscription}
               onCancel={() => {
                 setView('dashboard');
                 setEditingCard(null);
@@ -1728,8 +1771,8 @@ function App() {
           </button>
 
           <button
-            className="footer-nav-item"
-            onClick={() => alert("Settings coming soon!")}
+            className={`footer-nav-item ${view === 'settings' ? 'active' : ''}`}
+            onClick={() => setView('settings')}
           >
             <Settings size={24} />
             <span>Settings</span>
@@ -1737,16 +1780,18 @@ function App() {
         </nav>
 
         {/* Pricing Modal */}
-        {showPricing && (
-          <PricingModal
-            currentPlan={subscription}
-            onUpgrade={handleUpgrade}
-            onClose={() => setShowPricing(false)}
-            t={t}
-          />
-        )}
-      </div>
-    </ErrorBoundary>
+        {
+          showPricing && (
+            <PricingModal
+              currentPlan={subscription}
+              onUpgrade={handleUpgrade}
+              onClose={() => setShowPricing(false)}
+              t={t}
+            />
+          )
+        }
+      </div >
+    </ErrorBoundary >
   );
 }
 
