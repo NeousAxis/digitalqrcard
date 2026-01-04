@@ -1283,7 +1283,10 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t }) => {
               <li>✅ Social Networks (FB, Insta, Linked...)</li>
             </ul>
             <button
-              onClick={() => window.open('https://buy.stripe.com/test_5kQ5kx2b91Sx1Vicha73G01', '_blank')}
+              onClick={() => {
+                localStorage.setItem('pendingPlan', 'basic');
+                window.open('https://buy.stripe.com/test_5kQ5kx2b91Sx1Vicha73G01', '_blank');
+              }}
               disabled={currentPlan === 'basic'}
               className={`btn-full ${currentPlan === 'basic' ? 'btn-secondary' : 'btn-primary'}`}
             >
@@ -1304,7 +1307,10 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t }) => {
               <li><strong>✅ Unlimited Custom Fields</strong></li>
             </ul>
             <button
-              onClick={() => window.open('https://buy.stripe.com/test_cNicMZ7vt8gVgQc4OI73G00', '_blank')}
+              onClick={() => {
+                localStorage.setItem('pendingPlan', 'pro');
+                window.open('https://buy.stripe.com/test_cNicMZ7vt8gVgQc4OI73G00', '_blank');
+              }}
               disabled={currentPlan === 'pro'}
               className={`btn-full ${currentPlan === 'pro' ? 'btn-secondary' : 'btn-secondary'}`}
               style={currentPlan !== 'pro' ? { border: '1px solid white' } : {}}
@@ -1536,10 +1542,32 @@ function App() {
           } else {
             // User doc doesn't exist, create it with free plan
             await setDoc(doc(db, 'users', user.uid), {
+              email: user.email,
               subscription: 'free',
               createdAt: new Date().toISOString()
             });
             setSubscription('free');
+          }
+
+          // Check for pending plan from Stripe payment
+          const pendingPlan = localStorage.getItem('pendingPlan');
+          if (pendingPlan && ['basic', 'pro'].includes(pendingPlan)) {
+            // Update subscription with pending plan
+            await setDoc(doc(db, 'users', user.uid), {
+              subscription: pendingPlan,
+              updatedAt: new Date().toISOString()
+            }, { merge: true });
+
+            setSubscription(pendingPlan);
+            localStorage.setItem('subscription', pendingPlan);
+            localStorage.removeItem('pendingPlan'); // Clear pending
+
+            // Show success message
+            setStatusMessage({
+              type: 'success',
+              text: `✅ Subscription upgraded to ${pendingPlan === 'basic' ? 'Standard' : 'Premium'} Pack!`
+            });
+            setTimeout(() => setStatusMessage(null), 5000);
           }
         } catch (error) {
           console.error("Error fetching subscription:", error);
