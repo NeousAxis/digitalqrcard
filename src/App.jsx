@@ -7,7 +7,7 @@ import {
   User, Star, X, Check, Copy, LogIn, LogOut,
   CreditCard, Layout, Zap, Cloud, CloudOff, AlertCircle, RefreshCw, Gem,
   ChevronLeft, ChevronRight, Settings, ArrowUp, ArrowDown,
-  Facebook, Linkedin, Instagram, Twitter, Youtube, MessageCircle, Twitch, Music
+  Facebook, Linkedin, Instagram, Twitter, Youtube, MessageCircle, Twitch, Music, Send
 } from 'lucide-react';
 // Firebase imports
 import { initializeApp } from 'firebase/app';
@@ -330,7 +330,7 @@ const FIELD_TYPES = [
   { value: 'mastodon', label: 'Mastodon', icon: MessageCircle, tier: 'basic' },
   { value: 'bluesky', label: 'Bluesky', icon: Cloud, tier: 'basic' },
   { value: 'wechat', label: 'WeChat', icon: MessageCircle, tier: 'basic' },
-  { value: 'telegram', label: 'Telegram', icon: MessageCircle, tier: 'basic' },
+  { value: 'telegram', label: 'Telegram', icon: Send, tier: 'basic' },
   { value: 'linkedin', label: 'LinkedIn', icon: Linkedin, tier: 'basic' },
   { value: 'twitter', label: 'X (Twitter)', icon: Twitter, tier: 'basic' },
   { value: 'pinterest', label: 'Pinterest', icon: Globe, tier: 'basic' },
@@ -379,6 +379,24 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
   const accentColor = (themeBg && themeBg.includes('gradient'))
     ? themeBg.match(/#[a-fA-F0-9]{6}/)?.[0] || '#38bdf8'
     : themeBg || '#38bdf8';
+
+  // Helper to build social URLs (Moved for reuse)
+  const buildSocialUrl = (type, value) => {
+    const v = value.trim();
+    if (v.startsWith('http')) return v;
+    switch (type) {
+      case 'whatsapp': return `https://wa.me/${v.replace(/[^0-9]/g, '')}`;
+      case 'instagram': return `https://instagram.com/${v.replace('@', '')}`;
+      case 'twitter': return `https://twitter.com/${v.replace('@', '')}`;
+      case 'linkedin': return `https://linkedin.com/in/${v}`;
+      case 'facebook': return `https://facebook.com/${v}`;
+      case 'tiktok': return `https://tiktok.com/@${v.replace('@', '')}`;
+      case 'telegram': return `https://t.me/${v.replace('@', '')}`;
+      case 'snapchat': return `https://snapchat.com/add/${v}`;
+      case 'youtube': return `https://youtube.com/${v.startsWith('@') ? v : '@' + v}`;
+      default: return v; // Fallback
+    }
+  };
 
   return (
     <div
@@ -520,6 +538,23 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
                     {socialFields.map((field, idx) => {
                       const def = FIELD_TYPES.find(t => t.value === field.type);
                       const Icon = def ? def.icon : Star;
+                      const href = buildSocialUrl(field.type, field.value);
+                      const isLink = href && (href.startsWith('http') || href.startsWith('tel:') || href.startsWith('mailto:'));
+
+                      if (isLink) {
+                        return (
+                          <a key={idx}
+                            href={href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="pro-action-btn"
+                            style={btnStyle}
+                            title={field.label || field.type}
+                          >
+                            <Icon size={20} />
+                          </a>
+                        )
+                      }
 
                       return (
                         <div key={idx}
@@ -582,25 +617,12 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
                     // Set Display Value to Platform Name (User Request: "Just write Whatsapp")
                     val = platformName;
 
-                    // Helper to build URL
-                    const buildSocialUrl = (type, value) => {
-                      const v = value.trim();
-                      if (v.startsWith('http')) return v;
-                      switch (type) {
-                        case 'whatsapp': return `https://wa.me/${v.replace(/[^0-9]/g, '')}`;
-                        case 'instagram': return `https://instagram.com/${v.replace('@', '')}`;
-                        case 'twitter': return `https://twitter.com/${v.replace('@', '')}`;
-                        case 'linkedin': return `https://linkedin.com/in/${v}`;
-                        case 'facebook': return `https://facebook.com/${v}`;
-                        case 'tiktok': return `https://tiktok.com/@${v.replace('@', '')}`;
-                        case 'telegram': return `https://t.me/${v.replace('@', '')}`;
-                        case 'snapchat': return `https://snapchat.com/add/${v}`;
-                        case 'youtube': return `https://youtube.com/${v.startsWith('@') ? v : '@' + v}`;
-                        default: return v; // Fallback
-                      }
-                    };
+                    // Set Display Value to Platform Name (User Request: "Just write Whatsapp")
+                    val = platformName;
 
                     const href = buildSocialUrl(field.type, field.value);
+
+
 
                     // Only link if valid
                     if (href && (href !== field.value || href.startsWith('http'))) {
