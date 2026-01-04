@@ -59,3 +59,13 @@ Si vous avez déployé mais que vous voyez toujours l'ancienne version ou l'anci
 | **Pousser sur GitHub** | `git push` |
 | **Forcer le Déploiement** | `npx vercel --prod` |
 | **Lancer le serveur local** | `npm run dev` |
+
+---
+
+## Historique des Versions
+
+### V1.0.0 (Officielle) - 04/01/2026
+- **QR Code :** Refonte complète pour un affichage carré plein écran optimisé pour le scan.
+- **Design :** Ajout du thème "Deep Forest" et ajustement dynamique de l'interface en mode partage.
+- **Abonnements :** Intégration complète Stripe avec annulation directe via API.
+- **Release :** Tag GitHub officiel `v1.0.0`.
