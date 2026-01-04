@@ -1579,49 +1579,38 @@ function App() {
     fetchSubscription();
   }, [user]);
 
-  // Check for pending plan when tab becomes visible (returning from Stripe)
+  // Check for updates when tab becomes visible (returning from Stripe)
   useEffect(() => {
     const handleVisibilityChange = async () => {
       if (document.visibilityState === 'visible' && user) {
-        const pendingPlan = localStorage.getItem('pendingPlan');
-        console.log("Checking pending plan on visibility change:", pendingPlan);
+        console.log("App visible, refreshing subscription status...");
+        try {
+          // FORCE REFRESH from Firestore to catch Webhook updates
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists()) {
+            const data = userDoc.data();
+            const freshSubscription = data.subscription || 'free';
 
-        if (pendingPlan && ['basic', 'pro'].includes(pendingPlan)) {
-          // Confirm update
-          /* In a real app we might want to verifying payment status here via API 
-             but for this fix we assume if they clicked the link and came back, update it. 
-             The webhook will confirm it later. */
-
-          try {
-            await setDoc(doc(db, 'users', user.uid), {
-              subscription: pendingPlan,
-              updatedAt: new Date().toISOString()
-            }, { merge: true });
-
-            setSubscription(pendingPlan);
-            localStorage.setItem('subscription', pendingPlan);
-            localStorage.removeItem('pendingPlan');
-
-            setStatusMessage({
-              type: 'success',
-              text: `✅ Subscription upgraded to ${pendingPlan === 'basic' ? 'Standard' : 'Premium'} Pack!`
-            });
-            setTimeout(() => setStatusMessage(null), 5000);
-          } catch (err) {
-            console.error("Error updating pending plan:", err);
+            // Update state if different
+            if (freshSubscription !== subscription) {
+              setSubscription(freshSubscription);
+              localStorage.setItem('subscription', freshSubscription);
+              setStatusMessage({
+                type: 'success',
+                text: `✅ Plan updated to ${freshSubscription.toUpperCase()}`
+              });
+              setTimeout(() => setStatusMessage(null), 5000);
+            }
           }
-        }
+          if (localStorage.getItem('pendingPlan')) localStorage.removeItem('pendingPlan');
+        } catch (e) { console.error("Refresh error:", e); }
       }
     };
-
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    // Also check on mount in case of reload
-    handleVisibilityChange();
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [user, subscription]);
 
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [user]);
+
 
   // Detect Stripe return with plan parameter and update subscription
   useEffect(() => {
