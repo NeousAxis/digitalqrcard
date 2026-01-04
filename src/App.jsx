@@ -1984,7 +1984,7 @@ function App() {
                 {subscription !== 'free' && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                     <span style={{ color: '#94a3b8' }}>Renewal Date</span>
-                    <span style={{ color: 'white' }}>
+                    <span style={{ color: '#1e293b', fontWeight: '500' }}>
                       {subscriptionDate
                         ? new Date(new Date(subscriptionDate).setDate(new Date(subscriptionDate).getDate() + 30)).toLocaleDateString()
                         : 'N/A'}
@@ -1994,7 +1994,7 @@ function App() {
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ color: '#94a3b8' }}>Cards Used</span>
-                  <span style={{ color: 'white' }}>
+                  <span style={{ color: '#1e293b', fontWeight: '500' }}>
                     {cards.length} / {subscription === 'pro' ? PRICING.pro.limit : (subscription === 'basic' ? PRICING.basic.limit : 1)}
                   </span>
                 </div>
