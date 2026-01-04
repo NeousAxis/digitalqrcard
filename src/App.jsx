@@ -450,7 +450,7 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
       case 'telegram': return `https://t.me/${v.replace('@', '')}`;
       case 'snapchat': return `https://snapchat.com/add/${v}`;
       case 'youtube': return `https://youtube.com/${v.startsWith('@') ? v : '@' + v}`;
-      case 'youtube': return `https://youtube.com/${v.startsWith('@') ? v : '@' + v}`;
+
       case 'zalo': return `https://zalo.me/${v.replace(/[^0-9]/g, '')}`;
       default: return v; // Fallback
     }
@@ -1010,7 +1010,7 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage, subscripti
 
                 {/* Input Value */}
                 {/* Input Value - SPECIAL HANDING FOR PHONE with Dropdown */}
-                {['phone', 'whatsapp'].includes(field.type) ? (
+                {['phone', 'whatsapp', 'zalo'].includes(field.type) ? (
                   <div className="input-group" style={{ display: 'flex', gap: '0.5rem' }}>
                     {/* Country Select */}
                     <select
@@ -1095,7 +1095,7 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage, subscripti
                         if (field.type === 'instagram') return 'Username (e.g. john.doe)';
                         if (field.type === 'twitter') return 'Username (e.g. @john)';
                         if (field.type === 'linkedin') return 'Profile URL (e.g. linkedin.com/in/...)';
-                        if (field.type === 'zalo') return 'Phone (+84...) OR Zalo Link';
+
                         return `Enter ${field.type} details...`;
                       })()}
                       className="form-input"
