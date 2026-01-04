@@ -1286,7 +1286,7 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t }) => {
               onClick={() => {
                 if (!user) return alert('Please login first');
                 localStorage.setItem('pendingPlan', 'basic');
-                window.open('https://buy.stripe.com/test_5kQ5kx2b91Sx1Vicha73G01', '_blank');
+                window.location.href = 'https://buy.stripe.com/test_5kQ5kx2b91Sx1Vicha73G01';
               }}
               disabled={currentPlan === 'basic'}
               className={`btn-full ${currentPlan === 'basic' ? 'btn-secondary' : 'btn-primary'}`}
@@ -1311,7 +1311,7 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t }) => {
               onClick={() => {
                 if (!user) return alert('Please login first');
                 localStorage.setItem('pendingPlan', 'pro');
-                window.open('https://buy.stripe.com/test_cNicMZ7vt8gVgQc4OI73G00', '_blank');
+                window.location.href = 'https://buy.stripe.com/test_cNicMZ7vt8gVgQc4OI73G00';
               }}
               disabled={currentPlan === 'pro'}
               className={`btn-full ${currentPlan === 'pro' ? 'btn-secondary' : 'btn-primary'}`}
