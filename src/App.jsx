@@ -2041,6 +2041,23 @@ function App() {
                 </div>
               )}
 
+              <div className="form-group" style={{ textAlign: 'center', marginTop: '1rem' }}>
+                <a
+                  href="mailto:support@digitalqrcard.xyz?subject=Feedback / Support Request"
+                  className="btn-secondary"
+                  style={{
+                    display: 'block',
+                    width: '100%',
+                    marginBottom: '1rem',
+                    color: '#3b82f6',
+                    borderColor: 'rgba(59, 130, 246, 0.2)',
+                    textDecoration: 'none'
+                  }}
+                >
+                  Support / Feedback
+                </a>
+              </div>
+
               <button
                 onClick={() => setView('dashboard')}
                 className="btn-secondary"
