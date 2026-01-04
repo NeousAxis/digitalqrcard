@@ -1549,6 +1549,48 @@ function App() {
     fetchSubscription();
   }, [user]);
 
+  // Detect Stripe return with plan parameter and update subscription
+  useEffect(() => {
+    const updateSubscriptionFromURL = async () => {
+      if (!user) return;
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const planFromURL = urlParams.get('plan');
+
+      if (planFromURL && ['basic', 'pro'].includes(planFromURL)) {
+        try {
+          // Update Firestore
+          await setDoc(doc(db, 'users', user.uid), {
+            subscription: planFromURL,
+            updatedAt: new Date().toISOString()
+          }, { merge: true });
+
+          // Update local state
+          setSubscription(planFromURL);
+          localStorage.setItem('subscription', planFromURL);
+
+          // Clean URL (remove plan parameter)
+          window.history.replaceState({}, document.title, window.location.pathname);
+
+          // Show success message
+          setStatusMessage({
+            type: 'success',
+            text: `✅ Subscription upgraded to ${planFromURL === 'basic' ? 'Standard' : 'Premium'} Pack!`
+          });
+          setTimeout(() => setStatusMessage(null), 5000);
+        } catch (error) {
+          console.error("Error updating subscription from URL:", error);
+          setStatusMessage({
+            type: 'error',
+            text: '❌ Error updating subscription. Please contact support.'
+          });
+        }
+      }
+    };
+
+    updateSubscriptionFromURL();
+  }, [user]);
+
   const handleLogin = async () => {
     try {
       const provider = new GoogleAuthProvider();
