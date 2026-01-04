@@ -496,75 +496,87 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
           <div className="animate-fade-in" style={{
             position: 'absolute', inset: 0, background: 'white', zIndex: 100,
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            padding: '2.5rem', borderRadius: '1.5rem'
+            borderRadius: '1.5rem'
           }}>
-            <QRCodeSVG
-              value={(() => {
-                const parts = (card.name || '').trim().split(/\s+/);
-                const lastName = parts.length > 1 ? parts.pop() : '';
-                const firstName = parts.join(' ') || '';
-                const vCardData = [
-                  'BEGIN:VCARD',
-                  'VERSION:3.0',
-                  `N:${lastName};${firstName};;;`,
-                  `FN:${card.name || ''}`,
-                  `ORG:${company || ''}`,
-                  `TITLE:${title || ''}`,
-                  ...fields
-                    .filter(f => f.type !== 'title' && f.type !== 'company')
-                    .map(f => {
-                      const val = (f.value || '').trim();
-                      if (!val) return null;
-                      const lbl = (f.label || '').toLowerCase();
+            {/* Fixed-size QR container */}
+            <div style={{
+              width: '280px',
+              height: '280px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'white',
+              borderRadius: '1rem',
+              padding: '2rem'
+            }}>
+              <QRCodeSVG
+                value={(() => {
+                  const parts = (card.name || '').trim().split(/\s+/);
+                  const lastName = parts.length > 1 ? parts.pop() : '';
+                  const firstName = parts.join(' ') || '';
+                  const vCardData = [
+                    'BEGIN:VCARD',
+                    'VERSION:3.0',
+                    `N:${lastName};${firstName};;;`,
+                    `FN:${card.name || ''}`,
+                    `ORG:${company || ''}`,
+                    `TITLE:${title || ''}`,
+                    ...fields
+                      .filter(f => f.type !== 'title' && f.type !== 'company')
+                      .map(f => {
+                        const val = (f.value || '').trim();
+                        if (!val) return null;
+                        const lbl = (f.label || '').toLowerCase();
 
-                      // Only actual phone fields should be TEL
-                      if (f.type === 'phone') {
-                        return `TEL;TYPE=CELL:${val}`;
-                      }
-                      if (f.type === 'email' || lbl.includes('email') || lbl.includes('mail')) {
-                        return `EMAIL;TYPE=WORK:${val}`;
-                      }
-                      if (f.type === 'website' || lbl.includes('web') || lbl.includes('site')) {
-                        return `URL:${val.startsWith('http') ? val : 'https://' + val}`;
-                      }
-                      if (f.type === 'location' || lbl.includes('address') || lbl.includes('adresse')) {
-                        return `ADR;TYPE=WORK:;;${val};;;;`;
-                      }
+                        // Only actual phone fields should be TEL
+                        if (f.type === 'phone') {
+                          return `TEL;TYPE=CELL:${val}`;
+                        }
+                        if (f.type === 'email' || lbl.includes('email') || lbl.includes('mail')) {
+                          return `EMAIL;TYPE=WORK:${val}`;
+                        }
+                        if (f.type === 'website' || lbl.includes('web') || lbl.includes('site')) {
+                          return `URL:${val.startsWith('http') ? val : 'https://' + val}`;
+                        }
+                        if (f.type === 'location' || lbl.includes('address') || lbl.includes('adresse')) {
+                          return `ADR;TYPE=WORK:;;${val};;;;`;
+                        }
 
-                      // Social Media - Use X-SOCIALPROFILE for better iOS recognition
-                      const socialProfiles = {
-                        'instagram': 'Instagram',
-                        'facebook': 'Facebook',
-                        'twitter': 'Twitter',
-                        'linkedin': 'LinkedIn',
-                        'tiktok': 'TikTok',
-                        'youtube': 'YouTube',
-                        'telegram': 'Telegram',
-                        'snapchat': 'Snapchat',
-                        'whatsapp': 'WhatsApp',
-                        'zalo': 'Zalo'
-                      };
+                        // Social Media - Use X-SOCIALPROFILE for better iOS recognition
+                        const socialProfiles = {
+                          'instagram': 'Instagram',
+                          'facebook': 'Facebook',
+                          'twitter': 'Twitter',
+                          'linkedin': 'LinkedIn',
+                          'tiktok': 'TikTok',
+                          'youtube': 'YouTube',
+                          'telegram': 'Telegram',
+                          'snapchat': 'Snapchat',
+                          'whatsapp': 'WhatsApp',
+                          'zalo': 'Zalo'
+                        };
 
-                      if (socialProfiles[f.type]) {
-                        const socialUrl = buildSocialUrl(f.type, val);
-                        return `X-SOCIALPROFILE;TYPE=${socialProfiles[f.type]}:${socialUrl}`;
-                      }
+                        if (socialProfiles[f.type]) {
+                          const socialUrl = buildSocialUrl(f.type, val);
+                          return `X-SOCIALPROFILE;TYPE=${socialProfiles[f.type]}:${socialUrl}`;
+                        }
 
-                      // General URL fallback
-                      if (val.startsWith('http')) return `URL:${val}`;
+                        // General URL fallback
+                        if (val.startsWith('http')) return `URL:${val}`;
 
-                      // Fallback to NOTE for unknown types
-                      const noteLabel = f.label || f.type || 'Info';
-                      return `NOTE:${noteLabel.toUpperCase()}: ${val}`;
-                    })
-                    .filter(Boolean),
-                  'END:VCARD'
-                ].join('\r\n');
-                return vCardData;
-              })()}
-              size={200}
-              level="M"
-            />
+                        // Fallback to NOTE for unknown types
+                        const noteLabel = f.label || f.type || 'Info';
+                        return `NOTE:${noteLabel.toUpperCase()}: ${val}`;
+                      })
+                      .filter(Boolean),
+                    'END:VCARD'
+                  ].join('\r\n');
+                  return vCardData;
+                })()}
+                size={240}
+                level="M"
+              />
+            </div>
           </div>
         ) : (
           <>
