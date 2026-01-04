@@ -500,15 +500,15 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
           }}>
             {/* Fixed-size QR container */}
             <div style={{
-              width: '80%',
-              maxWidth: '280px',
+              width: '90%',
+              maxWidth: '330px',
               aspectRatio: '1',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               background: 'white',
               borderRadius: '1rem',
-              padding: '1rem',
+              padding: '0.5rem',
               boxSizing: 'border-box'
             }}>
               <QRCodeSVG
@@ -575,7 +575,7 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
                   ].join('\r\n');
                   return vCardData;
                 })()}
-                size={200}
+                size={300}
                 level="H"
               />
             </div>
