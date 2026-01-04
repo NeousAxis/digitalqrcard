@@ -499,23 +499,24 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
                 </div>
               )}
 
-              {/* Social Icons (Square with Icon) - Only when collapsed */}
-              {!isExpanded && socialFields.map((field, idx) => {
+              {/* Social Icons (Square with Icon) - Always visible now */}
+              {socialFields.map((field, idx) => {
                 // Find definition to get the proper Icon
                 const def = FIELD_TYPES.find(t => t.value === field.type);
                 const Icon = def ? def.icon : Star;
 
                 return (
-                  <div key={idx} style={{
-                    width: 44, height: 44,
-                    borderRadius: 12,
-                    border: `2px solid ${accentColor}`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: accentColor,
-                    background: 'transparent',
-                    boxShadow: '0 2px 5px rgba(0,0,0,0.05)',
-                    cursor: 'pointer'
-                  }} title={field.label || field.type}>
+                  <div key={idx}
+                    className="pro-action-btn"
+                    style={{
+                      textDecoration: 'none',
+                      color: accentColor,
+                      borderColor: accentColor, // Ensure border matches logic of other buttons if they use partial styles
+                      cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}
+                    title={field.label || field.type}
+                  >
                     <Icon size={20} />
                   </div>
                 )
@@ -1312,18 +1313,22 @@ class ErrorBoundary extends React.Component {
 
 /* --- PRO CAROUSEL COMPONENT --- */
 // eslint-disable-next-line react/prop-types
-const Carousel = ({ items, renderItem }) => {
-  const [activeIndex, setActiveIndex] = useState(0);
+const Carousel = ({ items, renderItem, activeIndex = 0, onIndexChange }) => {
+  // Use controlled state for index
 
   // Safety: Adjust index if items are removed
   useEffect(() => {
     if (activeIndex >= items.length && items.length > 0) {
-      setActiveIndex(items.length - 1);
+      if (onIndexChange) onIndexChange(items.length - 1);
     }
-  }, [items.length, activeIndex]);
+  }, [items.length, activeIndex, onIndexChange]);
 
-  const next = () => setActiveIndex(current => (current + 1) % items.length);
-  const prev = () => setActiveIndex(current => (current - 1 + items.length) % items.length);
+  const next = () => {
+    if (onIndexChange) onIndexChange((activeIndex + 1) % items.length);
+  };
+  const prev = () => {
+    if (onIndexChange) onIndexChange((activeIndex - 1 + items.length) % items.length);
+  };
 
   if (!items.length) return null;
 
@@ -1351,7 +1356,7 @@ const Carousel = ({ items, renderItem }) => {
               <button
                 key={idx}
                 className={`dot ${idx === activeIndex ? 'active' : ''}`}
-                onClick={() => setActiveIndex(idx)}
+                onClick={() => onIndexChange(idx)}
                 aria-label={`Go to slide ${idx + 1}`}
               />
             ))}
@@ -1369,6 +1374,7 @@ function App() {
     return localStorage.getItem('subscription') || 'free';
   });
 
+  const [activeCardIndex, setActiveCardIndex] = useState(0); // Lifted state for Carousel
   const [view, setView] = useState('dashboard'); // dashboard, editor
   const [editingCard, setEditingCard] = useState(null);
   const [showPricing, setShowPricing] = useState(false);
@@ -1508,6 +1514,14 @@ function App() {
       // Short timeout to let the user see the "Saved" state before closing
       setTimeout(() => {
         setView('dashboard');
+
+        // FIND NEW INDEX to stay on this card
+        setCards(currentCards => {
+          const newIndex = currentCards.findIndex(c => c.id === savedId);
+          if (newIndex !== -1) setActiveCardIndex(newIndex);
+          return currentCards;
+        });
+
         setEditingCard(null);
         setStatusMessage(null);
         setIsSaving(false);
@@ -1629,6 +1643,8 @@ function App() {
                 <div className="carousel-wrapper">
                   <Carousel
                     items={cards}
+                    activeIndex={activeCardIndex}
+                    onIndexChange={setActiveCardIndex}
                     renderItem={(card, isActive) => (
                       <div className="card-slide-container">
                         <div className="pro-card-container-wrapper">
