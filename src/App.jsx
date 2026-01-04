@@ -109,6 +109,78 @@ const SUBSCRIPTION_LIMITS = {
   pro: 5
 };
 
+// --- ISO Helper for Flags ---
+// Simple mapping of common country codes to ISO 3166-1 alpha-2
+const COUNTRY_PHONE_MAP = {
+  '1': 'US', '44': 'GB', '33': 'FR', '49': 'DE', '81': 'JP', '86': 'CN', '84': 'VN', '41': 'CH',
+  '91': 'IN', '7': 'RU', '39': 'IT', '34': 'ES', '55': 'BR', '61': 'AU', '31': 'NL', '82': 'KR',
+  '46': 'SE', '47': 'NO', '45': 'DK', '358': 'FI', '32': 'BE', '90': 'TR', '48': 'PL', '65': 'SG',
+  '62': 'ID', '66': 'TH', '60': 'MY', '63': 'PH', '92': 'PK', '880': 'BD', '94': 'LK', '977': 'NP',
+  '95': 'MM', '855': 'KH', '856': 'LA', '98': 'IR', '964': 'IQ', '966': 'SA', '971': 'AE', '972': 'IL',
+  '20': 'EG', '27': 'ZA', '234': 'NG', '254': 'KE', '251': 'ET', '212': 'MA', '213': 'DZ', '216': 'TN',
+  '52': 'MX', '54': 'AR', '57': 'CO', '56': 'CL', '51': 'PE', '58': 'VE', '593': 'EC', '502': 'GT',
+  '53': 'CU', '509': 'HT', '503': 'SV', '504': 'HN', '505': 'NI', '506': 'CR', '507': 'PA', '591': 'BO',
+  '595': 'PY', '598': 'UY', '351': 'PT', '30': 'GR', '43': 'AT', '36': 'HU', '420': 'CZ', '40': 'RO',
+  '380': 'UA', '353': 'IE', '354': 'IS', '352': 'LU', '356': 'MT', '357': 'CY', '370': 'LT', '371': 'LV',
+  '372': 'EE', '385': 'HR', '386': 'SI', '421': 'SK', '359': 'BG', '381': 'RS', '387': 'BA', '389': 'MK',
+  '355': 'AL', '373': 'MD', '375': 'BY', '995': 'GE', '374': 'AM', '994': 'AZ', '76': 'KZ', '996': 'KG',
+  '992': 'TJ', '993': 'TM', '998': 'UZ', '93': 'AF', '965': 'KW', '973': 'BH', '974': 'QA', '968': 'OM',
+  '961': 'LB', '962': 'JO', '963': 'SY', '967': 'YE',
+};
+
+const getCountryFlag = (phone) => {
+  if (!phone) return '';
+  const cleanPhone = phone.replace(/\D/g, '');
+  // Try to match longest codes first (3 digits, then 2, then 1)
+  for (let len = 4; len >= 1; len--) {
+    const code = cleanPhone.substring(0, len);
+    if (COUNTRY_PHONE_MAP[code]) {
+      const iso = COUNTRY_PHONE_MAP[code];
+      return iso.toUpperCase().replace(/./g, char => String.fromCodePoint(char.charCodeAt(0) + 127397));
+    }
+  }
+  return '🌐'; // Default
+};
+
+const formatPhoneWithFlag = (phone) => {
+  if (!phone) return '';
+  const flag = getCountryFlag(phone);
+  return flag ? `${flag} ${phone}` : phone;
+};
+
+const SOCIAL_ICONS_MAP = {
+  whatsapp: 'WA',
+  instagram: 'IG',
+  linkedin: 'LK',
+  facebook: 'FB',
+  twitter: 'X',
+  youtube: 'YT',
+  tiktok: 'TK',
+  snapchat: 'SC',
+  telegram: 'TG',
+  pinterest: 'PI',
+  discord: 'DC',
+  reddit: 'RD',
+  messenger: 'MS',
+  wechat: 'WC',
+  line: 'LN',
+  skype: 'SK',
+  viber: 'VB',
+  zalo: 'ZL',
+  twitch: 'TW',
+  mastodon: 'MD',
+  bluesky: 'BS',
+  signal: 'SI',
+  bitchat: 'BC',
+  spotify: 'SP',
+  soundcloud: 'SC',
+  custom: '★'
+};
+
+const getSocialInitials = (type) => {
+  return SOCIAL_ICONS_MAP[type.toLowerCase()] || type.substring(0, 2).toUpperCase();
+};
+
 const TRANSLATIONS = {
   en: {
     appName: 'DigitalQRCard',
@@ -215,6 +287,8 @@ const FIELD_TYPES = [
   { value: 'custom', label: 'Custom', icon: Star, tier: 'pro' }
 ];
 
+
+
 const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
   // Pro Design Implementation
   const fields = card.fields || [
@@ -237,18 +311,9 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
   const website = fields.find(f => f.type === 'website')?.value;
   const location = fields.find(f => f.type === 'location')?.value;
 
-  // Remaining fields for the list
-  // Remaining fields for the list - show all fields NOT used in the main display
-  const titleField = fields.find(f => f.type === 'title');
-  const companyField = fields.find(f => f.type === 'company');
-  const phoneField = fields.find(f => f.type === 'phone');
-  const emailField = fields.find(f => f.type === 'email');
-  const websiteField = fields.find(f => f.type === 'website');
-  const locationField = fields.find(f => f.type === 'location');
-
-  const consumedFields = [titleField, companyField, phoneField, emailField, websiteField, locationField];
-
-  const listFields = fields.filter(f => !consumedFields.includes(f));
+  // Identify "Other" fields (Socials, etc) for the collapsed view icons
+  const coreTypes = ['title', 'company', 'phone', 'email', 'website', 'location'];
+  const socialFields = fields.filter(f => !coreTypes.includes(f.type));
 
   /* Safe Theme Resolution */
   const safeTheme = (card.theme && THEME_COLORS[card.theme]) ? card.theme : 'pantone-classic-blue';
@@ -261,6 +326,7 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
   return (
     <div
       className={`pro-card ${isExpanded ? 'expanded' : ''}`}
+      style={{ overflow: 'hidden' }} // Ensure rounded corners clip content
     >
       {/* 1. Header Banner */}
       <div className={`pro-header-banner ${safeTheme}`}></div>
@@ -329,6 +395,15 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
                       if (f.type === 'location' || lbl.includes('address') || lbl.includes('adresse')) {
                         return `ADR;TYPE=WORK:;;${val};;;;`;
                       }
+                      // For Socials/Whatsapp, standard says usually use URL or specific properties. Notes are safest for generic readers.
+                      // But for Whatsapp specifically, X-SOCIALPROFILE is supported by some.
+                      // Let's stick to simple NOTE for max compatibility or URL if it looks like one.
+                      if (f.type === 'whatsapp' && !val.startsWith('http')) {
+                        return `URL:https://wa.me/${val.replace(/[^0-9]/g, '')}`; // Auto-convert generic whatsapp number
+                      }
+                      // General URL fallback
+                      if (val.startsWith('http')) return `URL:${val}`;
+
                       const noteLabel = f.label || f.type || 'Info';
                       return `NOTE:${noteLabel.toUpperCase()}: ${val}`;
                     })
@@ -343,7 +418,7 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
           </div>
         ) : (
           <>
-            {/* 4. Action Buttons Row */}
+            {/* 4. Action Buttons Row (Primary Contacts) */}
             <div className="pro-actions-row">
               {phone && (
                 <a href={`tel:${phone}`} className="pro-action-btn action-phone" title={phone} style={{ textDecoration: 'none', color: accentColor }}>
@@ -367,8 +442,29 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
               )}
             </div>
 
-            {/* 5. Additional Info List (Expanded View) - NOW SHOWS ALL CONTACT DETAILS */}
-            {/* 5. Additional Info List (Expanded View) - NOW SHOWS ALL CONTACT DETAILS IN STRICT ORDER */}
+            {/* 5. Additional Social Icons Row (Only visible when NOT expanded, replacing "Less Information" need) */}
+            {!isExpanded && socialFields.length > 0 && (
+              <div className="pro-socials-row animate-fade-in" style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.5rem', width: '100%' }}>
+                {socialFields.map((field, idx) => {
+                  const initials = getSocialInitials(field.type);
+                  return (
+                    <div key={idx} style={{
+                      width: 40, height: 40,
+                      borderRadius: 8,
+                      border: `2px solid ${accentColor}`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontWeight: 'bold', fontSize: '0.9rem',
+                      color: accentColor,
+                      background: 'transparent'
+                    }} title={field.label || field.type}>
+                      {initials}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* 6. Full Details List (Expanded View) */}
             {isExpanded && (
               <div className="pro-details-list animate-fade-in" style={{ width: '100%', textAlign: 'left', marginTop: '1rem' }}>
                 {fields.map((field, idx) => {
@@ -378,17 +474,31 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
                   // Find definition
                   const def = FIELD_TYPES.find(t => t.value === field.type);
                   const Icon = def ? def.icon : Star;
+                  // Use robust label separation
                   const label = field.label || def?.label || field.type;
-                  const val = field.value;
+                  let val = field.value;
 
-                  // Determine Link Wrapper
+                  // Determine Layout & Content
                   let ContentWrapper = ({ children }) => <>{children}</>;
+
+                  // Phone Special Handling (Flags)
                   if (field.type === 'phone' || field.type.includes('phone') || field.type.includes('mobile')) {
-                    ContentWrapper = ({ children }) => <a href={`tel:${val}`} style={{ color: 'inherit', textDecoration: 'none' }}>{children}</a>;
-                  } else if (field.type === 'email') {
-                    ContentWrapper = ({ children }) => <a href={`mailto:${val}`} style={{ color: 'inherit', textDecoration: 'none' }}>{children}</a>;
-                  } else if (field.type === 'website' || val.startsWith('http')) {
-                    ContentWrapper = ({ children }) => <a href={val.startsWith('http') ? val : `https://${val}`} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>{children}</a>;
+                    val = formatPhoneWithFlag(val);
+                    ContentWrapper = ({ children }) => <a href={`tel:${field.value}`} style={{ color: 'inherit', textDecoration: 'none' }}>{children}</a>;
+                  }
+                  else if (field.type === 'email') {
+                    ContentWrapper = ({ children }) => <a href={`mailto:${field.value}`} style={{ color: 'inherit', textDecoration: 'none' }}>{children}</a>;
+                  }
+                  // Socials/Websites: Show Label/Name instead of URL
+                  else if (field.type === 'website' || val.startsWith('http')) {
+                    // If it's a social link, don't show the full ugly URL. Show the Platform Name.
+                    // The user explicitly requested: "ne faut pas voir l'adresse... Il faut juste écrire Whatsapp"
+                    if (!coreTypes.includes(field.type)) {
+                      // It's a social/extra field
+                      val = def?.label || field.type.charAt(0).toUpperCase() + field.type.slice(1);
+                    }
+
+                    ContentWrapper = ({ children }) => <a href={field.value.startsWith('http') ? field.value : `https://${field.value}`} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>{children}</a>;
                   }
 
                   return (
@@ -396,9 +506,9 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
                       <span className="pro-detail-icon" style={{ minWidth: '24px', color: accentColor }}>
                         <Icon size={16} />
                       </span>
-                      <div style={{ flex: 1 }}>
+                      <div style={{ flex: 1, overflow: 'hidden' }}>
                         <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: '#94a3b8' }}>{label}</div>
-                        <div style={{ color: '#334155' }}>
+                        <div style={{ color: '#334155', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                           <ContentWrapper>{val}</ContentWrapper>
                         </div>
                       </div>
@@ -408,7 +518,7 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
               </div>
             )}
 
-            {/* 6. Main CTA - Toggles Expansion */}
+            {/* 7. Footer Toggle CTA */}
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -719,7 +829,13 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage, subscripti
                     type="text"
                     value={field.value}
                     onChange={(e) => updateField(index, 'value', e.target.value)}
-                    placeholder="Enter details..."
+                    placeholder={(() => {
+                      if (field.type === 'whatsapp') return 'Phone number (e.g. +123...)';
+                      if (field.type === 'instagram') return 'Username (e.g. john.doe)';
+                      if (field.type === 'twitter') return 'Username (e.g. @john)';
+                      if (field.type === 'linkedin') return 'Profile URL (e.g. linkedin.com/in/...)';
+                      return `Enter ${field.type} details...`;
+                    })()}
                     className="form-input"
                     style={{ width: '100%' }}
                   />
