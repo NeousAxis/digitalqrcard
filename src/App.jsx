@@ -500,15 +500,15 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
           }}>
             {/* Fixed-size QR container */}
             <div style={{
-              width: '70%',
-              maxWidth: '240px',
+              width: '80%',
+              maxWidth: '280px',
               aspectRatio: '1',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               background: 'white',
               borderRadius: '1rem',
-              padding: '1.5rem',
+              padding: '1rem',
               boxSizing: 'border-box'
             }}>
               <QRCodeSVG
