@@ -516,7 +516,9 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
                       const val = (f.value || '').trim();
                       if (!val) return null;
                       const lbl = (f.label || '').toLowerCase();
-                      if (f.type === 'phone' || lbl.includes('phone') || lbl.includes('tel') || lbl.includes('mobile')) {
+
+                      // Only actual phone fields should be TEL
+                      if (f.type === 'phone') {
                         return `TEL;TYPE=CELL:${val}`;
                       }
                       if (f.type === 'email' || lbl.includes('email') || lbl.includes('mail')) {
@@ -529,21 +531,23 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
                         return `ADR;TYPE=WORK:;;${val};;;;`;
                       }
 
-                      // Social Media Handling - Better iPhone/Android compatibility
-                      // Phone-based services: use TEL type
-                      if (f.type === 'whatsapp') {
-                        const cleanNumber = val.replace(/[^0-9+]/g, '');
-                        return `TEL;TYPE=CELL,VOICE:${cleanNumber}`;
-                      }
-                      if (f.type === 'zalo') {
-                        const cleanNumber = val.replace(/[^0-9+]/g, '');
-                        return `TEL;TYPE=CELL:${cleanNumber}`;
-                      }
+                      // Social Media - Use X-SOCIALPROFILE for better iOS recognition
+                      const socialProfiles = {
+                        'instagram': 'Instagram',
+                        'facebook': 'Facebook',
+                        'twitter': 'Twitter',
+                        'linkedin': 'LinkedIn',
+                        'tiktok': 'TikTok',
+                        'youtube': 'YouTube',
+                        'telegram': 'Telegram',
+                        'snapchat': 'Snapchat',
+                        'whatsapp': 'WhatsApp',
+                        'zalo': 'Zalo'
+                      };
 
-                      // URL-based social profiles
-                      if (['instagram', 'facebook', 'twitter', 'linkedin', 'tiktok', 'youtube', 'telegram', 'snapchat'].includes(f.type)) {
+                      if (socialProfiles[f.type]) {
                         const socialUrl = buildSocialUrl(f.type, val);
-                        return `URL:${socialUrl}`;
+                        return `X-SOCIALPROFILE;TYPE=${socialProfiles[f.type]}:${socialUrl}`;
                       }
 
                       // General URL fallback
