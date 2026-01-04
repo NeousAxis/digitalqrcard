@@ -1291,7 +1291,7 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t }) => {
               disabled={currentPlan === 'basic'}
               className={`btn-full ${currentPlan === 'basic' ? 'btn-secondary' : 'btn-primary'}`}
             >
-              {currentPlan === 'basic' ? t.currentPlan : t.chooseThis}
+              {currentPlan === 'basic' ? t.currentPlan : (currentPlan === 'free' ? t.chooseThis : 'Switch to Standard')}
             </button>
           </div>
 
@@ -1314,10 +1314,10 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t }) => {
                 window.open('https://buy.stripe.com/test_cNicMZ7vt8gVgQc4OI73G00', '_blank');
               }}
               disabled={currentPlan === 'pro'}
-              className={`btn-full ${currentPlan === 'pro' ? 'btn-secondary' : 'btn-secondary'}`}
-              style={currentPlan !== 'pro' ? { border: '1px solid white' } : {}}
+              className={`btn-full ${currentPlan === 'pro' ? 'btn-secondary' : 'btn-primary'}`}
+              style={currentPlan !== 'pro' ? { boxShadow: '0 4px 14px 0 rgba(0,118,255,0.39)' } : {}}
             >
-              {currentPlan === 'pro' ? t.currentPlan : t.chooseThis}
+              {currentPlan === 'pro' ? t.currentPlan : (currentPlan === 'free' ? t.chooseThis : 'Switch to Pro')}
             </button>
           </div>
         </div>
