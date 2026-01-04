@@ -48,6 +48,7 @@ const THEME_COLORS = {
   'pantone-honeysuckle': 'linear-gradient(135deg, #D65076 0%, #E86E8D 100%)', // 2011
   'pantone-turquoise': 'linear-gradient(135deg, #45B8AC 0%, #5ECFC4 100%)', // 2010
   'pantone-olivine': 'linear-gradient(135deg, #6A7051 0%, #8A916B 100%)', // Olive
+  'pantone-deep-forest': 'linear-gradient(135deg, #394A3F 0%, #5C7063 100%)', // Custom Dark Green
 };
 
 // --- Firebase Config (replace with your own values) ---
@@ -461,283 +462,225 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
       className={`pro-card ${isExpanded ? 'expanded' : ''}`}
       style={{ overflow: 'hidden' }} // Ensure rounded corners clip content
     >
-      {/* 1. Header Banner */}
-      <div className={`pro-header-banner ${safeTheme}`}></div>
+      {showQR ? (
+        /* QR MODE: Replaces content completely to form a perfect square */
+        <div className="animate-fade-in" style={{
+          width: '100%',
+          aspectRatio: '1/1',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'white',
+          padding: '0.5rem'
+        }}>
+          <QRCodeSVG
+            value={(() => {
+              const parts = (card.name || '').trim().split(/\s+/);
+              const lastName = parts.length > 1 ? parts.pop() : '';
+              const firstName = parts.join(' ') || '';
+              const vCardData = [
+                'BEGIN:VCARD',
+                'VERSION:3.0',
+                `N:${lastName};${firstName};;;`,
+                `FN:${card.name || ''}`,
+                `ORG:${company || ''}`,
+                `TITLE:${title || ''}`,
+                ...fields
+                  .filter(f => f.type !== 'title' && f.type !== 'company')
+                  .map(f => {
+                    const val = (f.value || '').trim();
+                    if (!val) return null;
+                    const lbl = (f.label || '').toLowerCase(); // Fix lint error
 
-      {/* 2. Avatar */}
-      <div className="pro-avatar-wrapper">
-        <div className="pro-avatar">
-          {/* Use first letter of name or User icon */}
-          {card.image ? (
-            <img src={card.image} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          ) : (
-            card.name ? (
-              <span style={{ fontSize: '2.5rem', fontWeight: 'bold', color: accentColor }}>
-                {(() => {
-                  const parts = card.name.trim().split(/\s+/);
-                  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
-                  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
-                })()}
-              </span>
-            ) : (
-              <User size={48} color={accentColor} />
-            )
-          )}
+                    // Only actual phone fields should be TEL
+                    if (f.type === 'phone') {
+                      return `TEL;TYPE=CELL:${val}`;
+                    }
+                    if (f.type === 'email' || lbl.includes('email') || lbl.includes('mail')) {
+                      return `EMAIL;TYPE=WORK:${val}`;
+                    }
+                    if (f.type === 'website' || lbl.includes('web') || lbl.includes('site')) {
+                      return `URL:${val.startsWith('http') ? val : 'https://' + val}`;
+                    }
+                    if (f.type === 'location' || lbl.includes('address') || lbl.includes('adresse')) {
+                      return `ADR;TYPE=WORK:;;${val};;;;`;
+                    }
+
+                    // Social Media
+                    const socialProfiles = {
+                      'instagram': 'Instagram',
+                      'facebook': 'Facebook',
+                      'twitter': 'Twitter',
+                      'linkedin': 'LinkedIn',
+                      'tiktok': 'TikTok',
+                      'youtube': 'YouTube',
+                      'telegram': 'Telegram',
+                      'snapchat': 'Snapchat',
+                      'whatsapp': 'WhatsApp',
+                      'zalo': 'Zalo'
+                    };
+
+                    if (socialProfiles[f.type]) {
+                      const socialUrl = buildSocialUrl(f.type, val);
+                      return `X-SOCIALPROFILE;TYPE=${socialProfiles[f.type]}:${socialUrl}`;
+                    }
+
+                    if (val.startsWith('http')) return `URL:${val}`;
+
+                    const noteLabel = f.label || f.type || 'Info';
+                    return `NOTE:${noteLabel.toUpperCase()}: ${val}`;
+                  })
+                  .filter(Boolean),
+                'END:VCARD'
+              ].join('\r\n');
+              return vCardData;
+            })()}
+            size={280} // Max size allowing for padding
+            level="H"
+            style={{ width: '100%', height: '100%' }} // Responsive fill
+          />
         </div>
-      </div>
-
-      {/* 3. Content */}
-      <div className="pro-content">
-        <h3 className="pro-name">{card.name || t.yourName}</h3>
-        {displayTitle ? <p className="pro-title">{displayTitle}</p> : null}
-
-        {/* QR Overlay - Only visible if showQR is passed as true */}
-        {showQR ? (
-          <div className="animate-fade-in" style={{
-            position: 'absolute', inset: 0, background: 'white', zIndex: 100,
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            borderRadius: '1.5rem'
-          }}>
-            {/* Fixed-size QR container */}
-            <div style={{
-              width: '90%',
-              maxWidth: '330px',
-              aspectRatio: '1',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: 'white',
-              borderRadius: '1rem',
-              padding: '0.5rem',
-              boxSizing: 'border-box'
-            }}>
-              <QRCodeSVG
-                value={(() => {
-                  const parts = (card.name || '').trim().split(/\s+/);
-                  const lastName = parts.length > 1 ? parts.pop() : '';
-                  const firstName = parts.join(' ') || '';
-                  const vCardData = [
-                    'BEGIN:VCARD',
-                    'VERSION:3.0',
-                    `N:${lastName};${firstName};;;`,
-                    `FN:${card.name || ''}`,
-                    `ORG:${company || ''}`,
-                    `TITLE:${title || ''}`,
-                    ...fields
-                      .filter(f => f.type !== 'title' && f.type !== 'company')
-                      .map(f => {
-                        const val = (f.value || '').trim();
-                        if (!val) return null;
-                        const lbl = (f.label || '').toLowerCase();
-
-                        // Only actual phone fields should be TEL
-                        if (f.type === 'phone') {
-                          return `TEL;TYPE=CELL:${val}`;
-                        }
-                        if (f.type === 'email' || lbl.includes('email') || lbl.includes('mail')) {
-                          return `EMAIL;TYPE=WORK:${val}`;
-                        }
-                        if (f.type === 'website' || lbl.includes('web') || lbl.includes('site')) {
-                          return `URL:${val.startsWith('http') ? val : 'https://' + val}`;
-                        }
-                        if (f.type === 'location' || lbl.includes('address') || lbl.includes('adresse')) {
-                          return `ADR;TYPE=WORK:;;${val};;;;`;
-                        }
-
-                        // Social Media - Use X-SOCIALPROFILE for better iOS recognition
-                        const socialProfiles = {
-                          'instagram': 'Instagram',
-                          'facebook': 'Facebook',
-                          'twitter': 'Twitter',
-                          'linkedin': 'LinkedIn',
-                          'tiktok': 'TikTok',
-                          'youtube': 'YouTube',
-                          'telegram': 'Telegram',
-                          'snapchat': 'Snapchat',
-                          'whatsapp': 'WhatsApp',
-                          'zalo': 'Zalo'
-                        };
-
-                        if (socialProfiles[f.type]) {
-                          const socialUrl = buildSocialUrl(f.type, val);
-                          return `X-SOCIALPROFILE;TYPE=${socialProfiles[f.type]}:${socialUrl}`;
-                        }
-
-                        // General URL fallback
-                        if (val.startsWith('http')) return `URL:${val}`;
-
-                        // Fallback to NOTE for unknown types
-                        const noteLabel = f.label || f.type || 'Info';
-                        return `NOTE:${noteLabel.toUpperCase()}: ${val}`;
-                      })
-                      .filter(Boolean),
-                    'END:VCARD'
-                  ].join('\r\n');
-                  return vCardData;
-                })()}
-                size={300}
-                level="H"
-              />
+      ) : (
+        <>
+          {/* NORMAL MODE: Banner, Avatar, Info */}
+          <div className={`pro-header-banner ${safeTheme}`}></div>
+          <div className="pro-avatar-wrapper">
+            <div className="pro-avatar">
+              {card.image ? (
+                <img src={card.image} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                card.name ? (
+                  <span style={{ fontSize: '2.5rem', fontWeight: 'bold', color: accentColor }}>
+                    {(() => {
+                      const parts = card.name.trim().split(/\s+/);
+                      if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+                      return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+                    })()}
+                  </span>
+                ) : (
+                  <User size={48} color={accentColor} />
+                )
+              )}
             </div>
           </div>
-        ) : (
-          <>
+
+          <div className="pro-content">
+            <h3 className="pro-name">{card.name || t.yourName}</h3>
+            {displayTitle ? <p className="pro-title">{displayTitle}</p> : null}
+
             {/* 4. Unified Action Buttons Row (Primary Contacts + Socials) */}
             <div className="pro-actions-row" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '1rem', width: '100%', marginBottom: '1.5rem', alignItems: 'center' }}>
-              {/* Common Style for consistency */}
               {(() => {
                 const btnStyle = {
-                  width: '44px', height: '44px',
-                  borderRadius: '12px',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  textDecoration: 'none',
-                  color: accentColor,
-                  border: `1px solid ${accentColor}`, // Normalized border
-                  background: 'transparent',
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                  transition: 'transform 0.1s'
+                  width: '44px', height: '44px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  textDecoration: 'none', color: accentColor, border: `1px solid ${accentColor}`, background: 'transparent',
+                  cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', transition: 'transform 0.1s'
                 };
 
-                return (
-                  <>
-                    {/* Primary Icons */}
-                    {phone && (
-                      <a href={`tel:${phone}`} className="pro-action-btn" title={phone} style={btnStyle}>
-                        <Phone size={20} />
-                      </a>
-                    )}
-                    {email && (
-                      <a href={`mailto:${email}`} className="pro-action-btn" title={email} style={btnStyle}>
-                        <Mail size={20} />
-                      </a>
-                    )}
-                    {website && (
-                      <a href={website.startsWith('http') ? website : `https://${website}`} target="_blank" rel="noopener noreferrer" className="pro-action-btn" title={website} style={btnStyle}>
-                        <Globe size={20} />
-                      </a>
-                    )}
-                    {location && (
-                      <div className="pro-action-btn" title={location} style={btnStyle}>
-                        <MapPin size={20} />
-                      </div>
-                    )}
+                // Merge core contact fields + social fields for the row
+                const actionFields = [
+                  fields.find(f => f.type === 'phone'),
+                  fields.find(f => f.type === 'email'),
+                  fields.find(f => f.type === 'website'),
+                  fields.find(f => f.type === 'location'),
+                  ...socialFields
+                ].filter(Boolean);
 
-                    {/* Social Icons */}
-                    {socialFields.map((field, idx) => {
-                      const def = FIELD_TYPES.find(t => t.value === field.type);
-                      const Icon = def ? def.icon : Star;
-                      const href = buildSocialUrl(field.type, field.value);
-                      const isLink = href && (href.startsWith('http') || href.startsWith('tel:') || href.startsWith('mailto:'));
+                return actionFields.map((field, idx) => {
+                  const def = FIELD_TYPES.find(t => t.value === field.type);
+                  const Icon = def ? def.icon : Star;
 
-                      if (isLink) {
-                        return (
-                          <a key={idx}
-                            href={href}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="pro-action-btn"
-                            style={btnStyle}
-                            title={field.label || field.type}
-                          >
-                            <Icon size={20} />
-                          </a>
-                        )
-                      }
+                  let href = field.value;
+                  if (field.type === 'phone') href = `tel:${field.value}`;
+                  else if (field.type === 'email') href = `mailto:${field.value}`;
+                  else if (field.type === 'location') href = `https://maps.google.com/?q=${field.value}`;
+                  else if (['website', 'custom'].includes(field.type)) href = field.value.startsWith('http') ? field.value : `https://${field.value}`;
+                  else href = buildSocialUrl(field.type, field.value);
 
-                      return (
-                        <div key={idx}
-                          className="pro-action-btn"
-                          style={btnStyle}
-                          title={field.label || field.type}
-                        >
-                          <Icon size={20} />
-                        </div>
-                      )
-                    })}
-                  </>
-                );
+                  return (
+                    <a key={idx} href={href} target="_blank" rel="noopener noreferrer" className="pro-action-btn" style={btnStyle} title={field.label || field.type}>
+                      <Icon size={20} />
+                    </a>
+                  );
+                });
               })()}
             </div>
 
             {/* 5. REMOVED SEPARATE SOCIAL ROW (Merged above) */}
 
             {/* 6. Full Details List (Expanded View) */}
-            {isExpanded && (
-              <div className="pro-details-list animate-fade-in" style={{ width: '100%', textAlign: 'left', marginTop: '1rem' }}>
-                {fields.map((field, idx) => {
-                  // Skip Header fields
-                  if (['title', 'company'].includes(field.type)) return null;
+            {
+              isExpanded && (
+                <div className="pro-details-list animate-fade-in" style={{ width: '100%', textAlign: 'left', marginTop: '1rem' }}>
+                  {fields.map((field, idx) => {
+                    // Skip Header fields
+                    if (['title', 'company'].includes(field.type)) return null;
 
-                  // Find definition
-                  const def = FIELD_TYPES.find(t => t.value === field.type);
-                  const Icon = def ? def.icon : Star;
-                  // Use robust label separation
-                  const label = field.label || def?.label || field.type;
-                  let val = field.value;
+                    // Find definition
+                    const def = FIELD_TYPES.find(t => t.value === field.type);
+                    const Icon = def ? def.icon : Star;
+                    // Use robust label separation
+                    const label = field.label || def?.label || field.type;
+                    let val = field.value;
 
-                  // Determine Layout & Content
-                  let ContentWrapper = ({ children }) => <>{children}</>;
+                    // Determine Layout & Content
+                    let ContentWrapper = ({ children }) => <>{children}</>;
 
-                  // Core Types check
-                  const coreTypes = ['title', 'company', 'phone', 'email', 'website', 'location'];
-                  let isSocial = !coreTypes.includes(field.type);
+                    // Core Types check
+                    const coreTypes = ['title', 'company', 'phone', 'email', 'website', 'location'];
+                    let isSocial = !coreTypes.includes(field.type);
 
-                  // Phone Special Handling (Flags)
-                  if (field.type === 'phone' || field.type.includes('phone') || field.type.includes('mobile')) {
-                    val = formatPhoneWithFlag(val);
-                    ContentWrapper = ({ children }) => <a href={`tel:${field.value}`} style={{ color: 'inherit', textDecoration: 'none' }}>{children}</a>;
-                    isSocial = false;
-                  }
-                  else if (field.type === 'email') {
-                    ContentWrapper = ({ children }) => <a href={`mailto:${field.value}`} style={{ color: 'inherit', textDecoration: 'none' }}>{children}</a>;
-                    isSocial = false;
-                  }
-                  // Website Handling
-                  else if (field.type === 'website') {
-                    ContentWrapper = ({ children }) => <a href={field.value.startsWith('http') ? field.value : `https://${field.value}`} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>{children}</a>;
-                    isSocial = false;
-                  }
-                  // Social / Platform Handling
-                  else if (isSocial) {
-                    // Get Platform Name
-                    const platformName = def?.label || field.type.charAt(0).toUpperCase() + field.type.slice(1);
-
-                    // Set Display Value to Platform Name (User Request: "Just write Whatsapp")
-                    val = platformName;
-
-                    // Set Display Value to Platform Name (User Request: "Just write Whatsapp")
-                    val = platformName;
-
-                    const href = buildSocialUrl(field.type, field.value);
-
-
-
-                    // Only link if valid
-                    if (href && (href !== field.value || href.startsWith('http'))) {
-                      ContentWrapper = ({ children }) => <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>{children}</a>;
+                    // Phone Special Handling (Flags)
+                    if (field.type === 'phone' || field.type.includes('phone') || field.type.includes('mobile')) {
+                      // val = formatPhoneWithFlag(val); // Assuming formatPhoneWithFlag is defined elsewhere
+                      ContentWrapper = ({ children }) => <a href={`tel:${field.value}`} style={{ color: 'inherit', textDecoration: 'none' }}>{children}</a>;
+                      isSocial = false;
                     }
-                  }
+                    else if (field.type === 'email') {
+                      ContentWrapper = ({ children }) => <a href={`mailto:${field.value}`} style={{ color: 'inherit', textDecoration: 'none' }}>{children}</a>;
+                      isSocial = false;
+                    }
+                    // Website Handling
+                    else if (field.type === 'website') {
+                      ContentWrapper = ({ children }) => <a href={field.value.startsWith('http') ? field.value : `https://${field.value}`} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>{children}</a>;
+                      isSocial = false;
+                    }
+                    // Social / Platform Handling
+                    else if (isSocial) {
+                      // Get Platform Name
+                      const platformName = def?.label || field.type.charAt(0).toUpperCase() + field.type.slice(1);
 
-                  return (
-                    <div key={idx} className="pro-detail-item" style={{ borderBottom: '1px solid #f1f5f9', padding: '0.75rem 0', display: 'flex', alignItems: isSocial ? 'center' : 'flex-start' }}>
-                      <span className="pro-detail-icon" style={{ minWidth: '24px', color: accentColor, marginTop: isSocial ? '0' : '2px', display: 'flex', alignItems: 'center' }}>
-                        <Icon size={16} />
-                      </span>
-                      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                        {/* HIDE LABEL IF IT IS THE SAME AS THE VALUE OR IF IT IS A SOCIAL FIELD */}
-                        {!isSocial && label.toLowerCase() !== val.toLowerCase() && (
-                          <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: '#94a3b8' }}>{label}</div>
-                        )}
-                        <div style={{ color: '#334155', wordBreak: 'break-word', overflowWrap: 'anywhere', fontWeight: isSocial ? '600' : 'normal' }}>
-                          <ContentWrapper>{val}</ContentWrapper>
+                      // Set Display Value to Platform Name (User Request: "Just write Whatsapp")
+                      val = platformName;
+
+                      const href = buildSocialUrl(field.type, field.value);
+
+                      // Only link if valid
+                      if (href && (href !== field.value || href.startsWith('http'))) {
+                        ContentWrapper = ({ children }) => <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>{children}</a>;
+                      }
+                    }
+
+                    return (
+                      <div key={idx} className="pro-detail-item" style={{ borderBottom: '1px solid #f1f5f9', padding: '0.75rem 0', display: 'flex', alignItems: isSocial ? 'center' : 'flex-start' }}>
+                        <span className="pro-detail-icon" style={{ minWidth: '24px', color: accentColor, marginTop: isSocial ? '0' : '2px', display: 'flex', alignItems: 'center' }}>
+                          <Icon size={16} />
+                        </span>
+                        <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                          {/* HIDE LABEL IF IT IS THE SAME AS THE VALUE OR IF IT IS A SOCIAL FIELD */}
+                          {!isSocial && label.toLowerCase() !== val.toLowerCase() && (
+                            <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: '#94a3b8' }}>{label}</div>
+                          )}
+                          <div style={{ color: '#334155', wordBreak: 'break-word', overflowWrap: 'anywhere', fontWeight: isSocial ? '600' : 'normal' }}>
+                            <ContentWrapper>{val}</ContentWrapper>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                    );
+                  })}
+                </div>
+              )
+            }
 
             {/* 7. Footer Toggle CTA */}
             <button
@@ -750,9 +693,9 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
             >
               {isExpanded ? t.lessInfo : t.clickMoreInfo}
             </button>
-          </>
-        )}
-      </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

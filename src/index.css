@@ -317,7 +317,7 @@ body {
 .pro-card-actions {
   display: flex;
   gap: 1.5rem;
-  margin-top: 1rem;
+  margin-top: 2rem;
   opacity: 0;
   transform: translateY(10px);
   transition: all 0.3s;
@@ -972,6 +972,10 @@ body {
   background: linear-gradient(135deg, #6A7051 0%, #8A916B 100%);
 }
 
+.pantone-deep-forest {
+  background: linear-gradient(135deg, #394A3F 0%, #5C7063 100%);
+}
+
 /* Animations */
 @keyframes fadeIn {
   from {
@@ -1073,8 +1077,7 @@ body {
   position: relative;
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   width: 100%;
-  max-width: 340px;
-  min-height: 520px;
+  max-width: 320px;
   /* Default Compact Width */
   margin: 0 auto;
   /* Center it */
