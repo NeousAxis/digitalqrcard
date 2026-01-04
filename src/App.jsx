@@ -568,43 +568,82 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
             <h3 className="pro-name">{card.name || t.yourName}</h3>
             {displayTitle ? <p className="pro-title">{displayTitle}</p> : null}
 
-            {/* 4. Unified Action Buttons Row (Primary Contacts + Socials) */}
-            <div className="pro-actions-row" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '1rem', width: '100%', marginBottom: '1.5rem', alignItems: 'center' }}>
-              {(() => {
-                const btnStyle = {
-                  width: '44px', height: '44px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  textDecoration: 'none', color: accentColor, border: `1px solid ${accentColor}`, background: 'transparent',
-                  cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', transition: 'transform 0.1s'
-                };
+            {/* 4. Unified Action Buttons Row (Complex Layout Logic) */}
+            {(() => {
+              // 1. Prepare Data
+              const actionFields = [
+                fields.find(f => f.type === 'phone'),
+                fields.find(f => f.type === 'email'),
+                fields.find(f => f.type === 'website'),
+                fields.find(f => f.type === 'location'),
+                ...socialFields
+              ].filter(Boolean);
 
-                // Merge core contact fields + social fields for the row
-                const actionFields = [
-                  fields.find(f => f.type === 'phone'),
-                  fields.find(f => f.type === 'email'),
-                  fields.find(f => f.type === 'website'),
-                  fields.find(f => f.type === 'location'),
-                  ...socialFields
-                ].filter(Boolean);
+              const btnStyle = {
+                width: '44px', height: '44px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                textDecoration: 'none', color: accentColor, border: `1px solid ${accentColor}`, background: 'transparent',
+                cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', transition: 'transform 0.1s'
+              };
 
-                return actionFields.map((field, idx) => {
-                  const def = FIELD_TYPES.find(t => t.value === field.type);
-                  const Icon = def ? def.icon : Star;
+              const renderBtn = (field, idx) => {
+                const def = FIELD_TYPES.find(t => t.value === field.type);
+                const Icon = def ? def.icon : Star;
+                let href = field.value;
+                if (field.type === 'phone') href = `tel:${field.value}`;
+                else if (field.type === 'email') href = `mailto:${field.value}`;
+                else if (field.type === 'location') href = `https://maps.google.com/?q=${field.value}`;
+                else if (['website', 'custom'].includes(field.type)) href = field.value.startsWith('http') ? field.value : `https://${field.value}`;
+                else href = buildSocialUrl(field.type, field.value);
 
-                  let href = field.value;
-                  if (field.type === 'phone') href = `tel:${field.value}`;
-                  else if (field.type === 'email') href = `mailto:${field.value}`;
-                  else if (field.type === 'location') href = `https://maps.google.com/?q=${field.value}`;
-                  else if (['website', 'custom'].includes(field.type)) href = field.value.startsWith('http') ? field.value : `https://${field.value}`;
-                  else href = buildSocialUrl(field.type, field.value);
+                return (
+                  <a key={idx} href={href} target="_blank" rel="noopener noreferrer" className="pro-action-btn" style={btnStyle} title={field.label || field.type}>
+                    <Icon size={20} />
+                  </a>
+                );
+              };
 
-                  return (
-                    <a key={idx} href={href} target="_blank" rel="noopener noreferrer" className="pro-action-btn" style={btnStyle} title={field.label || field.type}>
-                      <Icon size={20} />
-                    </a>
-                  );
-                });
-              })()}
-            </div>
+              // 2. Layout Logic
+              const count = actionFields.length;
+              const flexCommon = { display: 'flex', justifyContent: 'center', gap: '1rem', width: '100%', alignItems: 'center' };
+
+              // CASE 1: <= 4 Icons (Single Row)
+              if (count <= 4) {
+                return (
+                  <div className="pro-actions-row" style={{ ...flexCommon, flexWrap: 'wrap', marginBottom: '1.5rem' }}>
+                    {actionFields.map(renderBtn)}
+                  </div>
+                );
+              }
+
+              // CASE 2: 5 Icons (Row 1: 3, Row 2: 2 - Centered/Quinconce)
+              if (count === 5) {
+                return (
+                  <div style={{ marginBottom: '1.5rem', width: '100%' }}>
+                    <div style={{ ...flexCommon, marginBottom: '0.75rem' }}>
+                      {actionFields.slice(0, 3).map(renderBtn)}
+                    </div>
+                    <div style={flexCommon}>
+                      {actionFields.slice(3, 5).map((f, i) => renderBtn(f, i + 3))}
+                    </div>
+                  </div>
+                );
+              }
+
+              // CASE 3: >= 6 Icons (Rows of 3)
+              const rows = [];
+              for (let i = 0; i < count; i += 3) {
+                rows.push(actionFields.slice(i, i + 3));
+              }
+              return (
+                <div style={{ marginBottom: '1.5rem', width: '100%' }}>
+                  {rows.map((row, rIdx) => (
+                    <div key={rIdx} style={{ ...flexCommon, marginBottom: rIdx === rows.length - 1 ? 0 : '0.75rem' }}>
+                      {row.map((f, i) => renderBtn(f, (rIdx * 3) + i))}
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
 
             {/* 5. REMOVED SEPARATE SOCIAL ROW (Merged above) */}
 
