@@ -496,7 +496,7 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
           <div className="animate-fade-in" style={{
             position: 'absolute', inset: 0, background: 'white', zIndex: 100,
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            padding: '2rem', borderRadius: '1.5rem'
+            padding: '3rem', borderRadius: '1.5rem'
           }}>
             <QRCodeSVG
               value={(() => {
@@ -528,15 +528,28 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
                       if (f.type === 'location' || lbl.includes('address') || lbl.includes('adresse')) {
                         return `ADR;TYPE=WORK:;;${val};;;;`;
                       }
-                      // For Socials/Whatsapp, standard says usually use URL or specific properties. Notes are safest for generic readers.
-                      // But for Whatsapp specifically, X-SOCIALPROFILE is supported by some.
-                      // Let's stick to simple NOTE for max compatibility or URL if it looks like one.
-                      if (f.type === 'whatsapp' && !val.startsWith('http')) {
-                        return `URL:https://wa.me/${val.replace(/[^0-9]/g, '')}`; // Auto-convert generic whatsapp number
+
+                      // Social Media Handling - Better iPhone/Android compatibility
+                      // Phone-based services: use TEL type
+                      if (f.type === 'whatsapp') {
+                        const cleanNumber = val.replace(/[^0-9+]/g, '');
+                        return `TEL;TYPE=CELL,VOICE:${cleanNumber}`;
                       }
+                      if (f.type === 'zalo') {
+                        const cleanNumber = val.replace(/[^0-9+]/g, '');
+                        return `TEL;TYPE=CELL:${cleanNumber}`;
+                      }
+
+                      // URL-based social profiles
+                      if (['instagram', 'facebook', 'twitter', 'linkedin', 'tiktok', 'youtube', 'telegram', 'snapchat'].includes(f.type)) {
+                        const socialUrl = buildSocialUrl(f.type, val);
+                        return `URL:${socialUrl}`;
+                      }
+
                       // General URL fallback
                       if (val.startsWith('http')) return `URL:${val}`;
 
+                      // Fallback to NOTE for unknown types
                       const noteLabel = f.label || f.type || 'Info';
                       return `NOTE:${noteLabel.toUpperCase()}: ${val}`;
                     })
