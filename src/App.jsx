@@ -110,36 +110,93 @@ const SUBSCRIPTION_LIMITS = {
 };
 
 // --- ISO Helper for Flags ---
-// Simple mapping of common country codes to ISO 3166-1 alpha-2
-const COUNTRY_PHONE_MAP = {
-  '1': 'US', '44': 'GB', '33': 'FR', '49': 'DE', '81': 'JP', '86': 'CN', '84': 'VN', '41': 'CH',
-  '91': 'IN', '7': 'RU', '39': 'IT', '34': 'ES', '55': 'BR', '61': 'AU', '31': 'NL', '82': 'KR',
-  '46': 'SE', '47': 'NO', '45': 'DK', '358': 'FI', '32': 'BE', '90': 'TR', '48': 'PL', '65': 'SG',
-  '62': 'ID', '66': 'TH', '60': 'MY', '63': 'PH', '92': 'PK', '880': 'BD', '94': 'LK', '977': 'NP',
-  '95': 'MM', '855': 'KH', '856': 'LA', '98': 'IR', '964': 'IQ', '966': 'SA', '971': 'AE', '972': 'IL',
-  '20': 'EG', '27': 'ZA', '234': 'NG', '254': 'KE', '251': 'ET', '212': 'MA', '213': 'DZ', '216': 'TN',
-  '52': 'MX', '54': 'AR', '57': 'CO', '56': 'CL', '51': 'PE', '58': 'VE', '593': 'EC', '502': 'GT',
-  '53': 'CU', '509': 'HT', '503': 'SV', '504': 'HN', '505': 'NI', '506': 'CR', '507': 'PA', '591': 'BO',
-  '595': 'PY', '598': 'UY', '351': 'PT', '30': 'GR', '43': 'AT', '36': 'HU', '420': 'CZ', '40': 'RO',
-  '380': 'UA', '353': 'IE', '354': 'IS', '352': 'LU', '356': 'MT', '357': 'CY', '370': 'LT', '371': 'LV',
-  '372': 'EE', '385': 'HR', '386': 'SI', '421': 'SK', '359': 'BG', '381': 'RS', '387': 'BA', '389': 'MK',
-  '355': 'AL', '373': 'MD', '375': 'BY', '995': 'GE', '374': 'AM', '994': 'AZ', '76': 'KZ', '996': 'KG',
-  '992': 'TJ', '993': 'TM', '998': 'UZ', '93': 'AF', '965': 'KW', '973': 'BH', '974': 'QA', '968': 'OM',
-  '961': 'LB', '962': 'JO', '963': 'SY', '967': 'YE',
-};
+// Extensive mapping of country codes to ISO 3166-1 alpha-2 and Dial Codes
+// Constructed to support a dropdown.
+// Format: code: { iso: 'US', dial_code: '+1' }
+// But existing map is '1': 'US'. Let's expand it for the dropdown options logic.
+
+const COUNTRY_OPTIONS = [
+  { code: 'US', dial: '+1', flag: '🇺🇸', name: 'United States' },
+  { code: 'CA', dial: '+1', flag: '🇨🇦', name: 'Canada' },
+  { code: 'GB', dial: '+44', flag: '🇬🇧', name: 'United Kingdom' },
+  { code: 'FR', dial: '+33', flag: '🇫🇷', name: 'France' },
+  { code: 'DE', dial: '+49', flag: '🇩🇪', name: 'Germany' },
+  { code: 'CH', dial: '+41', flag: '🇨🇭', name: 'Switzerland' },
+  { code: 'BE', dial: '+32', flag: '🇧🇪', name: 'Belgium' },
+  { code: 'ES', dial: '+34', flag: '🇪🇸', name: 'Spain' },
+  { code: 'IT', dial: '+39', flag: '🇮🇹', name: 'Italy' },
+  { code: 'PT', dial: '+351', flag: '🇵🇹', name: 'Portugal' },
+  { code: 'NL', dial: '+31', flag: '🇳🇱', name: 'Netherlands' },
+  { code: 'LU', dial: '+352', flag: '🇱🇺', name: 'Luxembourg' },
+  { code: 'IE', dial: '+353', flag: '🇮🇪', name: 'Ireland' },
+  { code: 'SE', dial: '+46', flag: '🇸🇪', name: 'Sweden' },
+  { code: 'NO', dial: '+47', flag: '🇳🇴', name: 'Norway' },
+  { code: 'DK', dial: '+45', flag: '🇩🇰', name: 'Denmark' },
+  { code: 'FI', dial: '+358', flag: '🇫🇮', name: 'Finland' },
+  { code: 'RU', dial: '+7', flag: '🇷🇺', name: 'Russia' },
+  { code: 'UA', dial: '+380', flag: '🇺🇦', name: 'Ukraine' },
+  { code: 'JP', dial: '+81', flag: '🇯🇵', name: 'Japan' },
+  { code: 'CN', dial: '+86', flag: '🇨🇳', name: 'China' },
+  { code: 'IN', dial: '+91', flag: '🇮🇳', name: 'India' },
+  { code: 'AU', dial: '+61', flag: '🇦🇺', name: 'Australia' },
+  { code: 'NZ', dial: '+64', flag: '🇳🇿', name: 'New Zealand' },
+  { code: 'BR', dial: '+55', flag: '🇧🇷', name: 'Brazil' },
+  { code: 'MX', dial: '+52', flag: '🇲🇽', name: 'Mexico' },
+  { code: 'VN', dial: '+84', flag: '🇻🇳', name: 'Vietnam' },
+  { code: 'TH', dial: '+66', flag: '🇹🇭', name: 'Thailand' },
+  { code: 'ID', dial: '+62', flag: '🇮🇩', name: 'Indonesia' },
+  { code: 'MY', dial: '+60', flag: '🇲🇾', name: 'Malaysia' },
+  { code: 'PH', dial: '+63', flag: '🇵🇭', name: 'Philippines' },
+  { code: 'SG', dial: '+65', flag: '🇸🇬', name: 'Singapore' },
+  { code: 'KR', dial: '+82', flag: '🇰🇷', name: 'South Korea' },
+  { code: 'ZA', dial: '+27', flag: '🇿🇦', name: 'South Africa' },
+  { code: 'TR', dial: '+90', flag: '🇹🇷', name: 'Turkey' },
+  { code: 'IL', dial: '+972', flag: '🇮🇱', name: 'Israel' },
+  { code: 'AE', dial: '+971', flag: '🇦🇪', name: 'UAE' },
+  { code: 'SA', dial: '+966', flag: '🇸🇦', name: 'Saudi Arabia' },
+  { code: 'EG', dial: '+20', flag: '🇪🇬', name: 'Egypt' },
+  { code: 'MA', dial: '+212', flag: '🇲🇦', name: 'Morocco' },
+  { code: 'DZ', dial: '+213', flag: '🇩🇿', name: 'Algeria' },
+  { code: 'TN', dial: '+216', flag: '🇹🇳', name: 'Tunisia' },
+  { code: 'GR', dial: '+30', flag: '🇬🇷', name: 'Greece' },
+  { code: 'AT', dial: '+43', flag: '🇦🇹', name: 'Austria' },
+  { code: 'PL', dial: '+48', flag: '🇵🇱', name: 'Poland' },
+  { code: 'RO', dial: '+40', flag: '🇷🇴', name: 'Romania' },
+  { code: 'CZ', dial: '+420', flag: '🇨🇿', name: 'Czech Republic' },
+  { code: 'HU', dial: '+36', flag: '🇭🇺', name: 'Hungary' },
+  { code: 'HR', dial: '+385', flag: '🇭🇷', name: 'Croatia' },
+  { code: 'RS', dial: '+381', flag: '🇷🇸', name: 'Serbia' },
+  { code: 'BG', dial: '+359', flag: '🇧🇬', name: 'Bulgaria' },
+  { code: 'SK', dial: '+421', flag: '🇸🇰', name: 'Slovakia' },
+  { code: 'SI', dial: '+386', flag: '🇸🇮', name: 'Slovenia' },
+  { code: 'LT', dial: '+370', flag: '🇱🇹', name: 'Lithuania' },
+  { code: 'LV', dial: '+371', flag: '🇱🇻', name: 'Latvia' },
+  { code: 'EE', dial: '+372', flag: '🇪🇪', name: 'Estonia' },
+  { code: 'CY', dial: '+357', flag: '🇨🇾', name: 'Cyprus' },
+  { code: 'MT', dial: '+356', flag: '🇲🇹', name: 'Malta' },
+  { code: 'IS', dial: '+354', flag: '🇮🇸', name: 'Iceland' },
+  { code: 'AR', dial: '+54', flag: '🇦🇷', name: 'Argentina' },
+  { code: 'CL', dial: '+56', flag: '🇨🇱', name: 'Chile' },
+  { code: 'CO', dial: '+57', flag: '🇨🇴', name: 'Colombia' },
+  { code: 'PE', dial: '+51', flag: '🇵🇪', name: 'Peru' },
+  { code: 'VE', dial: '+58', flag: '🇻🇪', name: 'Venezuela' },
+  { code: 'EC', dial: '+593', flag: '🇪🇨', name: 'Ecuador' },
+  { code: 'HK', dial: '+852', flag: '🇭🇰', name: 'Hong Kong' },
+  { code: 'TW', dial: '+886', flag: '🇹🇼', name: 'Taiwan' }
+  // Add more as needed, but this covers major bases
+].sort((a, b) => a.name.localeCompare(b.name));
 
 const getCountryFlag = (phone) => {
   if (!phone) return '';
-  const cleanPhone = phone.replace(/\D/g, '');
-  // Try to match longest codes first (3 digits, then 2, then 1)
-  for (let len = 4; len >= 1; len--) {
-    const code = cleanPhone.substring(0, len);
-    if (COUNTRY_PHONE_MAP[code]) {
-      const iso = COUNTRY_PHONE_MAP[code];
-      return iso.toUpperCase().replace(/./g, char => String.fromCodePoint(char.charCodeAt(0) + 127397));
-    }
-  }
-  return '🌐'; // Default
+  // Try to find a matching prefix from our robust list
+  const cleanPhone = phone.startsWith('+') ? phone : '+' + phone.replace(/\D/g, '');
+
+  // Sort options by dial code length desc to match +1242 before +1
+  const match = COUNTRY_OPTIONS
+    .sort((a, b) => b.dial.length - a.dial.length)
+    .find(opt => cleanPhone.startsWith(opt.dial));
+
+  return match ? match.flag : '🌐';
 };
 
 const formatPhoneWithFlag = (phone) => {
@@ -824,22 +881,99 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage, subscripti
                 </div>
 
                 {/* Input Value */}
-                <div className="input-group">
-                  <input
-                    type="text"
-                    value={field.value}
-                    onChange={(e) => updateField(index, 'value', e.target.value)}
-                    placeholder={(() => {
-                      if (field.type === 'whatsapp') return 'Phone number (e.g. +123...)';
-                      if (field.type === 'instagram') return 'Username (e.g. john.doe)';
-                      if (field.type === 'twitter') return 'Username (e.g. @john)';
-                      if (field.type === 'linkedin') return 'Profile URL (e.g. linkedin.com/in/...)';
-                      return `Enter ${field.type} details...`;
-                    })()}
-                    className="form-input"
-                    style={{ width: '100%' }}
-                  />
-                </div>
+                {/* Input Value - SPECIAL HANDING FOR PHONE with Dropdown */}
+                {['phone', 'whatsapp'].includes(field.type) ? (
+                  <div className="input-group" style={{ display: 'flex', gap: '0.5rem' }}>
+                    {/* Country Select */}
+                    <select
+                      value={(() => {
+                        const val = field.value || '';
+                        // Find matching dial code
+                        const match = COUNTRY_OPTIONS
+                          .sort((a, b) => b.dial.length - a.dial.length)
+                          .find(opt => val.startsWith(opt.dial));
+                        return match ? match.dial : '';
+                      })()}
+                      onChange={(e) => {
+                        const newCode = e.target.value;
+                        const oldVal = field.value || '';
+                        let currentNumber = oldVal;
+
+                        // Strip old code if exists
+                        const oldMatch = COUNTRY_OPTIONS
+                          .sort((a, b) => b.dial.length - a.dial.length)
+                          .find(opt => oldVal.startsWith(opt.dial));
+
+                        if (oldMatch) {
+                          currentNumber = oldVal.slice(oldMatch.dial.length);
+                        } else if (oldVal.startsWith('+')) {
+                          // Logic fallback: might be a custom code not in list?
+                          // Just keep it or try to regex it?
+                          // Let's assume if no match, we treat whole as number
+                        }
+
+                        updateField(index, 'value', newCode + currentNumber);
+                      }}
+                      className="form-select"
+                      style={{
+                        width: '130px',
+                        flexShrink: 0,
+                        padding: '0.75rem',
+                        borderRadius: '0.75rem',
+                        border: '1px solid #e2e8f0',
+                        backgroundColor: '#f8fafc',
+                        fontSize: '1rem'
+                      }}
+                    >
+                      <option value="">🌐 Code</option>
+                      {COUNTRY_OPTIONS.map(opt => (
+                        <option key={opt.code} value={opt.dial}>
+                          {opt.flag} {opt.dial}
+                        </option>
+                      ))}
+                    </select>
+
+                    <input
+                      type="text"
+                      value={(() => {
+                        const val = field.value || '';
+                        const match = COUNTRY_OPTIONS
+                          .sort((a, b) => b.dial.length - a.dial.length)
+                          .find(opt => val.startsWith(opt.dial));
+                        return match ? val.slice(match.dial.length) : val;
+                      })()}
+                      onChange={(e) => {
+                        const typedPart = e.target.value;
+                        const val = field.value || '';
+                        const match = COUNTRY_OPTIONS
+                          .sort((a, b) => b.dial.length - a.dial.length)
+                          .find(opt => val.startsWith(opt.dial));
+
+                        const prefix = match ? match.dial : '';
+                        updateField(index, 'value', prefix + typedPart);
+                      }}
+                      placeholder="Phone Number"
+                      className="form-input"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                ) : (
+                  <div className="input-group">
+                    <input
+                      type="text"
+                      value={field.value}
+                      onChange={(e) => updateField(index, 'value', e.target.value)}
+                      placeholder={(() => {
+                        if (field.type === 'instagram') return 'Username (e.g. john.doe)';
+                        if (field.type === 'twitter') return 'Username (e.g. @john)';
+                        if (field.type === 'linkedin') return 'Profile URL (e.g. linkedin.com/in/...)';
+                        return `Enter ${field.type} details...`;
+                      })()}
+                      className="form-input"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                )}
 
                 {field.type === 'custom' && (
                   <div className="input-group" style={{ marginTop: '0.5rem' }}>
