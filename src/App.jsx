@@ -1532,51 +1532,68 @@ function App() {
 
   // Fetch Subscription Status from Firestore when User Logs In
   useEffect(() => {
-    const fetchSubscription = async () => {
-      if (user) {
-        try {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (userDoc.exists()) {
-            const data = userDoc.data();
-            const userSubscription = data.subscription || 'free';
-            setSubscription(userSubscription);
-            localStorage.setItem('subscription', userSubscription); // Cache for session
-          } else {
-            // User doc doesn't exist, create it with free plan
-            await setDoc(doc(db, 'users', user.uid), {
-              email: user.email,
-              subscription: 'free',
-              createdAt: new Date().toISOString()
-            });
-            setSubscription('free');
+    // REAL-TIME SUBSCRIPTION LISTENER
+    let unsubscribeSnapshot = () => { };
+
+    if (user) {
+      // Listen to user document in real-time
+      unsubscribeSnapshot = onSnapshot(doc(db, 'users', user.uid), async (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          const newSubscription = data.subscription || 'free';
+
+          // Update local state immediately if changed
+          if (newSubscription !== subscription) {
+            setSubscription(newSubscription);
+            localStorage.setItem('subscription', newSubscription);
           }
 
-          // Check for pending plan from Stripe payment
+          // Handle Pending Plan (Optimistic Update)
+          // If we have a pending plan locally but Firestore is still 'free' (webhook lag), 
+          // we might want to trigger the optimistic update here one-off
           const pendingPlan = localStorage.getItem('pendingPlan');
           if (pendingPlan && ['basic', 'pro'].includes(pendingPlan)) {
-            // Update subscription with pending plan
-            await setDoc(doc(db, 'users', user.uid), {
-              subscription: pendingPlan,
-              updatedAt: new Date().toISOString()
-            }, { merge: true });
+            // Check if we need to optimistic update
+            if (newSubscription !== pendingPlan) {
+              // Apply optimistic update to Firestore
+              await setDoc(doc(db, 'users', user.uid), {
+                subscription: pendingPlan,
+                updatedAt: new Date().toISOString()
+              }, { merge: true });
 
-            setSubscription(pendingPlan);
-            localStorage.setItem('subscription', pendingPlan);
-            localStorage.removeItem('pendingPlan'); // Clear pending
+              // Local update
+              setSubscription(pendingPlan);
+              localStorage.setItem('subscription', pendingPlan);
+              localStorage.removeItem('pendingPlan');
 
-            // Show success message
-            setStatusMessage({
-              type: 'success',
-              text: `✅ Subscription upgraded to ${pendingPlan === 'basic' ? 'Standard' : 'Premium'} Pack!`
-            });
-            setTimeout(() => setStatusMessage(null), 5000);
+              setStatusMessage({
+                type: 'success',
+                text: `✅ Plan updated to ${pendingPlan.toUpperCase()}`
+              });
+              setTimeout(() => setStatusMessage(null), 5000);
+            } else {
+              // Firestore already matches pending plan (webhook won race), just clear local
+              localStorage.removeItem('pendingPlan');
+            }
           }
-        } catch (error) {
-          console.error("Error fetching subscription:", error);
+
+        } else {
+          // Create user doc if missing
+          await setDoc(doc(db, 'users', user.uid), {
+            email: user.email,
+            subscription: 'free',
+            createdAt: new Date().toISOString()
+          });
+          setSubscription('free');
         }
-      }
+      }, (error) => {
+        console.error("Error watching subscription:", error);
+      });
+    }
+
+    return () => {
+      unsubscribeSnapshot();
     };
-    fetchSubscription();
   }, [user]);
 
   // Check for updates when tab becomes visible (returning from Stripe)
