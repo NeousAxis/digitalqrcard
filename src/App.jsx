@@ -4,7 +4,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import {
   Smartphone, Edit2, Trash2, Plus, Share2, Download,
   MapPin, Globe, Mail, Phone, Building2, Briefcase,
-  User, Star, X, Check, Copy, LogIn, LogOut,
+  User, Star, X, Check, Copy, LogIn, LogOut, Lock,
   CreditCard, Layout, Zap, Cloud, CloudOff, AlertCircle, RefreshCw, Gem,
   ChevronLeft, ChevronRight, Settings, ArrowUp, ArrowDown,
   Facebook, Linkedin, Instagram, Twitter, Youtube, MessageCircle, Twitch, Music, Send
