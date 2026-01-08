@@ -1219,7 +1219,68 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage, subscripti
   );
 };
 
+// Intermediate Modal to explain why login is needed
+const PlanAuthModal = ({ onClose, onLogin }) => {
+  return (
+    <div className="modal-overlay" style={{ zIndex: 1100 }} onClick={onClose}>
+      <div className="glass-panel animate-fade-in" style={{ maxWidth: '450px', width: '90%', padding: '2.5rem', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+        <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'center' }}>
+          <div style={{ background: 'rgba(59, 130, 246, 0.1)', padding: '1rem', borderRadius: '50%' }}>
+            <Lock size={48} className="text-primary" />
+          </div>
+        </div>
+        <h2 className="section-title" style={{ fontSize: '1.8rem', marginBottom: '1rem' }}>Account Required</h2>
+        <p style={{ color: '#64748b', marginBottom: '2rem', lineHeight: '1.6', fontSize: '1.1rem' }}>
+          To confirm your subscription and manage your professional digital cards, you need to be logged in to your account.
+        </p>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <button
+            onClick={onLogin}
+            className="btn-primary"
+            style={{ width: '100%', justifyContent: 'center', padding: '1rem', fontSize: '1.1rem' }}
+          >
+            Log in / Sign up
+          </button>
+          <button
+            onClick={onClose}
+            style={{ padding: '0.8rem', background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '1rem' }}
+          >
+            Maybe later
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const PricingModal = ({ currentPlan, onUpgrade, onClose, t, user, onOpenAuth }) => {
+  const [showAuthRequired, setShowAuthRequired] = useState(false);
+
+  const handlePlanSelection = (planKey, stripeLink) => {
+    if (!user) {
+      // Show explanation modal first
+      setShowAuthRequired(true);
+      return;
+    }
+    // Already logged in, proceed to Stripe
+    localStorage.setItem('pendingPlan', planKey);
+    window.location.href = stripeLink;
+  };
+
+  if (showAuthRequired) {
+    return (
+      <PlanAuthModal
+        onClose={() => setShowAuthRequired(false)}
+        onLogin={() => {
+          setShowAuthRequired(false);
+          onClose(); // Close pricing modal
+          onOpenAuth(); // Open main auth modal
+        }}
+      />
+    );
+  }
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="glass-panel pricing-modal animate-fade-in" onClick={e => e.stopPropagation()}>
@@ -1265,15 +1326,7 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t, user, onOpenAuth }) 
               <li>✅ Social Networks (FB, Insta, Linked...)</li>
             </ul>
             <button
-              onClick={() => {
-                if (!user) {
-                  onClose();
-                  onOpenAuth();
-                  return;
-                }
-                localStorage.setItem('pendingPlan', 'basic');
-                window.location.href = 'https://buy.stripe.com/test_5kQ5kx2b91Sx1Vicha73G01';
-              }}
+              onClick={() => handlePlanSelection('basic', 'https://buy.stripe.com/test_5kQ5kx2b91Sx1Vicha73G01')}
               disabled={currentPlan === 'basic'}
               className={`btn-full ${currentPlan === 'basic' ? 'btn-secondary' : 'btn-primary'}`}
             >
@@ -1294,15 +1347,7 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t, user, onOpenAuth }) 
               <li><strong>✅ Unlimited Custom Fields</strong></li>
             </ul>
             <button
-              onClick={() => {
-                if (!user) {
-                  onClose();
-                  onOpenAuth();
-                  return;
-                }
-                localStorage.setItem('pendingPlan', 'pro');
-                window.location.href = 'https://buy.stripe.com/test_cNicMZ7vt8gVgQc4OI73G00';
-              }}
+              onClick={() => handlePlanSelection('pro', 'https://buy.stripe.com/test_cNicMZ7vt8gVgQc4OI73G00')}
               disabled={currentPlan === 'pro'}
               className={`btn-full ${currentPlan === 'pro' ? 'btn-secondary' : 'btn-primary'}`}
               style={currentPlan !== 'pro' ? { boxShadow: '0 4px 14px 0 rgba(0,118,255,0.39)' } : {}}
