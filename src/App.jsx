@@ -1266,7 +1266,10 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t }) => {
             </ul>
             <button
               onClick={() => {
-                if (!user) return alert('Please login first');
+                if (!user) {
+                  alert('Please login first');
+                  return;
+                }
                 localStorage.setItem('pendingPlan', 'basic');
                 window.location.href = 'https://buy.stripe.com/test_5kQ5kx2b91Sx1Vicha73G01';
               }}
@@ -1291,7 +1294,10 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t }) => {
             </ul>
             <button
               onClick={() => {
-                if (!user) return alert('Please login first');
+                if (!user) {
+                  alert('Please login first');
+                  return;
+                }
                 localStorage.setItem('pendingPlan', 'pro');
                 window.location.href = 'https://buy.stripe.com/test_cNicMZ7vt8gVgQc4OI73G00';
               }}
