@@ -1219,7 +1219,7 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage, subscripti
   );
 };
 
-const PricingModal = ({ currentPlan, onUpgrade, onClose, t }) => {
+const PricingModal = ({ currentPlan, onUpgrade, onClose, t, user, onOpenAuth }) => {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="glass-panel pricing-modal animate-fade-in" onClick={e => e.stopPropagation()}>
@@ -1267,7 +1267,8 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t }) => {
             <button
               onClick={() => {
                 if (!user) {
-                  alert('Please login first');
+                  onClose();
+                  onOpenAuth();
                   return;
                 }
                 localStorage.setItem('pendingPlan', 'basic');
@@ -1295,7 +1296,8 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t }) => {
             <button
               onClick={() => {
                 if (!user) {
-                  alert('Please login first');
+                  onClose();
+                  onOpenAuth();
                   return;
                 }
                 localStorage.setItem('pendingPlan', 'pro');
@@ -2112,6 +2114,8 @@ function App() {
               onUpgrade={handleUpgrade}
               onClose={() => setShowPricing(false)}
               t={t}
+              user={user}
+              onOpenAuth={() => setShowAuthModal(true)}
             />
           )
         }
