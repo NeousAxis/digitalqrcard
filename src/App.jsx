@@ -1246,7 +1246,7 @@ const PlanAuthModal = ({ onClose, onLogin }) => {
             onClick={onClose}
             style={{ padding: '0.8rem', background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '1rem' }}
           >
-            Maybe later
+            Cancel
           </button>
         </div>
       </div>
