@@ -23,6 +23,7 @@ import {
 import {
   getAuth,
   signInWithPopup,
+  signInWithCredential,
   GoogleAuthProvider,
   signOut,
   onAuthStateChanged,
@@ -31,6 +32,9 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword
 } from 'firebase/auth';
+import { Capacitor } from '@capacitor/core';
+import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
+
 // --- Utils ---
 const THEME_COLORS = {
   // Pantone Trends (2010-2024)
@@ -62,21 +66,21 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-
-// Debug: Check if config is loaded
-console.log('Firebase Config Loaded:', {
-  projectId: firebaseConfig.projectId,
-  authDomain: firebaseConfig.authDomain,
-  apiKeyPresent: !!firebaseConfig.apiKey
-});
+// Initialize Firebase with safety checks
+let app;
+try {
+  app = initializeApp(firebaseConfig);
+  console.log('Firebase initialized successfully');
+} catch (error) {
+  console.error('Firebase initialization failed:', error);
+  // Still try to get app if already initialized
+}
 
 // Initialize Firestore
-// We use basic getFirestore() to ensure reliable online operation and avoid complex persistence state bugs.
 const db = getFirestore(app);
 
 const auth = getAuth(app);
+
 // CRITICAL: Ensure persistence is LOCAL so user ID survives refresh
 setPersistence(auth, browserLocalPersistence).catch(console.error);
 const generateVCard = (card) => {
@@ -689,8 +693,40 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
                       // Get Platform Name
                       const platformName = def?.label || field.type.charAt(0).toUpperCase() + field.type.slice(1);
 
-                      // Set Display Value to Platform Name (User Request: "Just write Whatsapp")
-                      val = platformName;
+                      // For WhatsApp and Zalo, keep the platform name (they use phone numbers)
+                      const keepPlatformName = ['whatsapp', 'zalo'].includes(field.type.toLowerCase());
+
+                      if (keepPlatformName) {
+                        val = platformName;
+                      } else {
+                        // Extract username from URL or value
+                        const extractUsername = (url) => {
+                          if (!url) return null;
+                          try {
+                            // Remove query params and trailing slashes
+                            let cleanUrl = url.split('?')[0].replace(/\/+$/, '');
+                            // Try to find username in URL path
+                            const urlObj = new URL(cleanUrl.startsWith('http') ? cleanUrl : `https://${cleanUrl}`);
+                            const pathParts = urlObj.pathname.split('/').filter(Boolean);
+                            if (pathParts.length > 0) {
+                              // Get the last meaningful part (username)
+                              let username = pathParts[pathParts.length - 1];
+                              // Clean up common prefixes
+                              username = username.replace(/^@/, '');
+                              return `@${username}`;
+                            }
+                          } catch (e) {
+                            // If URL parsing fails, treat as username
+                            if (url && !url.includes('/')) {
+                              return `@${url.replace(/^@/, '')}`;
+                            }
+                          }
+                          return null;
+                        };
+
+                        const username = extractUsername(field.value);
+                        val = username || platformName;
+                      }
 
                       const href = buildSocialUrl(field.type, field.value);
 
@@ -1362,6 +1398,7 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t, user, onOpenAuth }) 
   );
 };
 
+
 const AuthModal = ({ onClose, onLoginGoogle }) => {
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
@@ -1553,6 +1590,9 @@ function App() {
 
   const t = TRANSLATIONS['en'];
 
+
+
+
   // Listen for auth state changes with explicit persistence handling
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
@@ -1716,11 +1756,22 @@ function App() {
 
   const handleLogin = async () => {
     try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      if (Capacitor.isNativePlatform()) {
+        // Use native Firebase Auth plugin on iOS/Android
+        const result = await FirebaseAuthentication.signInWithGoogle();
+        // Get the ID token and create Firebase credential
+        const credential = GoogleAuthProvider.credential(result.credential?.idToken);
+        await signInWithCredential(auth, credential);
+      } else {
+        // Use popup on web
+        const provider = new GoogleAuthProvider();
+        await signInWithPopup(auth, provider);
+      }
     } catch (error) {
       console.error("Login Error:", error);
-      alert("Erreur de connexion : " + error.message);
+      if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
+        alert("Erreur de connexion : " + error.message);
+      }
     }
   };
 
@@ -2162,6 +2213,7 @@ function App() {
               user={user}
               onOpenAuth={() => setShowAuthModal(true)}
             />
+
           )
         }
       </div >
