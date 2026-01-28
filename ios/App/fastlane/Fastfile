@@ -1,0 +1,154 @@
+default_platform(:ios)
+
+platform :ios do
+  desc "Push a new release build to the App Store"
+  lane :release do |options|
+    # Logic to handle paths dynamically based on input or defaults
+    # Logic to handle paths dynamically based on input or defaults
+    # FORCED HARDCODED PATH FOR STABILITY
+    project_path = "/Users/cyrilleger/DigitalQrCards/digitalqrcard/ios/App"
+    scheme = "App"
+    
+    xcodeproj_path = "#{project_path}/App.xcodeproj"
+    project_root = project_path
+    
+    UI.message("🚀 FORCED PATH: #{xcodeproj_path}")
+
+    UI.message("🚀 Deploying Project: #{xcodeproj_path}")
+    UI.message("🚀 Scheme: #{scheme}")
+
+    # 1. API Key
+    # We use the key saved in the agent's fastlane directory
+    api_key = app_store_connect_api_key(
+      key_id: "8QAFD5C266",
+      issuer_id: "b140c75c-a30c-4ea7-ad1c-5dda1c16945e",
+      key_filepath: File.expand_path("AuthKey_8QAFD5C266.p8", File.dirname(__FILE__)), 
+      duration: 1200,
+      in_house: false
+    )
+
+    # 2. Setup (Update Team)
+    update_project_team(path: xcodeproj_path, teamid: "BXB662X8PV")
+
+    # Detect Bundle ID
+    # Use xcodebuild to get the effective build settings
+    UI.message("🔍 Detecting Bundle ID...")
+    # Redirect stderr to /dev/null to avoid warnings polluting the output
+    raw_bundle_id = sh("xcodebuild -showBuildSettings -project '#{xcodeproj_path}' -scheme '#{scheme}' 2>/dev/null | grep ' PRODUCT_BUNDLE_IDENTIFIER =' | head -n 1 | awk -F ' = ' '{print $2}'").strip
+    app_identifier = raw_bundle_id
+    
+    if app_identifier.to_s.empty?
+        UI.user_error!("Could not detect Bundle ID from project settings.")
+    end
+    UI.message("✅ Detected Bundle ID: #{app_identifier}")
+
+    # Ensure App ID exists on Developer Portal and App Store Connect
+    # We use the 'produce' action to ensure the app exists
+    app_name = scheme
+    # We need to locate Info.plist. Usually inside the prompt root/App/Info.plist or similar.
+    # Let's try to find it.
+    info_plist_path = Dir["#{project_root}/**/Info.plist"].find { |f| !f.include?("Tests") }
+    if defined?(info_plist_path) && info_plist_path
+       plist_val = get_info_plist_value(path: info_plist_path, key: "CFBundleDisplayName")
+       app_name = plist_val if plist_val && !plist_val.empty?
+    end
+    
+    UI.message("Ensuring App ID '#{app_identifier}' exists for '#{app_name}'...")
+    
+    # Explicitly set ENV vars for produce/spaceship to pick up API Key reliably
+    ENV["APP_STORE_CONNECT_API_KEY_KEY_ID"] = "8QAFD5C266"
+    ENV["APP_STORE_CONNECT_API_KEY_ISSUER_ID"] = "b140c75c-a30c-4ea7-ad1c-5dda1c16945e"
+    ENV["APP_STORE_CONNECT_API_KEY_FILEPATH"] = File.expand_path("AuthKey_8QAFD5C266.p8", File.dirname(__FILE__))
+    ENV["FASTLANE_SKIP_UPDATE_CHECK"] = "1" # Speed up
+    
+    # produce(
+    #   app_identifier: app_identifier,
+    #   app_name: app_name,
+    #   language: "en-US",
+    #   skip_itc: true
+    # )
+
+    # 3. Certificats & Profils
+    get_certificates(api_key: api_key)
+    
+    get_provisioning_profile(
+      api_key: api_key,
+      app_identifier: app_identifier,
+      filename: "provisioning.mobileprovision",
+      readonly: false
+    )
+
+    if info_plist_path
+      # update_info_plist expects path relative to project or absolute? 
+      # It seems it struggled with absolute path combining with project path.
+      # Let's try relative path.
+      require 'pathname'
+      abs_plist = Pathname.new(info_plist_path)
+      abs_proj_root = Pathname.new(project_root)
+      rel_plist = abs_plist.relative_path_from(abs_proj_root).to_s
+    
+      update_info_plist(
+        xcodeproj: xcodeproj_path,
+        plist_path: rel_plist,
+        block: proc do |plist|
+          plist["ITSAppUsesNonExemptEncryption"] = false
+        end
+      )
+    else
+      UI.important("Could not find Info.plist to update compliance settings.")
+    end
+
+    # 5. BUILD
+    # Force Project Provisioning Settings
+    # This helps when xcodebuild struggles to pick up the profile passed via args or environment
+    update_project_provisioning(
+      xcodeproj: xcodeproj_path,
+      profile: ENV["SIGH_PROFILE_PATH"], # or custom path
+      target_filter: scheme, # Target name usually matches scheme
+      build_configuration: "Release",
+      code_signing_identity: "Apple Distribution"
+    )
+
+    # 5. BUILD
+    build_app(
+      project: xcodeproj_path,
+      scheme: scheme,
+      clean: true,
+      export_method: "app-store",
+      # Simplify signing. We use MATCH or Manual. 
+      # The error suggests dependencies are being forced to use the app's profile.
+      # We should let Xcode manage signing for dependencies or be less specific in xcargs?
+      # Actually, removing CODE_SIGN_STYLE=Manual from xcargs might help assuming fastlane sets it up.
+      # But standard approach with manual signing is to set it.
+      # Let's try to remove PROVISIONING_PROFILE_SPECIFIER from xcargs and let export_options handle it,
+      # OR set it only for the main target (which is hard via simple xcargs).
+      # Better approach: Use export_xcargs to pass specific settings if needed, or rely on export_options.
+      
+      # Retrying with slightly relaxed settings to avoid forcing profiles on pods
+      xcargs: "-allowProvisioningUpdates CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY='Apple Distribution' DEVELOPMENT_TEAM='BXB662X8PV'",
+      export_options: {
+        method: "app-store",
+        signingStyle: "manual",
+        provisioningProfiles: {
+          app_identifier => "#{app_identifier} AppStore"
+        }
+      }
+    )
+
+    # 6. Upload to TestFlight
+    # TestFlight is simpler and doesn't require the app to be fully configured on App Store Connect
+    begin
+      upload_to_testflight(
+        api_key: api_key,
+        app_identifier: app_identifier,
+        ipa: "./App.ipa",
+        skip_waiting_for_build_processing: true
+      )
+      UI.success("✅ Build uploaded to TestFlight successfully!")
+    rescue => ex
+        UI.error "Error during upload: #{ex.message}"
+        UI.error ex.backtrace.join("\n")
+        raise ex
+    end
+  end
+end

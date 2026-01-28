@@ -16,7 +16,10 @@ class ErrorBoundary extends React.Component {
   componentDidCatch(error, errorInfo) {
     console.error("Uncaught error:", error, errorInfo);
     this.setState({ errorInfo });
+    // Alert for on-device debugging
+    alert("Application Error: " + error.toString());
   }
+
 
   render() {
     if (this.state.hasError) {
