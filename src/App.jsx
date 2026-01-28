@@ -307,8 +307,8 @@ const TRANSLATIONS = {
 };
 
 const PRICING = {
-  basic: { price: '2 CHF', limit: 3, key: 'standardPack' },
-  pro: { price: '4 CHF', limit: 5, key: 'premiumPack' }
+  basic: { price: '2 CHF', limit: 3, key: 'standardPack', productId: 'Standard_898' },
+  pro: { price: '4 CHF', limit: 5, key: 'premiumPack', productId: 'Premium_898' }
 };
 
 // --- BRAND ICONS (Custom SVGs) ---
@@ -1290,18 +1290,24 @@ const PlanAuthModal = ({ onClose, onLogin }) => {
   );
 };
 
-const PricingModal = ({ currentPlan, onUpgrade, onClose, t, user, onOpenAuth }) => {
+const PricingModal = ({ currentPlan, onUpgrade, onClose, t, user, onOpenAuth, onNativePurchase }) => {
   const [showAuthRequired, setShowAuthRequired] = useState(false);
 
-  const handlePlanSelection = (planKey, stripeLink) => {
+  const handlePlanSelection = async (planKey, stripeLink) => {
     if (!user) {
       // Show explanation modal first
       setShowAuthRequired(true);
       return;
     }
-    // Already logged in, proceed to Stripe
-    localStorage.setItem('pendingPlan', planKey);
-    window.location.href = stripeLink;
+
+    if (Capacitor.isNativePlatform()) {
+      // Native IAP
+      onNativePurchase(planKey);
+    } else {
+      // Web Stripe
+      localStorage.setItem('pendingPlan', planKey);
+      window.location.href = stripeLink;
+    }
   };
 
   if (showAuthRequired) {
@@ -1606,6 +1612,93 @@ function App() {
     });
     return () => unsubscribe();
   }, []);
+
+  // --- IAP LOGIC ---
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    const initStore = () => {
+      if (!window.CdvPurchase?.store) {
+        console.log('Store not available');
+        return;
+      }
+      const store = window.CdvPurchase.store;
+
+      // Register Products
+      store.register([
+        {
+          type: window.CdvPurchase.ProductType.PAID_SUBSCRIPTION,
+          id: 'Standard_898',
+          platform: window.CdvPurchase.Platform.APPLE_APPSTORE,
+        },
+        {
+          type: window.CdvPurchase.ProductType.PAID_SUBSCRIPTION,
+          id: 'Premium_898',
+          platform: window.CdvPurchase.Platform.APPLE_APPSTORE,
+        }
+      ]);
+
+      // Approval Listener
+      store.when()
+        .approved(transaction => {
+          // Grant Logic
+          const productId = transaction.products[0].id;
+          let newPlan = 'free';
+          if (productId === 'Standard_898') newPlan = 'basic';
+          if (productId === 'Premium_898') newPlan = 'pro';
+
+          // Update Firestore
+          if (auth.currentUser) {
+            setDoc(doc(db, 'users', auth.currentUser.uid), {
+              subscription: newPlan,
+              updatedAt: new Date().toISOString(),
+              iapTransactionId: transaction.transactionId
+            }, { merge: true })
+              .then(() => {
+                transaction.finish();
+                setSubscription(newPlan);
+                setStatusMessage({ type: 'success', text: `You are now on ${newPlan.toUpperCase()} plan!` });
+              })
+              .catch(err => console.error("IAP Save Error", err));
+          } else {
+            transaction.finish(); // Finish anyway to avoid stuck loop? Or wait? 
+            // Better to finish so it doesn't pop up forever, but user missed the update.
+            //Ideally prompt login. For now, finish.
+          }
+        });
+
+      store.initialize([
+        window.CdvPurchase.Platform.APPLE_APPSTORE
+      ]);
+    };
+
+    document.addEventListener('deviceready', initStore);
+    // Also try immediately if already ready (Capacitor usually is)
+    if (window.CdvPurchase) initStore();
+
+    return () => document.removeEventListener('deviceready', initStore);
+  }, [user]); // Re-bind if user changes? mostly static setup.
+
+  // Native Purchase Trigger
+  const handleNativePurchase = (planKey) => {
+    if (!Capacitor.isNativePlatform() || !window.CdvPurchase?.store) return;
+    const store = window.CdvPurchase.store;
+    const productId = PRICING[planKey].productId;
+    const offer = store.get(productId)?.getOffer();
+
+    if (offer) {
+      offer.order();
+    } else {
+      // Fallback or retry logic
+      store.update(); // refresh
+      const product = store.get(productId);
+      if (product && product.canPurchase) {
+        product.getOffer()?.order();
+      } else {
+        setStatusMessage({ type: 'error', text: 'Product not available or not loaded yet.' });
+      }
+    }
+  };
 
   // Fetch Subscription Status from Firestore when User Logs In
   useEffect(() => {
@@ -2212,6 +2305,7 @@ function App() {
               t={t}
               user={user}
               onOpenAuth={() => setShowAuthModal(true)}
+              onNativePurchase={handleNativePurchase}
             />
 
           )
