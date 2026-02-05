@@ -52,6 +52,19 @@ Si vous avez déployé mais que vous voyez toujours l'ancienne version ou l'anci
 
 ---
 
+## 4. Sécurité Critique : Fichiers d'environnement
+
+**NE JAMAIS COMMITER LE FICHIER `.env` OU DES CLÉS DE SERVICES.**
+
+Le projet utilise un fichier `.env` local pour stocker les clés API (Firebase, Stripe, etc.). Ce fichier est listé dans le `.gitignore` et ne doit jamais apparaître sur GitHub.
+
+### En cas de fuite accidentelle :
+1.  Utilisez `git rm --cached .env` pour arrêter le suivi.
+2.  Purgez l'historique complet avec `git filter-branch` ou `git-filter-repo`.
+3.  **Régénérez immédiatement** toutes les clés compromises dans les consoles Firebase/Google Cloud et Stripe.
+
+---
+
 ## Résumé des Commandes Utiles
 
 | Action | Commande |
@@ -75,3 +88,10 @@ Si vous avez déployé mais que vous voyez toujours l'ancienne version ou l'anci
   - 1 à 4 boutons : Alignés sur une seule ligne.
   - 5 boutons : Disposition en quinconce (3 en haut, 2 centrés en bas).
   - 6+ boutons : Grille structurée de 3 colonnes.
+
+### V1.0.2 (Sécurité & Correction Sociale) - 05/02/2026
+- **vCard Fix :** Les réseaux sociaux sont désormais encodés en `URL` (cliquables) au lieu de `X-SOCIALPROFILE`.
+- **Sécurité :** Nettoyage complet de l'historique Git pour effacer les clés `.env`.
+- **Abonnements :** Nouveau flux de confirmation "Account Required" avant le login.
+- **PWA :** Système d'auto-update toutes les 30 secondes.
+
