@@ -24,3 +24,7 @@ dist-ssr
 *.sw?
 .vercel
 digitalqrcard-8fdb8-*.json
+.env
+.env.local
+.env.*.local
+
