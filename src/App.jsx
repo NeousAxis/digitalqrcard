@@ -84,28 +84,50 @@ const auth = getAuth(app);
 // CRITICAL: Ensure persistence is LOCAL so user ID survives refresh
 setPersistence(auth, browserLocalPersistence).catch(console.error);
 const generateVCard = (card) => {
-  const nameParts = card.name ? card.name.trim().split(/\s+/) : [];
-  const lastName = nameParts.length > 1 ? nameParts.pop() : '';
-  const firstName = nameParts.join(' ') || (card.name || '');
-  const lines = [
+  const parts = (card.name || '').trim().split(/\s+/);
+  const lastName = parts.length > 1 ? parts.pop() : '';
+  const firstName = parts.join(' ') || '';
+
+  const vCardLines = [
     'BEGIN:VCARD',
     'VERSION:3.0',
-    `N:${lastName};${firstName};;; `,
-    `FN:${firstName} ${lastName} `,
-    `ORG:${card.company}; `,
-    `TITLE:${card.title} `,
-    `TEL; TYPE = CELL, VOICE:${card.phone} `,
-    `EMAIL; TYPE = WORK, INTERNET:${card.email} `,
-    `URL:${card.website} `
+    `N:${lastName};${firstName};;;`,
+    `FN:${card.name || ''}`,
+    `ORG:${card.company || ''}`,
+    `TITLE:${card.title || ''}`
   ];
-  if (card.address) {
-    lines.push(`ADR; TYPE = WORK: ;;${card.address};;;; `);
+
+  if (card.phone) vCardLines.push(`TEL;TYPE=CELL:${card.phone}`);
+  if (card.email) vCardLines.push(`EMAIL;TYPE=WORK:${card.email}`);
+  if (card.website) {
+    const ws = card.website.trim();
+    vCardLines.push(`URL:${ws.startsWith('http') ? ws : 'https://' + ws}`);
   }
-  if (card.extraLabel && card.extraValue) {
-    lines.push(`${card.extraLabel.toUpperCase()}:${card.extraValue} `);
+  if (card.address || card.location) {
+    vCardLines.push(`ADR;TYPE=WORK:;;${card.address || card.location};;;;`);
   }
-  lines.push('END:VCARD');
-  return lines.join('\n');
+
+  // Handle custom fields if any
+  if (card.fields && Array.isArray(card.fields)) {
+    card.fields.forEach(f => {
+      const val = (f.value || '').trim();
+      if (!val) return;
+      if (['phone', 'email', 'website', 'location', 'title', 'company'].includes(f.type)) return;
+
+      const socialUrl = buildSocialUrl(f.type, val);
+      if (socialUrl !== val) {
+        // It's a social profile
+        const label = f.type.charAt(0).toUpperCase() + f.type.slice(1);
+        vCardLines.push(`URL;TYPE=${label}:${socialUrl}`);
+      } else {
+        const label = f.label || f.type || 'Info';
+        vCardLines.push(`NOTE:${label.toUpperCase()}: ${val}`);
+      }
+    });
+  }
+
+  vCardLines.push('END:VCARD');
+  return vCardLines.join('\r\n');
 };
 
 const SUBSCRIPTION_LIMITS = {
@@ -526,7 +548,8 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
 
                     if (socialProfiles[f.type]) {
                       const socialUrl = buildSocialUrl(f.type, val);
-                      return `X-SOCIALPROFILE;TYPE=${socialProfiles[f.type]}:${socialUrl}`;
+                      // Use URL with TYPE for best compatibility across iOS/Android
+                      return `URL;TYPE=${socialProfiles[f.type]}:${socialUrl}`;
                     }
 
                     if (val.startsWith('http')) return `URL:${val}`;
@@ -1323,15 +1346,21 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t, user, onOpenAuth, on
     );
   }
 
+  const handleOverlayClick = (e) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="glass-panel pricing-modal animate-fade-in" onClick={e => e.stopPropagation()}>
+    <div className="modal-overlay" onClick={handleOverlayClick}>
+      <div className="glass-panel pricing-modal animate-fade-in">
         <div className="pricing-header">
           <div>
             <h2 className="section-title" style={{ fontSize: '2rem', margin: 0 }}>{t.choosePlan}</h2>
             <p style={{ color: '#94a3b8' }}>{t.moreCards}</p>
           </div>
-          <button onClick={onClose} className="icon-btn"><X size={24} /></button>
+          <button type="button" onClick={onClose} className="icon-btn"><X size={24} /></button>
         </div>
 
         <div className="pricing-grid">
@@ -1347,6 +1376,7 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t, user, onOpenAuth, on
               <li style={{ opacity: 0.5, textDecoration: 'line-through' }}>Company Info</li>
             </ul>
             <button
+              type="button"
               disabled={true}
               className="btn-secondary btn-full"
               style={{ opacity: 0.7, cursor: 'default' }}
@@ -1368,6 +1398,7 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t, user, onOpenAuth, on
               <li>✅ Social Networks (FB, Insta, Linked...)</li>
             </ul>
             <button
+              type="button"
               onClick={() => handlePlanSelection('basic', 'https://buy.stripe.com/test_5kQ5kx2b91Sx1Vicha73G01')}
               disabled={currentPlan === 'basic'}
               className={`btn-full ${currentPlan === 'basic' ? 'btn-secondary' : 'btn-primary'}`}
@@ -1389,6 +1420,7 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t, user, onOpenAuth, on
               <li><strong>✅ Unlimited Custom Fields</strong></li>
             </ul>
             <button
+              type="button"
               onClick={() => handlePlanSelection('pro', 'https://buy.stripe.com/test_cNicMZ7vt8gVgQc4OI73G00')}
               disabled={currentPlan === 'pro'}
               className={`btn-full ${currentPlan === 'pro' ? 'btn-secondary' : 'btn-primary'}`}
@@ -1405,36 +1437,69 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t, user, onOpenAuth, on
 };
 
 
-const AuthModal = ({ onClose, onLoginGoogle }) => {
+const AuthModal = ({ onClose, onLoginGoogle, onLoginSuccess }) => {
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
+    if (loading) return;
+    if (!email || !password || password.length < 6) {
+      setError('Veuillez remplir tous les champs (mot de passe min 6 caractères)');
+      return;
+    }
+    setLoading(true);
     setError(null);
     try {
-      if (isRegister) {
-        await createUserWithEmailAndPassword(auth, email, password);
+      if (Capacitor.isNativePlatform()) {
+        // Use Native Plugin on iOS/Android
+        const cleanEmail = email.trim();
+        let result;
+        if (isRegister) {
+          result = await FirebaseAuthentication.createUserWithEmailAndPassword({ email: cleanEmail, password });
+        } else {
+          result = await FirebaseAuthentication.signInWithEmailAndPassword({ email: cleanEmail, password });
+        }
+        // Manually update App state because JS SDK might miss the event
+        if (result && result.user && onLoginSuccess) {
+          onLoginSuccess(result.user);
+        }
       } else {
-        await signInWithEmailAndPassword(auth, email, password);
+        // Use JS SDK on Web
+        if (isRegister) {
+          await createUserWithEmailAndPassword(auth, email, password);
+        } else {
+          await signInWithEmailAndPassword(auth, email, password);
+        }
       }
-      onClose(); // Auth listener will handle the rest
+      onClose();
     } catch (err) {
-      setError(err.message);
+      console.error("Auth Error:", err);
+      setError(err.message || "Une erreur est survenue");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle overlay click - close modal only if clicking directly on overlay
+  const handleOverlayClick = (e) => {
+    if (e.target === e.currentTarget) {
+      onClose();
     }
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="glass-panel" style={{ maxWidth: '400px', width: '90%', padding: '2rem' }} onClick={e => e.stopPropagation()}>
+    <div className="modal-overlay" onClick={handleOverlayClick}>
+      <div className="glass-panel" style={{ maxWidth: '400px', width: '90%', padding: '2rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
           <h2 className="section-title" style={{ margin: 0 }}>{isRegister ? 'Créer un compte' : 'Connexion'}</h2>
-          <button onClick={onClose} className="icon-btn"><X size={24} /></button>
+          <button type="button" onClick={onClose} className="icon-btn"><X size={24} /></button>
         </div>
 
-        <form onSubmit={handleSubmit} className="form-grid">
+        <div className="form-grid">
           <div className="form-group">
             <label className="field-label">Email</label>
             <input
@@ -1442,7 +1507,7 @@ const AuthModal = ({ onClose, onLoginGoogle }) => {
               className="input-field"
               value={email}
               onChange={e => setEmail(e.target.value)}
-              required
+              autoComplete="email"
             />
           </div>
           <div className="form-group">
@@ -1452,17 +1517,22 @@ const AuthModal = ({ onClose, onLoginGoogle }) => {
               className="input-field"
               value={password}
               onChange={e => setPassword(e.target.value)}
-              required
-              minLength={6}
+              autoComplete="current-password"
             />
           </div>
 
           {error && <div style={{ color: '#ef4444', fontSize: '0.9rem', marginBottom: '1rem' }}>{error}</div>}
 
-          <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
-            {isRegister ? 'S\'inscrire' : 'Se connecter'}
+          <button
+            type="button"
+            className="btn-primary"
+            style={{ width: '100%', justifyContent: 'center', opacity: loading ? 0.7 : 1 }}
+            onClick={handleSubmit}
+            disabled={loading}
+          >
+            {loading ? 'Chargement...' : (isRegister ? 'S\'inscrire' : 'Se connecter')}
           </button>
-        </form>
+        </div>
 
         <div style={{ margin: '1.5rem 0', textAlign: 'center', borderBottom: '1px solid #e2e8f0', lineHeight: '0.1em' }}>
           <span style={{ background: '#fff', padding: '0 10px', color: '#64748b' }}>OU</span>
@@ -1474,9 +1544,9 @@ const AuthModal = ({ onClose, onLoginGoogle }) => {
 
         <div style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '0.9rem' }}>
           {isRegister ? (
-            <p>Déjà un compte ? <span onClick={() => setIsRegister(false)} style={{ color: '#3b82f6', cursor: 'pointer', fontWeight: 'bold' }}>Se connecter</span></p>
+            <p>Déjà un compte ? <button type="button" onClick={() => setIsRegister(false)} style={{ color: '#3b82f6', cursor: 'pointer', fontWeight: 'bold', background: 'none', border: 'none', padding: '10px', fontSize: 'inherit' }}>Se connecter</button></p>
           ) : (
-            <p>Pas de compte ? <span onClick={() => setIsRegister(true)} style={{ color: '#3b82f6', cursor: 'pointer', fontWeight: 'bold' }}>Créer un compte</span></p>
+            <p>Pas de compte ? <button type="button" onClick={() => setIsRegister(true)} style={{ color: '#3b82f6', cursor: 'pointer', fontWeight: 'bold', background: 'none', border: 'none', padding: '10px', fontSize: 'inherit' }}>Créer un compte</button></p>
           )}
         </div>
       </div>
@@ -1614,89 +1684,181 @@ function App() {
   }, []);
 
   // --- IAP LOGIC ---
+  // --- IAP LOGIC ---
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
 
     const initStore = () => {
       if (!window.CdvPurchase?.store) {
-        console.log('Store not available');
+        console.error('Store plugin not available');
         return;
       }
       const store = window.CdvPurchase.store;
 
-      // Register Products
-      store.register([
-        {
-          type: window.CdvPurchase.ProductType.PAID_SUBSCRIPTION,
-          id: 'Standard_898',
-          platform: window.CdvPurchase.Platform.APPLE_APPSTORE,
-        },
-        {
-          type: window.CdvPurchase.ProductType.PAID_SUBSCRIPTION,
-          id: 'Premium_898',
-          platform: window.CdvPurchase.Platform.APPLE_APPSTORE,
-        }
-      ]);
+      // Check if already registered to avoid duplicates (though register is idempotent usually)
+      if (store.get('Standard_898')) {
+        console.log("Store products already registered");
+        // Ensure refresh
+        store.update();
+        return;
+      }
+
+      console.log("Registering Store Products...");
+
+      // Register Products (Short, Long, and Hyphenated IDs)
+      const productsToRegister = [];
+      const plans = ['Standard_898', 'Premium_898'];
+      const bundleId = 'com.cyrilleger.digitalqrcardpro';
+
+      plans.forEach(id => {
+        // Variant 1: short
+        productsToRegister.push({ id: id, type: window.CdvPurchase.ProductType.PAID_SUBSCRIPTION, platform: window.CdvPurchase.Platform.APPLE_APPSTORE });
+        // Variant 2: bundle.id
+        productsToRegister.push({ id: `${bundleId}.${id}`, type: window.CdvPurchase.ProductType.PAID_SUBSCRIPTION, platform: window.CdvPurchase.Platform.APPLE_APPSTORE });
+        // Variant 3: bundle.-id
+        productsToRegister.push({ id: `${bundleId}.-${id}`, type: window.CdvPurchase.ProductType.PAID_SUBSCRIPTION, platform: window.CdvPurchase.Platform.APPLE_APPSTORE });
+        // Variant 4: bundle-id
+        productsToRegister.push({ id: `${bundleId}-${id}`, type: window.CdvPurchase.ProductType.PAID_SUBSCRIPTION, platform: window.CdvPurchase.Platform.APPLE_APPSTORE });
+      });
+
+      store.register(productsToRegister);
 
       // Approval Listener
       store.when()
         .approved(transaction => {
-          // Grant Logic
           const productId = transaction.products[0].id;
           let newPlan = 'free';
-          if (productId === 'Standard_898') newPlan = 'basic';
-          if (productId === 'Premium_898') newPlan = 'pro';
+          if (productId.includes('Standard_898')) newPlan = 'basic';
+          if (productId.includes('Premium_898')) newPlan = 'pro';
 
-          // Update Firestore
-          if (auth.currentUser) {
-            setDoc(doc(db, 'users', auth.currentUser.uid), {
+          console.log(`Approved: ${productId} -> ${newPlan}`);
+
+          const currentUser = auth.currentUser; // Use direct auth reference
+
+          if (currentUser) {
+            setDoc(doc(db, 'users', currentUser.uid), {
               subscription: newPlan,
               updatedAt: new Date().toISOString(),
               iapTransactionId: transaction.transactionId
             }, { merge: true })
               .then(() => {
                 transaction.finish();
-                setSubscription(newPlan);
-                setStatusMessage({ type: 'success', text: `You are now on ${newPlan.toUpperCase()} plan!` });
+                setSubscription(newPlan); // Initial state update
+                setStatusMessage({ type: 'success', text: `Abonnement ${newPlan.toUpperCase()} activé !` });
               })
-              .catch(err => console.error("IAP Save Error", err));
+              .catch(err => {
+                console.error("Firestore Error", err);
+                alert("Erreur de sauvegarde de l'achat. Contactez le support.");
+              });
           } else {
-            transaction.finish(); // Finish anyway to avoid stuck loop? Or wait? 
-            // Better to finish so it doesn't pop up forever, but user missed the update.
-            //Ideally prompt login. For now, finish.
+            // User not logged in but purchase happened? 
+            // Save to local storage temporary
+            localStorage.setItem('pending_subscription', newPlan);
+            transaction.finish();
+            alert("Achat réussi ! Veuillez vous connecter pour l'activer.");
           }
         });
 
       store.initialize([
         window.CdvPurchase.Platform.APPLE_APPSTORE
       ]);
+
+      store.ready(() => {
+        console.log("Store Ready");
+        store.update(); // Refresh prices/validity on ready
+      });
     };
 
     document.addEventListener('deviceready', initStore);
-    // Also try immediately if already ready (Capacitor usually is)
     if (window.CdvPurchase) initStore();
 
     return () => document.removeEventListener('deviceready', initStore);
-  }, [user]); // Re-bind if user changes? mostly static setup.
+  }, []); // Run ONCE on mount, independent of user state
 
   // Native Purchase Trigger
-  const handleNativePurchase = (planKey) => {
-    if (!Capacitor.isNativePlatform() || !window.CdvPurchase?.store) return;
-    const store = window.CdvPurchase.store;
-    const productId = PRICING[planKey].productId;
-    const offer = store.get(productId)?.getOffer();
+  const handleNativePurchase = async (planKey) => {
+    if (!Capacitor.isNativePlatform()) return;
 
-    if (offer) {
-      offer.order();
-    } else {
-      // Fallback or retry logic
-      store.update(); // refresh
-      const product = store.get(productId);
-      if (product && product.canPurchase) {
-        product.getOffer()?.order();
-      } else {
-        setStatusMessage({ type: 'error', text: 'Product not available or not loaded yet.' });
+    if (!window.CdvPurchase?.store) {
+      alert("Erreur: Le service d'achat n'est pas initialisé (CdvPurchase manquant).");
+      return;
+    }
+
+    const store = window.CdvPurchase.store;
+    // Set verbosity for debugging
+    store.verbosity = window.CdvPurchase.LogLevel.DEBUG;
+
+    const baseId = PRICING[planKey].productId;
+    const bundleId = 'com.cyrilleger.digitalqrcardpro';
+
+    // Support all known variants, filtering for uniqueness
+    const possibleIds = [...new Set([
+      baseId,
+      `${bundleId}.${baseId}`,
+      `${bundleId}.-${baseId}`,
+      `${bundleId}-${baseId}`
+    ])];
+
+    setStatusMessage({ type: 'info', text: 'Connexion à l\'App Store...' });
+
+    const findValidProduct = () => {
+      for (const id of possibleIds) {
+        const p = store.get(id);
+        if (p && p.state !== window.CdvPurchase.ProductState.INVALID) return p;
       }
+      return null;
+    };
+
+    // Helper to force refresh
+    const refreshStore = async () => {
+      // Ensure specific registration of these IDs
+      store.register(possibleIds.map(id => ({
+        id,
+        type: window.CdvPurchase.ProductType.PAID_SUBSCRIPTION,
+        platform: window.CdvPurchase.Platform.APPLE_APPSTORE
+      })));
+      store.initialize([window.CdvPurchase.Platform.APPLE_APPSTORE]);
+      await store.update();
+    };
+
+    let product = findValidProduct();
+
+    if (!product || !product.canPurchase) {
+      console.log("Product not ready, attempting forceful refresh...");
+      setStatusMessage({ type: 'info', text: 'Synchronisation...' });
+
+      await refreshStore();
+
+      // Wait a moment for async processing
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      product = findValidProduct();
+    }
+
+    if (product) {
+      if (product.canPurchase) {
+        setStatusMessage({ type: 'info', text: 'Lancement de la transaction...' });
+        try {
+          product.getOffer().order();
+        } catch (e) {
+          alert("Erreur lors de la commande: " + e.message);
+        }
+      } else {
+        alert(`Produit trouvé mais indisponible.\nID: ${product.id}\nEtat: ${product.state}`);
+      }
+    } else {
+      setStatusMessage({ type: 'error', text: 'Produit introuvable.' });
+      const storeState = store.state || 'UNKNOWN';
+      const debugStates = possibleIds.map(id => {
+        const p = store.get(id);
+        const stateStr = p ? (p.state || 'NO_STATE') : 'NOT_REGISTERED';
+        return `${id}: ${stateStr}`;
+      }).join('\n');
+
+      alert(`Erreur IAP: Impossible de trouver le produit (${planKey})\n\n` +
+        `Store State: ${storeState}\n\n` +
+        `Diagnostic:\n${debugStates}\n\n` +
+        `CONSEIL: Vérifiez sur App Store Connect que le contrat 'Paid Apps' est actif et que les produits ne sont pas en 'Missing Metadata'.`);
     }
   };
 
@@ -2040,6 +2202,7 @@ function App() {
         {showAuthModal && !user && (
           <AuthModal
             onClose={() => setShowAuthModal(false)}
+            onLoginSuccess={(u) => setUser(u)}
             onLoginGoogle={() => {
               setShowAuthModal(false);
               handleLogin();
