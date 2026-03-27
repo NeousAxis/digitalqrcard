@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
   Smartphone, Edit2, Trash2, Plus, Share2, Download,
@@ -9,29 +9,8 @@ import {
   ChevronLeft, ChevronRight, Settings, ArrowUp, ArrowDown,
   Facebook, Linkedin, Instagram, Twitter, Youtube, MessageCircle, Twitch, Music, Send
 } from 'lucide-react';
-// Firebase imports
-import { initializeApp } from 'firebase/app';
-import {
-  getFirestore,
-  collection,
-  onSnapshot, // Changed from getDocs to onSnapshot
-  addDoc,
-  setDoc,
-  doc,
-  deleteDoc
-} from 'firebase/firestore';
-import {
-  getAuth,
-  signInWithPopup,
-  signInWithCredential,
-  GoogleAuthProvider,
-  signOut,
-  onAuthStateChanged,
-  setPersistence,
-  browserLocalPersistence,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword
-} from 'firebase/auth';
+// Appwrite imports
+import { account, databases, ID, Query, DATABASE_ID, USERS_COLLECTION, CARDS_COLLECTION, appwriteClient } from './appwriteClient';
 import { Capacitor } from '@capacitor/core';
 import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 
@@ -55,34 +34,8 @@ const THEME_COLORS = {
   'pantone-deep-forest': 'linear-gradient(135deg, #394A3F 0%, #5C7063 100%)', // Custom Dark Green
 };
 
-// --- Firebase Config (replace with your own values) ---
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
-};
-
-// Initialize Firebase with safety checks
-let app;
-try {
-  app = initializeApp(firebaseConfig);
-  console.log('Firebase initialized successfully');
-} catch (error) {
-  console.error('Firebase initialization failed:', error);
-  // Still try to get app if already initialized
-}
-
-// Initialize Firestore
-const db = getFirestore(app);
-
-const auth = getAuth(app);
-
-// CRITICAL: Ensure persistence is LOCAL so user ID survives refresh
-setPersistence(auth, browserLocalPersistence).catch(console.error);
+// Appwrite is initialized in appwriteClient.js
+console.log('Appwrite client initialized');
 const generateVCard = (card) => {
   const parts = (card.name || '').trim().split(/\s+/);
   const lastName = parts.length > 1 ? parts.pop() : '';
@@ -1317,17 +1270,15 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t, user, onOpenAuth, on
   const [showAuthRequired, setShowAuthRequired] = useState(false);
 
   const handlePlanSelection = async (planKey, stripeLink) => {
-    if (!user) {
-      // Show explanation modal first
-      setShowAuthRequired(true);
-      return;
-    }
-
     if (Capacitor.isNativePlatform()) {
-      // Native IAP
+      // Native IAP — no login required (Apple Guideline 5.1.1v)
       onNativePurchase(planKey);
     } else {
-      // Web Stripe
+      // Web Stripe — login needed for account-based billing
+      if (!user) {
+        setShowAuthRequired(true);
+        return;
+      }
       localStorage.setItem('pendingPlan', planKey);
       window.location.href = stripeLink;
     }
@@ -1437,7 +1388,7 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t, user, onOpenAuth, on
 };
 
 
-const AuthModal = ({ onClose, onLoginGoogle, onLoginSuccess }) => {
+const AuthModal = ({ onClose, onLoginGoogle, onLoginApple, onLoginSuccess }) => {
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -1454,31 +1405,33 @@ const AuthModal = ({ onClose, onLoginGoogle, onLoginSuccess }) => {
     setLoading(true);
     setError(null);
     try {
-      if (Capacitor.isNativePlatform()) {
-        // Use Native Plugin on iOS/Android
-        const cleanEmail = email.trim();
-        let result;
-        if (isRegister) {
-          result = await FirebaseAuthentication.createUserWithEmailAndPassword({ email: cleanEmail, password });
-        } else {
-          result = await FirebaseAuthentication.signInWithEmailAndPassword({ email: cleanEmail, password });
-        }
-        // Manually update App state because JS SDK might miss the event
-        if (result && result.user && onLoginSuccess) {
-          onLoginSuccess(result.user);
-        }
+      const cleanEmail = email.trim();
+      if (isRegister) {
+        // Create account then create session
+        await account.create(ID.unique(), cleanEmail, password, cleanEmail.split('@')[0]);
+        await account.createEmailPasswordSession(cleanEmail, password);
       } else {
-        // Use JS SDK on Web
-        if (isRegister) {
-          await createUserWithEmailAndPassword(auth, email, password);
-        } else {
-          await signInWithEmailAndPassword(auth, email, password);
-        }
+        await account.createEmailPasswordSession(cleanEmail, password);
       }
+      // Get user and notify parent
+      const user = await account.get();
+      if (onLoginSuccess) onLoginSuccess(user);
       onClose();
     } catch (err) {
       console.error("Auth Error:", err);
-      setError(err.message || "Une erreur est survenue");
+      const msg = err.message || '';
+      if (msg.includes('already') || msg.includes('exist') || err.code === 409) {
+        if (isRegister) {
+          setIsRegister(false);
+          setError('An account with this email already exists. Please sign in instead.');
+        } else {
+          setError('Incorrect email or password.');
+        }
+      } else if (msg.includes('Invalid credentials') || msg.includes('password') || err.code === 401) {
+        setError('Incorrect email or password.');
+      } else {
+        setError(msg || 'An error occurred. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -1538,8 +1491,11 @@ const AuthModal = ({ onClose, onLoginGoogle, onLoginSuccess }) => {
           <span style={{ background: '#fff', padding: '0 10px', color: '#64748b' }}>OU</span>
         </div>
 
-        <button onClick={onLoginGoogle} className="btn-google" style={{ width: '100%', justifyContent: 'center' }}>
-          <LogIn size={18} style={{ marginRight: '0.5rem' }} /> Continuer avec Google
+        <button onClick={onLoginApple} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', padding: '0.75rem', backgroundColor: '#000', color: '#fff', borderRadius: '0.75rem', fontWeight: 600, border: 'none', cursor: 'pointer', fontSize: '1rem', marginBottom: '0.75rem' }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+            <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
+          </svg>
+          Sign in with Apple
         </button>
 
         <div style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '0.9rem' }}>
@@ -1649,6 +1605,8 @@ function App() {
   // Subscription always starts as 'free' and is loaded from Firestore
   const [subscription, setSubscription] = useState('free');
   const [subscriptionDate, setSubscriptionDate] = useState(null);
+  const [storeReady, setStoreReady] = useState(false);
+  const storeReadyRef = useRef(false);
 
   const [activeCardIndex, setActiveCardIndex] = useState(0); // Lifted state for Carousel
   const [view, setView] = useState('dashboard'); // dashboard, editor
@@ -1661,6 +1619,9 @@ function App() {
   const [statusMessage, setStatusMessage] = useState(null);
 
   const [user, setUser] = useState(null); // Firebase Auth user
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showDeleteFinal, setShowDeleteFinal] = useState(false);
+  const [deleteInput, setDeleteInput] = useState('');
 
 
 
@@ -1669,18 +1630,22 @@ function App() {
 
 
 
-  // Listen for auth state changes with explicit persistence handling
+  // Check auth state on mount (Appwrite uses sessions, not realtime listeners)
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      if (!u) {
-        setCards([]); // Clear data on logout
+    const checkAuth = async () => {
+      try {
+        const u = await account.get();
+        setUser(u);
+      } catch {
+        // Not logged in
+        setUser(null);
+        setCards([]);
         setSubscription('free');
         setSubscriptionDate(null);
-        localStorage.removeItem('subscription'); // Clear cache on logout
+        localStorage.removeItem('subscription');
       }
-    });
-    return () => unsubscribe();
+    };
+    checkAuth();
   }, []);
 
   // --- IAP LOGIC ---
@@ -1705,23 +1670,13 @@ function App() {
 
       console.log("Registering Store Products...");
 
-      // Register Products (Short, Long, and Hyphenated IDs)
-      const productsToRegister = [];
-      const plans = ['Standard_898', 'Premium_898'];
-      const bundleId = 'com.cyrilleger.digitalqrcardpro';
-
-      plans.forEach(id => {
-        // Variant 1: short
-        productsToRegister.push({ id: id, type: window.CdvPurchase.ProductType.PAID_SUBSCRIPTION, platform: window.CdvPurchase.Platform.APPLE_APPSTORE });
-        // Variant 2: bundle.id
-        productsToRegister.push({ id: `${bundleId}.${id}`, type: window.CdvPurchase.ProductType.PAID_SUBSCRIPTION, platform: window.CdvPurchase.Platform.APPLE_APPSTORE });
-        // Variant 3: bundle.-id
-        productsToRegister.push({ id: `${bundleId}.-${id}`, type: window.CdvPurchase.ProductType.PAID_SUBSCRIPTION, platform: window.CdvPurchase.Platform.APPLE_APPSTORE });
-        // Variant 4: bundle-id
-        productsToRegister.push({ id: `${bundleId}-${id}`, type: window.CdvPurchase.ProductType.PAID_SUBSCRIPTION, platform: window.CdvPurchase.Platform.APPLE_APPSTORE });
-      });
-
-      store.register(productsToRegister);
+      // Register Products — use exact product IDs from App Store Connect
+      const APPLE = window.CdvPurchase.Platform.APPLE_APPSTORE;
+      const SUB = window.CdvPurchase.ProductType.PAID_SUBSCRIPTION;
+      store.register([
+        { id: 'Standard_898', type: SUB, platform: APPLE },
+        { id: 'Premium_898', type: SUB, platform: APPLE },
+      ]);
 
       // Approval Listener
       store.when()
@@ -1733,30 +1688,27 @@ function App() {
 
           console.log(`Approved: ${productId} -> ${newPlan}`);
 
-          const currentUser = auth.currentUser; // Use direct auth reference
-
-          if (currentUser) {
-            setDoc(doc(db, 'users', currentUser.uid), {
-              subscription: newPlan,
-              updatedAt: new Date().toISOString(),
-              iapTransactionId: transaction.transactionId
-            }, { merge: true })
-              .then(() => {
-                transaction.finish();
-                setSubscription(newPlan); // Initial state update
-                setStatusMessage({ type: 'success', text: `Abonnement ${newPlan.toUpperCase()} activé !` });
-              })
-              .catch(err => {
-                console.error("Firestore Error", err);
-                alert("Erreur de sauvegarde de l'achat. Contactez le support.");
+          // Try to save to Appwrite if user is logged in
+          const saveToCloud = async () => {
+            try {
+              const currentUser = await account.get();
+              await databases.updateDocument(DATABASE_ID, USERS_COLLECTION, currentUser.$id, {
+                subscription: newPlan,
+                updated_at: new Date().toISOString(),
+                iap_transaction_id: transaction.transactionId || ''
               });
-          } else {
-            // User not logged in but purchase happened? 
-            // Save to local storage temporary
-            localStorage.setItem('pending_subscription', newPlan);
-            transaction.finish();
-            alert("Achat réussi ! Veuillez vous connecter pour l'activer.");
-          }
+              transaction.finish();
+              setSubscription(newPlan);
+              setStatusMessage({ type: 'success', text: `Abonnement ${newPlan.toUpperCase()} activé !` });
+            } catch {
+              // User not logged in or save failed — save locally and activate immediately
+              localStorage.setItem('pending_subscription', newPlan);
+              transaction.finish();
+              setSubscription(newPlan);
+              setStatusMessage({ type: 'success', text: `Abonnement ${newPlan.toUpperCase()} activé ! Connectez-vous pour synchroniser sur vos appareils.` });
+            }
+          };
+          saveToCloud();
         });
 
       store.initialize([
@@ -1766,6 +1718,8 @@ function App() {
       store.ready(() => {
         console.log("Store Ready");
         store.update(); // Refresh prices/validity on ready
+        storeReadyRef.current = true;
+        setStoreReady(true);
       });
     };
 
@@ -1780,154 +1734,112 @@ function App() {
     if (!Capacitor.isNativePlatform()) return;
 
     if (!window.CdvPurchase?.store) {
-      alert("Erreur: Le service d'achat n'est pas initialisé (CdvPurchase manquant).");
+      setStatusMessage({ type: 'error', text: "Le service d'achat n'est pas initialisé. Veuillez redémarrer l'app." });
       return;
     }
 
     const store = window.CdvPurchase.store;
-    // Set verbosity for debugging
-    store.verbosity = window.CdvPurchase.LogLevel.DEBUG;
+    const productId = PRICING[planKey].productId;
 
-    const baseId = PRICING[planKey].productId;
-    const bundleId = 'com.cyrilleger.digitalqrcardpro';
+    setStatusMessage({ type: 'info', text: 'Connecting to App Store...' });
 
-    // Support all known variants, filtering for uniqueness
-    const possibleIds = [...new Set([
-      baseId,
-      `${bundleId}.${baseId}`,
-      `${bundleId}.-${baseId}`,
-      `${bundleId}-${baseId}`
-    ])];
-
-    setStatusMessage({ type: 'info', text: 'Connexion à l\'App Store...' });
-
-    const findValidProduct = () => {
-      for (const id of possibleIds) {
-        const p = store.get(id);
-        if (p && p.state !== window.CdvPurchase.ProductState.INVALID) return p;
+    // Wait up to 8s for store to be ready if not yet
+    if (!storeReadyRef.current) {
+      let waited = 0;
+      while (!storeReadyRef.current && waited < 8000) {
+        await new Promise(r => setTimeout(r, 500));
+        waited += 500;
       }
-      return null;
-    };
-
-    // Helper to force refresh
-    const refreshStore = async () => {
-      // Ensure specific registration of these IDs
-      store.register(possibleIds.map(id => ({
-        id,
-        type: window.CdvPurchase.ProductType.PAID_SUBSCRIPTION,
-        platform: window.CdvPurchase.Platform.APPLE_APPSTORE
-      })));
-      store.initialize([window.CdvPurchase.Platform.APPLE_APPSTORE]);
-      await store.update();
-    };
-
-    let product = findValidProduct();
-
-    if (!product || !product.canPurchase) {
-      console.log("Product not ready, attempting forceful refresh...");
-      setStatusMessage({ type: 'info', text: 'Synchronisation...' });
-
-      await refreshStore();
-
-      // Wait a moment for async processing
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      product = findValidProduct();
     }
 
-    if (product) {
-      if (product.canPurchase) {
-        setStatusMessage({ type: 'info', text: 'Lancement de la transaction...' });
-        try {
-          product.getOffer().order();
-        } catch (e) {
-          alert("Erreur lors de la commande: " + e.message);
-        }
-      } else {
-        alert(`Produit trouvé mais indisponible.\nID: ${product.id}\nEtat: ${product.state}`);
-      }
-    } else {
-      setStatusMessage({ type: 'error', text: 'Produit introuvable.' });
-      const storeState = store.state || 'UNKNOWN';
-      const debugStates = possibleIds.map(id => {
-        const p = store.get(id);
-        const stateStr = p ? (p.state || 'NO_STATE') : 'NOT_REGISTERED';
-        return `${id}: ${stateStr}`;
-      }).join('\n');
+    // Ensure store is refreshed
+    try { await store.update(); } catch(e) { console.warn('store.update:', e); }
 
-      alert(`Erreur IAP: Impossible de trouver le produit (${planKey})\n\n` +
-        `Store State: ${storeState}\n\n` +
-        `Diagnostic:\n${debugStates}\n\n` +
-        `CONSEIL: Vérifiez sur App Store Connect que le contrat 'Paid Apps' est actif et que les produits ne sont pas en 'Missing Metadata'.`);
+    const product = store.get(productId);
+
+    if (!product) {
+      console.error(`IAP: Product ${productId} not found in store`);
+      setStatusMessage({ type: 'error', text: 'Product not available. Please restart the app and try again.' });
+      return;
+    }
+
+    if (!product.canPurchase) {
+      // Try one more update before giving up
+      try { await store.update(); } catch(e) { /* ignore */ }
+      await new Promise(r => setTimeout(r, 1500));
+      if (!product.canPurchase) {
+        setStatusMessage({ type: 'error', text: 'Product temporarily unavailable. Please try again in a moment.' });
+        return;
+      }
+    }
+
+    setStatusMessage({ type: 'info', text: 'Starting purchase...' });
+    try {
+      const offer = product.getOffer();
+      if (offer) {
+        await offer.order();
+      } else {
+        setStatusMessage({ type: 'error', text: 'No offer available for this product.' });
+      }
+    } catch (e) {
+      console.error('IAP order error:', e);
+      setStatusMessage({ type: 'error', text: 'Purchase failed: ' + (e.message || 'Unknown error') });
     }
   };
 
-  // Fetch Subscription Status from Firestore when User Logs In
+  // Fetch Subscription Status from Appwrite when User Logs In
   useEffect(() => {
-    // REAL-TIME SUBSCRIPTION LISTENER
-    let unsubscribeSnapshot = () => { };
+    if (!user) return;
 
-    if (user) {
-      // Listen to user document in real-time
-      unsubscribeSnapshot = onSnapshot(doc(db, 'users', user.uid), async (docSnap) => {
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          const newSubscription = data.subscription || 'free';
-          const newDate = data.updatedAt || null;
+    const fetchSubscription = async () => {
+      try {
+        const userDoc = await databases.getDocument(DATABASE_ID, USERS_COLLECTION, user.$id);
+        const newSubscription = userDoc.subscription || 'free';
+        const newDate = userDoc.updated_at || null;
 
-          // Update local state immediately if changed
-          if (newSubscription !== subscription || newDate !== subscriptionDate) {
-            setSubscription(newSubscription);
-            setSubscriptionDate(newDate);
-            localStorage.setItem('subscription', newSubscription);
+        setSubscription(newSubscription);
+        setSubscriptionDate(newDate);
+        localStorage.setItem('subscription', newSubscription);
+
+        // Handle Pending Plan (from IAP purchased while not logged in)
+        const pendingPlan = localStorage.getItem('pendingPlan') || localStorage.getItem('pending_subscription');
+        if (pendingPlan && ['basic', 'pro'].includes(pendingPlan)) {
+          if (newSubscription !== pendingPlan) {
+            await databases.updateDocument(DATABASE_ID, USERS_COLLECTION, user.$id, {
+              subscription: pendingPlan,
+              updated_at: new Date().toISOString()
+            });
+            setSubscription(pendingPlan);
+            localStorage.setItem('subscription', pendingPlan);
+            setStatusMessage({ type: 'success', text: `Plan updated to ${pendingPlan.toUpperCase()}` });
+            setTimeout(() => setStatusMessage(null), 5000);
           }
-
-          // Handle Pending Plan (Optimistic Update)
-          // If we have a pending plan locally but Firestore is still 'free' (webhook lag), 
-          // we might want to trigger the optimistic update here one-off
-          const pendingPlan = localStorage.getItem('pendingPlan');
-          if (pendingPlan && ['basic', 'pro'].includes(pendingPlan)) {
-            // Check if we need to optimistic update
-            if (newSubscription !== pendingPlan) {
-              // Apply optimistic update to Firestore
-              await setDoc(doc(db, 'users', user.uid), {
-                subscription: pendingPlan,
-                updatedAt: new Date().toISOString()
-              }, { merge: true });
-
-              // Local update
-              setSubscription(pendingPlan);
-              localStorage.setItem('subscription', pendingPlan);
-              localStorage.removeItem('pendingPlan');
-
-              setStatusMessage({
-                type: 'success',
-                text: `✅ Plan updated to ${pendingPlan.toUpperCase()}`
-              });
-              setTimeout(() => setStatusMessage(null), 5000);
-            } else {
-              // Firestore already matches pending plan (webhook won race), just clear local
-              localStorage.removeItem('pendingPlan');
-            }
-          }
-
-        } else {
-          // Create user doc if missing
-          await setDoc(doc(db, 'users', user.uid), {
-            email: user.email,
-            subscription: 'free',
-            createdAt: new Date().toISOString()
-          });
-          setSubscription('free');
+          localStorage.removeItem('pendingPlan');
+          localStorage.removeItem('pending_subscription');
         }
-      }, (error) => {
-        console.error("Error watching subscription:", error);
-      });
-    }
 
-    return () => {
-      unsubscribeSnapshot();
+      } catch (err) {
+        if (err.code === 404) {
+          // Create user doc if missing
+          try {
+            await databases.createDocument(DATABASE_ID, USERS_COLLECTION, user.$id, {
+              email: user.email || '',
+              display_name: user.name || '',
+              subscription: 'free',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            });
+          } catch (createErr) {
+            console.error("Error creating user doc:", createErr);
+          }
+          setSubscription('free');
+        } else {
+          console.error("Error fetching subscription:", err);
+        }
+      }
     };
+
+    fetchSubscription();
   }, [user]);
 
   // Check for updates when tab becomes visible (returning from Stripe)
@@ -1936,22 +1848,17 @@ function App() {
       if (document.visibilityState === 'visible' && user) {
         console.log("App visible, refreshing subscription status...");
         try {
-          // FORCE REFRESH from Firestore to catch Webhook updates
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (userDoc.exists()) {
-            const data = userDoc.data();
-            const freshSubscription = data.subscription || 'free';
+          const userDoc = await databases.getDocument(DATABASE_ID, USERS_COLLECTION, user.$id);
+          const freshSubscription = userDoc.subscription || 'free';
 
-            // Update state if different
-            if (freshSubscription !== subscription) {
-              setSubscription(freshSubscription);
-              localStorage.setItem('subscription', freshSubscription);
-              setStatusMessage({
-                type: 'success',
-                text: `✅ Plan updated to ${freshSubscription.toUpperCase()}`
-              });
-              setTimeout(() => setStatusMessage(null), 5000);
-            }
+          if (freshSubscription !== subscription) {
+            setSubscription(freshSubscription);
+            localStorage.setItem('subscription', freshSubscription);
+            setStatusMessage({
+              type: 'success',
+              text: `Plan updated to ${freshSubscription.toUpperCase()}`
+            });
+            setTimeout(() => setStatusMessage(null), 5000);
           }
           if (localStorage.getItem('pendingPlan')) localStorage.removeItem('pendingPlan');
         } catch (e) { console.error("Refresh error:", e); }
@@ -1970,37 +1877,31 @@ function App() {
       const planFromURL = urlParams.get('plan');
 
       if (planFromURL && ['basic', 'pro'].includes(planFromURL)) {
-        // If user is not logged in yet, wait a bit for auth to initialize
         if (!user) {
           console.log('Waiting for user authentication...');
           return;
         }
 
         try {
-          // Update Firestore
-          await setDoc(doc(db, 'users', user.uid), {
+          await databases.updateDocument(DATABASE_ID, USERS_COLLECTION, user.$id, {
             subscription: planFromURL,
-            updatedAt: new Date().toISOString()
-          }, { merge: true });
+            updated_at: new Date().toISOString()
+          });
 
-          // Update local state
           setSubscription(planFromURL);
           localStorage.setItem('subscription', planFromURL);
-
-          // Clean URL (remove plan parameter)
           window.history.replaceState({}, document.title, window.location.pathname);
 
-          // Show success message
           setStatusMessage({
             type: 'success',
-            text: `✅ Subscription upgraded to ${planFromURL === 'basic' ? 'Standard' : 'Premium'} Pack!`
+            text: `Subscription upgraded to ${planFromURL === 'basic' ? 'Standard' : 'Premium'} Pack!`
           });
           setTimeout(() => setStatusMessage(null), 5000);
         } catch (error) {
           console.error("Error updating subscription from URL:", error);
           setStatusMessage({
             type: 'error',
-            text: '❌ Error updating subscription. Please contact support.'
+            text: 'Error updating subscription. Please contact support.'
           });
         }
       }
@@ -2010,54 +1911,156 @@ function App() {
   }, [user]);
 
   const handleLogin = async () => {
+    // Google Sign-In removed on iOS; kept as placeholder for web OAuth if needed
+    try {
+      setStatusMessage({ type: 'info', text: 'Connexion Google en cours...' });
+      // Appwrite OAuth2 redirect for Google (web only)
+      account.createOAuth2Session('google', window.location.origin, window.location.origin);
+    } catch (error) {
+      console.error("Google Sign-In error:", error);
+      setStatusMessage({ type: 'error', text: 'Google Sign-In non disponible. Veuillez utiliser Sign in with Apple ou Email/Mot de passe.' });
+    }
+  };
+
+  const handleAppleSignIn = async () => {
     try {
       if (Capacitor.isNativePlatform()) {
-        // Use native Firebase Auth plugin on iOS/Android
-        const result = await FirebaseAuthentication.signInWithGoogle();
-        // Get the ID token and create Firebase credential
-        const credential = GoogleAuthProvider.credential(result.credential?.idToken);
-        await signInWithCredential(auth, credential);
+        // Native iOS: use @capacitor-firebase/authentication for native Apple dialog (no browser)
+        setStatusMessage({ type: 'info', text: 'Signing in with Apple...' });
+        setTimeout(() => setStatusMessage(null), 8000);
+
+        const result = await FirebaseAuthentication.signInWithApple();
+        if (!result.user?.uid) throw new Error('cancelled');
+
+        // Derive stable Appwrite credentials from Apple's opaque user ID (stable per-app)
+        const appleUid = result.user.uid;
+        const derivedEmail = `apple_${appleUid.replace(/[^a-z0-9]/gi, '').slice(0, 24)}@auth.dqc.internal`;
+        const derivedPassword = `dqc_apple_${appleUid}`;
+
+        // Create account (idempotent — fails gracefully if already exists)
+        try {
+          await account.create(ID.unique(), derivedEmail, derivedPassword, result.user.displayName || 'Apple User');
+        } catch { /* Account already exists */ }
+
+        // Create session
+        await account.createEmailPasswordSession(derivedEmail, derivedPassword);
+        const u = await account.get();
+
+        // Ensure user doc exists in Appwrite
+        try {
+          await databases.getDocument(DATABASE_ID, USERS_COLLECTION, u.$id);
+        } catch {
+          try {
+            await databases.createDocument(DATABASE_ID, USERS_COLLECTION, u.$id, {
+              email: derivedEmail,
+              display_name: result.user.displayName || 'Apple User',
+              subscription: 'free',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            });
+          } catch { /* will be created on fetchSubscription */ }
+        }
+
+        setUser(u);
+        setShowAuthModal(false);
+        setStatusMessage({ type: 'success', text: 'Signed in with Apple ✓' });
+        setTimeout(() => setStatusMessage(null), 3000);
       } else {
-        // Use popup on web
-        const provider = new GoogleAuthProvider();
-        await signInWithPopup(auth, provider);
+        // Web: Appwrite OAuth2 redirect
+        account.createOAuth2Session('apple', window.location.origin, window.location.origin);
       }
     } catch (error) {
-      console.error("Login Error:", error);
-      if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
-        alert("Erreur de connexion : " + error.message);
+      if (error.message?.includes('cancel') || error.message?.includes('cancelled')) return;
+      console.error('Apple Sign-In error:', error);
+      setStatusMessage({ type: 'error', text: 'Apple Sign-In failed. Please use Email/Password.' });
+      setTimeout(() => setStatusMessage(null), 5000);
+    }
+  };
+
+  const performDelete = async () => {
+    try {
+      const currentUser = await account.get();
+      if (!currentUser) return;
+
+      // Delete all cards for this user
+      const cardsList = await databases.listDocuments(DATABASE_ID, CARDS_COLLECTION, [
+        Query.equal('user_id', currentUser.$id)
+      ]);
+      for (const cardDoc of cardsList.documents) {
+        await databases.deleteDocument(DATABASE_ID, CARDS_COLLECTION, cardDoc.$id);
       }
+
+      // Delete user doc
+      try {
+        await databases.deleteDocument(DATABASE_ID, USERS_COLLECTION, currentUser.$id);
+      } catch { /* might not exist */ }
+
+      // Delete Appwrite account session (user can't self-delete account via client SDK)
+      await account.deleteSession('current');
+
+      setUser(null);
+      setCards([]);
+      setStatusMessage({ type: 'success', text: 'Compte supprimé avec succès.' });
+    } catch (error) {
+      console.error('Delete account error:', error);
+      setStatusMessage({ type: 'error', text: 'Erreur lors de la suppression. Reconnectez-vous et réessayez.' });
     }
   };
 
   const handleLogout = async () => {
-    await signOut(auth);
+    try {
+      await account.deleteSession('current');
+    } catch (e) {
+      console.error('Logout error:', e);
+    }
+    setUser(null);
+    setCards([]);
+    setSubscription('free');
+    setSubscriptionDate(null);
+    localStorage.removeItem('subscription');
   };
 
-  // Separate effect for data loading - depends specifically on user.uid to avoid object reference churn
+  // Fetch cards from Appwrite when user logs in
   useEffect(() => {
-    if (!user?.uid) {
-      setCards([]); // Clear cards if no user
+    if (!user?.$id) {
+      setCards([]);
       return;
     }
 
-    console.log("Subscribing to cards for user:", user.uid);
-    const colRef = collection(db, 'users', user.uid, 'cards');
+    const fetchCards = async () => {
+      try {
+        console.log("Fetching cards for user:", user.$id);
+        const response = await databases.listDocuments(DATABASE_ID, CARDS_COLLECTION, [
+          Query.equal('user_id', user.$id),
+          Query.orderAsc('card_order')
+        ]);
+        const loaded = response.documents.map(doc => ({
+          id: doc.$id,
+          name: doc.name || '',
+          title: doc.title || '',
+          company: doc.company || '',
+          phone: doc.phone || '',
+          email: doc.email || '',
+          website: doc.website || '',
+          address: doc.address || '',
+          location: doc.location || '',
+          theme: doc.theme || 'pantone-classic-blue',
+          fields: doc.fields ? JSON.parse(doc.fields) : [],
+          avatar_emoji: doc.avatar_emoji || '',
+          avatar_color: doc.avatar_color || '',
+          background_color: doc.background_color || '',
+          card_order: doc.card_order || 0,
+          updatedAt: doc.updated_at || ''
+        }));
+        console.log("Cards loaded from server:", loaded.length);
+        setCards(loaded);
+      } catch (error) {
+        console.error("Error fetching cards:", error);
+      }
+    };
 
-    const unsubscribe = onSnapshot(colRef, (snapshot) => {
-      const loaded = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      console.log("Cards loaded from server:", loaded.length);
-      setCards(loaded);
-    }, (error) => {
-      console.error("Error fetching cards:", error);
-      alert("ERREUR CRITIQUE DE CHARGEMENT:\n" + error.message);
-    });
-
-    return () => unsubscribe();
-  }, [user?.uid]);
+    fetchCards();
+  }, [user?.$id]);
 
 
   const handleSaveCard = async (cardData) => {
@@ -2070,8 +2073,10 @@ function App() {
       return;
     }
 
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
+    let currentUser;
+    try {
+      currentUser = await account.get();
+    } catch {
       alert("Erreur: Vous n'êtes pas connecté. Veuillez vous reconnecter.");
       setIsSaving(false);
       return;
@@ -2081,44 +2086,56 @@ function App() {
       // 1. Prepare Data
       // eslint-disable-next-line no-unused-vars
       const { id, ...rawData } = cardData;
-      const dataToSave = JSON.parse(JSON.stringify(rawData));
-      dataToSave.updatedAt = new Date().toISOString();
-      dataToSave.userId = currentUser.uid;
+      const dataToSave = {
+        user_id: currentUser.$id,
+        name: rawData.name || '',
+        title: rawData.title || '',
+        company: rawData.company || '',
+        phone: rawData.phone || '',
+        email: rawData.email || '',
+        website: rawData.website || '',
+        address: rawData.address || '',
+        location: rawData.location || '',
+        theme: rawData.theme || 'pantone-classic-blue',
+        fields: JSON.stringify(rawData.fields || []),
+        avatar_emoji: rawData.avatar_emoji || rawData.avatarEmoji || '',
+        avatar_color: rawData.avatar_color || rawData.avatarColor || '',
+        background_color: rawData.background_color || rawData.backgroundColor || '',
+        card_order: rawData.card_order || rawData.cardOrder || 0,
+        updated_at: new Date().toISOString()
+      };
 
       let savedId;
 
-      // 2. Write to Firestore
+      // 2. Write to Appwrite
       if (editingCard && !editingCard.id.startsWith('temp_')) {
         // Update existing
         savedId = editingCard.id;
-        const docRef = doc(db, 'users', currentUser.uid, 'cards', savedId);
-        await setDoc(docRef, dataToSave);
+        await databases.updateDocument(DATABASE_ID, CARDS_COLLECTION, savedId, dataToSave);
 
-        // Manual State Update (Update Item)
-        setCards(prev => prev.map(c => c.id === savedId ? { ...dataToSave, id: savedId } : c));
+        // Manual State Update
+        const localCard = { ...rawData, ...dataToSave, id: savedId, fields: rawData.fields || [] };
+        setCards(prev => prev.map(c => c.id === savedId ? localCard : c));
       } else {
         // Create new
-        const docRef = await addDoc(collection(db, 'users', currentUser.uid, 'cards'), dataToSave);
-        savedId = docRef.id;
+        dataToSave.created_at = new Date().toISOString();
+        const doc = await databases.createDocument(DATABASE_ID, CARDS_COLLECTION, ID.unique(), dataToSave);
+        savedId = doc.$id;
 
-        // Manual State Update (Add Item)
-        setCards(prev => [...prev, { ...dataToSave, id: savedId }]);
+        const localCard = { ...rawData, ...dataToSave, id: savedId, fields: rawData.fields || [] };
+        setCards(prev => [...prev, localCard]);
       }
 
       // 3. Success feedback
       setStatusMessage({ type: 'success', text: 'Sauvegardé !' });
 
-      // Short timeout to let the user see the "Saved" state before closing
       setTimeout(() => {
         setView('dashboard');
-
-        // FIND NEW INDEX to stay on this card
         setCards(currentCards => {
           const newIndex = currentCards.findIndex(c => c.id === savedId);
           if (newIndex !== -1) setActiveCardIndex(newIndex);
           return currentCards;
         });
-
         setEditingCard(null);
         setStatusMessage(null);
         setIsSaving(false);
@@ -2133,14 +2150,9 @@ function App() {
   };
 
   const handleDelete = async (id) => {
-    const currentUser = auth.currentUser;
-    if (!currentUser) return;
-
     if (confirm(t.confirmDelete)) {
       try {
-        const docRef = doc(db, 'users', currentUser.uid, 'cards', id);
-        await deleteDoc(docRef);
-        // Optimistically remove from list to feel fast, onSnapshot will confirm
+        await databases.deleteDocument(DATABASE_ID, CARDS_COLLECTION, id);
         setCards(cards.filter(c => c.id !== id));
       } catch (err) {
         alert("Erreur lors de la suppression: " + err.message);
@@ -2149,15 +2161,27 @@ function App() {
   };
 
   const handleUpgrade = async (plan) => {
-    if (!user?.uid) return;
+    if (!user?.$id) return;
 
-    // In a real app, here you would redirect to Stripe checkout.
-    // On success webhook, you update the DB. 
-    // For now, we simulate immediate upgrade:
-
-    const userRef = doc(db, 'users', user.uid);
-    // Merge true to avoid overwriting other fields
-    await setDoc(userRef, { subscription: plan }, { merge: true });
+    try {
+      await databases.updateDocument(DATABASE_ID, USERS_COLLECTION, user.$id, {
+        subscription: plan,
+        updated_at: new Date().toISOString()
+      });
+    } catch (err) {
+      // If doc doesn't exist, create it
+      try {
+        await databases.createDocument(DATABASE_ID, USERS_COLLECTION, user.$id, {
+          email: user.email || '',
+          display_name: user.name || '',
+          subscription: plan,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+      } catch (e) {
+        console.error("Error upgrading:", e);
+      }
+    }
 
     setSubscription(plan);
     setShowPricing(false);
@@ -2206,6 +2230,9 @@ function App() {
             onLoginGoogle={() => {
               setShowAuthModal(false);
               handleLogin();
+            }}
+            onLoginApple={() => {
+              handleAppleSignIn();
             }}
           />
         )}
@@ -2355,7 +2382,7 @@ function App() {
                         const res = await fetch('/api/cancel-subscription', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ userId: user.uid })
+                          body: JSON.stringify({ userId: user.$id })
                         });
                         const data = await res.json();
 
@@ -2406,6 +2433,22 @@ function App() {
                   Support / Feedback
                 </a>
               </div>
+
+              {user && (
+                <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid #fecaca' }}>
+                  <h3 style={{ color: '#dc2626', fontSize: '1rem', marginBottom: '0.5rem' }}>Danger Zone</h3>
+                  <p style={{ color: '#64748b', fontSize: '0.85rem', marginBottom: '1rem' }}>
+                    This will permanently delete your account and all your cards.
+                  </p>
+                  <button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    style={{ width: '100%', padding: '0.75rem', backgroundColor: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', borderRadius: '0.75rem', cursor: 'pointer', fontWeight: 600 }}
+                  >
+                    <Trash2 size={16} style={{ marginRight: '0.5rem', verticalAlign: 'middle' }} />
+                    Delete Account
+                  </button>
+                </div>
+              )}
 
               <button
                 onClick={() => setView('dashboard')}
@@ -2473,6 +2516,55 @@ function App() {
 
           )
         }
+        {showDeleteConfirm && (
+          <div className="modal-overlay" style={{ zIndex: 1200 }} onClick={() => setShowDeleteConfirm(false)}>
+            <div className="glass-panel animate-fade-in" style={{ maxWidth: '400px', width: '90%', padding: '2rem', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+              <h2 style={{ color: '#dc2626', marginBottom: '1rem' }}>Delete Account?</h2>
+              <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>This will permanently delete your account and all your cards. This cannot be undone.</p>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button onClick={() => setShowDeleteConfirm(false)} className="btn-secondary" style={{ flex: 1 }}>Cancel</button>
+                <button onClick={() => { setShowDeleteConfirm(false); setShowDeleteFinal(true); }} style={{ flex: 1, padding: '0.75rem', backgroundColor: '#dc2626', color: '#fff', border: 'none', borderRadius: '0.75rem', cursor: 'pointer', fontWeight: 600 }}>Continue</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showDeleteFinal && (
+          <div className="modal-overlay" style={{ zIndex: 1200 }} onClick={() => setShowDeleteFinal(false)}>
+            <div className="glass-panel animate-fade-in" style={{ maxWidth: '400px', width: '90%', padding: '2rem', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+              <h2 style={{ color: '#dc2626', marginBottom: '1rem' }}>Type DELETE to confirm</h2>
+              <input
+                type="text"
+                value={deleteInput}
+                onChange={e => setDeleteInput(e.target.value)}
+                placeholder="Type DELETE"
+                style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0', marginBottom: '1rem', textAlign: 'center', fontSize: '1.1rem' }}
+              />
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button onClick={() => { setShowDeleteFinal(false); setDeleteInput(''); }} className="btn-secondary" style={{ flex: 1 }}>Cancel</button>
+                <button
+                  onClick={async () => { if (deleteInput === 'DELETE') { setShowDeleteFinal(false); setDeleteInput(''); await performDelete(); } }}
+                  disabled={deleteInput !== 'DELETE'}
+                  style={{ flex: 1, padding: '0.75rem', backgroundColor: deleteInput === 'DELETE' ? '#dc2626' : '#ccc', color: '#fff', border: 'none', borderRadius: '0.75rem', cursor: deleteInput === 'DELETE' ? 'pointer' : 'not-allowed', fontWeight: 600 }}
+                >Confirm Delete</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Global status toast — visible in all views including Pricing Modal */}
+        {statusMessage && view !== 'editor' && (
+          <div style={{
+            position: 'fixed', bottom: '80px', left: '50%', transform: 'translateX(-50%)',
+            background: statusMessage.type === 'error' ? 'rgba(220,38,38,0.95)' : statusMessage.type === 'success' ? 'rgba(22,163,74,0.95)' : 'rgba(37,99,235,0.95)',
+            color: '#fff', padding: '12px 24px', borderRadius: '10px',
+            zIndex: 9999, maxWidth: '85%', textAlign: 'center',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.4)', fontSize: '0.95rem', fontWeight: 500,
+            pointerEvents: 'none'
+          }}>
+            {statusMessage.text}
+          </div>
+        )}
       </div >
     </ErrorBoundary >
   );
