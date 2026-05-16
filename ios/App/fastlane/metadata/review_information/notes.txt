@@ -1,0 +1,15 @@
+Demo Account:
+Email: demo@digitalqrcards.review
+Password: DemoReview2026!
+
+Sign in with the demo account above to access all features.
+You can create, edit, delete, and share QR business cards.
+
+IMPORTANT — IN-APP PURCHASES: This version (1.0) does NOT include any In-App Purchases. The app ships completely free with all features unlocked. There is no purchase flow, no paywall, and no Premium/subscription UI accessible anywhere in the app.
+
+REVIEW STEPS:
+1. Open the app and tap Sign In.
+2. Enter the demo credentials above and tap Sign In.
+3. Tap + to create a new digital card, fill in the contact info and tap Save.
+4. Open a card and tap Share to display its QR code.
+5. Sign in with Apple uses the native iOS dialog (no browser).

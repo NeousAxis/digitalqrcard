@@ -40,8 +40,8 @@ Le fichier `ios/capacitor-cordova-ios-plugins/sources/CordovaPluginPurchase/File
 - **Team ID**: BXB662X8PV
 - **API Key ID**: 8QAFD5C266
 - **Fastlane**: `ios/App/fastlane/Fastfile` (lanes: release, metadata, submit)
-- **Build actuel**: 1.0 (59)
-- **Status**: WAITING_FOR_REVIEW (7eme soumission)
+- **Build actuel**: 1.0 (62) — v1.0 SANS IAP
+- **Status**: Build 62 uploade, resoumission en cours (8eme soumission)
 
 ### Historique des rejets et corrections
 1. **12 mars 2026** — Rejet initial
@@ -162,6 +162,49 @@ Le fichier `ios/capacitor-cordova-ios-plugins/sources/CordovaPluginPurchase/File
 - `store.ready()` callback met `storeReadyRef.current = true`
 - `handleNativePurchase` attend jusqu'a 8s que `storeReadyRef.current` soit vrai
 - Ajoute retry sur `product.canPurchase` avant d'abandonner
+
+### Corrections appliquees — Build 62 (16 mai 2026)
+
+**Strategie** : Shipper la v1.0 SANS abonnements IAP (modele valide sur Wise Weather App).
+Apple bloquait l'entree avec les abonnements configures. Les abos reviendront en V2.
+
+#### Fix 1: Feature flag `IAP_ENABLED` (src/App.jsx)
+- Ajout de `const IAP_ENABLED = false;` juste apres l'objet `PRICING`
+- `const effectivePlan = IAP_ENABLED ? subscription : 'pro'` → tous les utilisateurs ont
+  l'acces complet (5 cartes, photo/logo, reseaux, infos entreprise), aucun paywall
+- Tout le code IAP est **GATE, jamais supprime** : `PricingModal`, `PRICING`, useEffect
+  StoreKit, `handleNativePurchase`, bouton Upgrade, badge plan, sync `pendingPlan`
+- 12 points gates — un seul `IAP_ENABLED = true` reactive 100% des abonnements
+- Sauvegardes V2 : branche git `v2-iap-full` + dossier `../\_IAP_V2_BACKUP/` + `IAP_BACKUP.md`
+
+#### Fix 2: Abonnements retires d'App Store Connect
+- Abonnements `Standard_898` + `Premium_898` + groupe `Abonnement DigitalQrCard` supprimes
+- Recreation V2 entierement documentee dans `IAP_BACKUP.md` (racine du repo)
+
+#### Fix 3: Locale primaire corrigee
+- La locale primaire ASC etait `en-GB`, avec URLs privacy/support pointant par erreur vers
+  `wise-weather-app.web.app` (mauvais projet) → rejet garanti
+- Locale primaire basculee sur `en-US` ; locale `en-GB` supprimee
+
+#### Fix 4: Pages privacy/support
+- `public/privacy.html` + `public/support.html` nettoyees (zero mention IAP/abonnement,
+  Firebase→Appwrite corrige)
+- Deployees sur https://www.digitalqrcard.xyz via `vercel --prod` (liaison Git→Vercel HS)
+- URLs ASC (privacy + support, en-US + fr-FR) repointees sur `digitalqrcard.xyz`
+
+#### Fix 5: Reviewer notes ASC
+- Notes reecrites : compte demo `demo@digitalqrcards.review` / `DemoReview2026!`
+- Mention explicite : "This version (1.0) does NOT include any In-App Purchases"
+
+#### Notes infra (pieges rencontres)
+- **Appwrite free tier se met EN PAUSE apres inactivite** → restaurer le projet sur
+  cloud.appwrite.io avant toute soumission/review Apple, sinon l'app est cassee
+- `src/appwriteClient.js` n'etait pas commite → build Vercel casse ; desormais tracke
+- Liaison GitHub→Vercel morte → deployer via `npx vercel --prod` (cf. DEPLOYMENT_GUIDE.md)
+- Plugin `cordova-plugin-purchase` 13.13.1 : plus de `FileUtility.h`, le fix d'import
+  `Foundation.h` apres `cap sync` est OBSOLETE
+- ⚠️ Ne PAS lancer `/simplify` sur le code IAP gate : il est volontairement "inactif"
+  mais doit etre conserve pour la V2
 
 ### Problemes connus
 - `.env` contient des liens Stripe en mode TEST (`buy.stripe.com/test_*`) — masques sur iOS

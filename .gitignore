@@ -27,4 +27,14 @@ digitalqrcard-8fdb8-*.json
 .env
 .env.local
 .env.*.local
+.env.supabase
+
+# Secrets / never commit
+GoogleService-Info.plist
+*.p8
+*.p12
+
+# Local tooling / caches
+.claude/
+.firebase/
 

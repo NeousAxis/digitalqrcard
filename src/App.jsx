@@ -286,6 +286,10 @@ const PRICING = {
   pro: { price: '4 CHF', limit: 5, key: 'premiumPack', productId: 'Premium_898' }
 };
 
+// FEATURE FLAG — set to true to re-enable in-app purchases (V2).
+// v1.0 ships without paid offers: no IAP UI, no StoreKit init, all features unlocked.
+const IAP_ENABLED = false;
+
 // --- BRAND ICONS (Custom SVGs) ---
 const BrandIcon = ({ path, size = 20 }) => (
   <svg
@@ -823,7 +827,7 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage, subscripti
 
         {/* Locked Feature: Image Upload */}
         <div className="form-group" style={{ textAlign: 'center', marginBottom: '1.5rem', position: 'relative' }}>
-          {subscription === 'free' && (
+          {IAP_ENABLED && subscription === 'free' && (
             <div style={{
               position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(2px)', zIndex: 10,
               display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderRadius: '0.5rem'
@@ -844,10 +848,10 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage, subscripti
               alignItems: 'center',
               justifyContent: 'center',
               border: '2px dashed #cbd5e1',
-              cursor: subscription === 'free' ? 'not-allowed' : 'pointer',
+              cursor: IAP_ENABLED && subscription === 'free' ? 'not-allowed' : 'pointer',
               position: 'relative'
             }}
-            onClick={() => subscription !== 'free' && document.getElementById('card-image-input').click()}
+            onClick={() => (!IAP_ENABLED || subscription !== 'free') && document.getElementById('card-image-input').click()}
           >
             {image ? (
               <img src={image} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -1608,6 +1612,9 @@ function App() {
   const [storeReady, setStoreReady] = useState(false);
   const storeReadyRef = useRef(false);
 
+  // When IAP is disabled, every user gets full access (v1.0 ships with no paywall).
+  const effectivePlan = IAP_ENABLED ? subscription : 'pro';
+
   const [activeCardIndex, setActiveCardIndex] = useState(0); // Lifted state for Carousel
   const [view, setView] = useState('dashboard'); // dashboard, editor
   const [editingCard, setEditingCard] = useState(null);
@@ -1651,6 +1658,7 @@ function App() {
   // --- IAP LOGIC ---
   // --- IAP LOGIC ---
   useEffect(() => {
+    if (!IAP_ENABLED) return;
     if (!Capacitor.isNativePlatform()) return;
 
     const initStore = () => {
@@ -1678,15 +1686,20 @@ function App() {
         { id: 'Premium_898', type: SUB, platform: APPLE },
       ]);
 
-      // Approval Listener
+      // Purchase flow: approved → verify → verified → finish (v13 required flow)
       store.when()
         .approved(transaction => {
-          const productId = transaction.products[0].id;
+          console.log('[IAP] Transaction approved, verifying receipt...');
+          transaction.verify();
+        })
+        .verified(receipt => {
+          const transaction = receipt.sourceReceipt?.transactions?.[0];
+          const productId = transaction?.products?.[0]?.id || '';
           let newPlan = 'free';
           if (productId.includes('Standard_898')) newPlan = 'basic';
           if (productId.includes('Premium_898')) newPlan = 'pro';
 
-          console.log(`Approved: ${productId} -> ${newPlan}`);
+          console.log(`[IAP] Verified: ${productId} -> ${newPlan}`);
 
           // Try to save to Appwrite if user is logged in
           const saveToCloud = async () => {
@@ -1695,25 +1708,33 @@ function App() {
               await databases.updateDocument(DATABASE_ID, USERS_COLLECTION, currentUser.$id, {
                 subscription: newPlan,
                 updated_at: new Date().toISOString(),
-                iap_transaction_id: transaction.transactionId || ''
+                iap_transaction_id: transaction?.transactionId || ''
               });
-              transaction.finish();
+              receipt.finish();
               setSubscription(newPlan);
               setStatusMessage({ type: 'success', text: `Abonnement ${newPlan.toUpperCase()} activé !` });
             } catch {
               // User not logged in or save failed — save locally and activate immediately
               localStorage.setItem('pending_subscription', newPlan);
-              transaction.finish();
+              receipt.finish();
               setSubscription(newPlan);
               setStatusMessage({ type: 'success', text: `Abonnement ${newPlan.toUpperCase()} activé ! Connectez-vous pour synchroniser sur vos appareils.` });
             }
           };
           saveToCloud();
+        })
+        .unverified(receipt => {
+          console.error('[IAP] Receipt unverified:', receipt);
         });
 
-      store.initialize([
-        window.CdvPurchase.Platform.APPLE_APPSTORE
-      ]);
+      store.error((err) => {
+        console.error('[IAP] Store error:', err.code, err.message);
+      });
+
+      store.initialize([{
+        platform: window.CdvPurchase.Platform.APPLE_APPSTORE,
+        options: { needAppReceipt: true },
+      }]);
 
       store.ready(() => {
         console.log("Store Ready");
@@ -1731,6 +1752,7 @@ function App() {
 
   // Native Purchase Trigger
   const handleNativePurchase = async (planKey) => {
+    if (!IAP_ENABLED) return;
     if (!Capacitor.isNativePlatform()) return;
 
     if (!window.CdvPurchase?.store) {
@@ -1803,7 +1825,7 @@ function App() {
 
         // Handle Pending Plan (from IAP purchased while not logged in)
         const pendingPlan = localStorage.getItem('pendingPlan') || localStorage.getItem('pending_subscription');
-        if (pendingPlan && ['basic', 'pro'].includes(pendingPlan)) {
+        if (IAP_ENABLED && pendingPlan && ['basic', 'pro'].includes(pendingPlan)) {
           if (newSubscription !== pendingPlan) {
             await databases.updateDocument(DATABASE_ID, USERS_COLLECTION, user.$id, {
               subscription: pendingPlan,
@@ -1925,25 +1947,65 @@ function App() {
   const handleAppleSignIn = async () => {
     try {
       if (Capacitor.isNativePlatform()) {
-        // Native iOS: use @capacitor-firebase/authentication for native Apple dialog (no browser)
         setStatusMessage({ type: 'info', text: 'Signing in with Apple...' });
-        setTimeout(() => setStatusMessage(null), 8000);
 
         const result = await FirebaseAuthentication.signInWithApple();
         if (!result.user?.uid) throw new Error('cancelled');
 
-        // Derive stable Appwrite credentials from Apple's opaque user ID (stable per-app)
         const appleUid = result.user.uid;
-        const derivedEmail = `apple_${appleUid.replace(/[^a-z0-9]/gi, '').slice(0, 24)}@auth.dqc.internal`;
+        const slug = appleUid.replace(/[^a-z0-9]/gi, '').slice(0, 24);
         const derivedPassword = `dqc_apple_${appleUid}`;
+        const displayName = result.user.displayName || 'Apple User';
 
-        // Create account (idempotent — fails gracefully if already exists)
+        // Stable deterministic ID based on Apple UID (no ID.unique() — must be idempotent)
+        const stableId = `apple${slug}`.slice(0, 36);
+        // Two email formats: current and legacy (from older builds)
+        const currentEmail = `apple_${slug}@digitalqrcard.app`;
+        const legacyEmail = `apple_${slug}@auth.dqc.internal`;
+
+        // Clear stale session silently
+        try { await account.deleteSession('current'); } catch { /* OK */ }
+
+        // Try to create account — will fail if already exists (expected)
+        let accountCreated = false;
         try {
-          await account.create(ID.unique(), derivedEmail, derivedPassword, result.user.displayName || 'Apple User');
-        } catch { /* Account already exists */ }
+          await account.create(stableId, currentEmail, derivedPassword, displayName);
+          accountCreated = true;
+          console.log('[Apple] Account created:', currentEmail);
+        } catch (e) {
+          console.log('[Apple] Create account result:', e.message || e);
+        }
 
-        // Create session
-        await account.createEmailPasswordSession(derivedEmail, derivedPassword);
+        // Try to sign in — try current email first, then legacy
+        let sessionOk = false;
+        for (const email of [currentEmail, legacyEmail]) {
+          try {
+            await account.createEmailPasswordSession(email, derivedPassword);
+            console.log('[Apple] Session created with:', email);
+            sessionOk = true;
+            break;
+          } catch (e) {
+            console.log('[Apple] Session failed with', email, ':', e.message || e);
+          }
+        }
+
+        if (!sessionOk) {
+          // Last resort: create account with legacy email (in case old builds used it)
+          if (!accountCreated) {
+            try {
+              await account.create(stableId, legacyEmail, derivedPassword, displayName);
+              await account.createEmailPasswordSession(legacyEmail, derivedPassword);
+              sessionOk = true;
+              console.log('[Apple] Created + signed in with legacy email');
+            } catch (e) {
+              console.error('[Apple] All sign-in attempts failed:', e.message || e);
+            }
+          }
+          if (!sessionOk) {
+            throw new Error('Could not create session. Please try Email/Password sign-in.');
+          }
+        }
+
         const u = await account.get();
 
         // Ensure user doc exists in Appwrite
@@ -1952,13 +2014,16 @@ function App() {
         } catch {
           try {
             await databases.createDocument(DATABASE_ID, USERS_COLLECTION, u.$id, {
-              email: derivedEmail,
-              display_name: result.user.displayName || 'Apple User',
+              email: currentEmail,
+              display_name: displayName,
               subscription: 'free',
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
             });
-          } catch { /* will be created on fetchSubscription */ }
+            console.log('[Apple] User doc created');
+          } catch (docErr) {
+            console.warn('[Apple] User doc creation failed:', docErr.message || docErr);
+          }
         }
 
         setUser(u);
@@ -1966,14 +2031,13 @@ function App() {
         setStatusMessage({ type: 'success', text: 'Signed in with Apple ✓' });
         setTimeout(() => setStatusMessage(null), 3000);
       } else {
-        // Web: Appwrite OAuth2 redirect
         account.createOAuth2Session('apple', window.location.origin, window.location.origin);
       }
     } catch (error) {
       if (error.message?.includes('cancel') || error.message?.includes('cancelled')) return;
-      console.error('Apple Sign-In error:', error);
-      setStatusMessage({ type: 'error', text: 'Apple Sign-In failed. Please use Email/Password.' });
-      setTimeout(() => setStatusMessage(null), 5000);
+      console.error('[Apple] Sign-In error:', error);
+      setStatusMessage({ type: 'error', text: 'Apple Sign-In failed: ' + (error.message || 'Unknown error') + '. Please use Email/Password.' });
+      setTimeout(() => setStatusMessage(null), 8000);
     }
   };
 
@@ -2211,9 +2275,11 @@ function App() {
           <div className="header-controls">
             {user && (
               <>
-                <div className="plan-badge-pro">
-                  {subscription === 'pro' ? 'PREMIUM' : (subscription === 'basic' ? 'STANDARD' : 'FREE')}
-                </div>
+                {IAP_ENABLED && (
+                  <div className="plan-badge-pro">
+                    {subscription === 'pro' ? 'PREMIUM' : (subscription === 'basic' ? 'STANDARD' : 'FREE')}
+                  </div>
+                )}
                 <button onClick={handleLogout} className="btn-logout" title="Sign Out">
                   <LogOut size={20} />
                 </button>
@@ -2316,7 +2382,7 @@ function App() {
                       </div>
                     )}
                   />
-                  {cards.length < (subscription === 'pro' ? PRICING.pro.limit : (subscription === 'basic' ? PRICING.basic.limit : 1)) && (
+                  {cards.length < (effectivePlan === 'pro' ? PRICING.pro.limit : (effectivePlan === 'basic' ? PRICING.basic.limit : 1)) && (
                     <div style={{ textAlign: 'center', marginTop: '1.5rem', marginBottom: '1rem' }}>
                       <button
                         onClick={() => {
@@ -2338,6 +2404,7 @@ function App() {
               <h2 className="section-title" style={{ textAlign: 'center', marginBottom: '1.5rem' }}>Settings</h2>
 
               <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: '1rem', padding: '1.5rem', marginBottom: '1rem' }}>
+                {IAP_ENABLED && (<>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                   <span style={{ color: '#94a3b8' }}>Current Plan</span>
                   <span className="plan-badge-pro" style={{ margin: 0 }}>
@@ -2349,8 +2416,9 @@ function App() {
                   <span style={{ color: '#94a3b8' }}>Status</span>
                   <span style={{ color: '#4ade80', fontWeight: 'bold' }}>Active</span>
                 </div>
+                </>)}
 
-                {subscription !== 'free' && (
+                {IAP_ENABLED && subscription !== 'free' && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                     <span style={{ color: '#94a3b8' }}>Renewal Date</span>
                     <span style={{ color: '#1e293b', fontWeight: '500' }}>
@@ -2364,12 +2432,12 @@ function App() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ color: '#94a3b8' }}>Cards Used</span>
                   <span style={{ color: '#1e293b', fontWeight: '500' }}>
-                    {cards.length} / {subscription === 'pro' ? PRICING.pro.limit : (subscription === 'basic' ? PRICING.basic.limit : 1)}
+                    {cards.length} / {effectivePlan === 'pro' ? PRICING.pro.limit : (effectivePlan === 'basic' ? PRICING.basic.limit : 1)}
                   </span>
                 </div>
               </div>
 
-              {subscription !== 'free' && (
+              {IAP_ENABLED && subscription !== 'free' && (
                 <div className="form-group" style={{ textAlign: 'center' }}>
                   <button
                     onClick={async () => {
@@ -2484,6 +2552,7 @@ function App() {
             <span>Cards</span>
           </button>
 
+          {IAP_ENABLED && (
           <button
             className="footer-nav-item highlight"
             onClick={() => setShowPricing(true)}
@@ -2491,6 +2560,7 @@ function App() {
             <Gem size={24} />
             <span>Upgrade</span>
           </button>
+          )}
 
           <button
             className={`footer-nav-item ${view === 'settings' ? 'active' : ''}`}
@@ -2503,7 +2573,7 @@ function App() {
 
         {/* Pricing Modal */}
         {
-          showPricing && (
+          IAP_ENABLED && showPricing && (
             <PricingModal
               currentPlan={subscription}
               onUpgrade={handleUpgrade}

@@ -1,0 +1,8 @@
+ios
+functions
+.claude
+dist
+android
+*.ipa
+*.zip
+*.dSYM
