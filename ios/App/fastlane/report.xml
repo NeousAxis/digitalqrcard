@@ -5,57 +5,57 @@
     
     
       
-      <testcase classname="fastlane.lanes" name="00: default_platform" time="0.00027">
+      <testcase classname="fastlane.lanes" name="00: default_platform" time="0.000235">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="01: app_store_connect_api_key" time="0.00252">
+      <testcase classname="fastlane.lanes" name="01: app_store_connect_api_key" time="0.003384">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="02: update_project_team" time="0.026401">
+      <testcase classname="fastlane.lanes" name="02: update_project_team" time="0.029147">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="03: xcodebuild -showBuildSettings -project &apos;/Users/cyrilleger/DigitalQrCards/digitalqrcard-ios/ios/App/App.xcodeproj&apos; -scheme &apos;App&apos; 2&gt;/dev/null | grep &apos; PRODUCT_BUNDLE_IDENTIFIER =&apos; | head -n 1 | awk -F &apos; = &apos; &apos;{print $2}&apos;" time="10.383306">
+      <testcase classname="fastlane.lanes" name="03: xcodebuild -showBuildSettings -project &apos;/Users/cyrilleger/DigitalQrCards/digitalqrcard-ios/ios/App/App.xcodeproj&apos; -scheme &apos;App&apos; 2&gt;/dev/null | grep &apos; PRODUCT_BUNDLE_IDENTIFIER =&apos; | head -n 1 | awk -F &apos; = &apos; &apos;{print $2}&apos;" time="6.109866">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="04: get_info_plist_value" time="0.001108">
+      <testcase classname="fastlane.lanes" name="04: get_info_plist_value" time="0.001063">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="05: get_certificates" time="1.270169">
+      <testcase classname="fastlane.lanes" name="05: get_certificates" time="1.315029">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="06: get_provisioning_profile" time="1.507782">
+      <testcase classname="fastlane.lanes" name="06: get_provisioning_profile" time="1.653565">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="07: update_info_plist" time="0.002907">
+      <testcase classname="fastlane.lanes" name="07: update_info_plist" time="0.003464">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="08: update_project_provisioning" time="0.00713">
+      <testcase classname="fastlane.lanes" name="08: update_project_provisioning" time="0.007268">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="09: build_app" time="51.33909">
+      <testcase classname="fastlane.lanes" name="09: build_app" time="15.14927">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="10: upload_to_app_store" time="73.498002">
+      <testcase classname="fastlane.lanes" name="10: upload_to_app_store" time="68.556544">
         
       </testcase>
     

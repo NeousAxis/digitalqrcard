@@ -12,7 +12,6 @@ import {
 // Appwrite imports
 import { account, databases, ID, Query, DATABASE_ID, USERS_COLLECTION, CARDS_COLLECTION, appwriteClient } from './appwriteClient';
 import { Capacitor } from '@capacitor/core';
-import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 
 // --- Utils ---
 const THEME_COLORS = {
@@ -1392,7 +1391,7 @@ const PricingModal = ({ currentPlan, onUpgrade, onClose, t, user, onOpenAuth, on
 };
 
 
-const AuthModal = ({ onClose, onLoginGoogle, onLoginApple, onLoginSuccess }) => {
+const AuthModal = ({ onClose, onLoginSuccess }) => {
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -1490,17 +1489,6 @@ const AuthModal = ({ onClose, onLoginGoogle, onLoginApple, onLoginSuccess }) => 
             {loading ? 'Chargement...' : (isRegister ? 'S\'inscrire' : 'Se connecter')}
           </button>
         </div>
-
-        <div style={{ margin: '1.5rem 0', textAlign: 'center', borderBottom: '1px solid #e2e8f0', lineHeight: '0.1em' }}>
-          <span style={{ background: '#fff', padding: '0 10px', color: '#64748b' }}>OU</span>
-        </div>
-
-        <button onClick={onLoginApple} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', padding: '0.75rem', backgroundColor: '#000', color: '#fff', borderRadius: '0.75rem', fontWeight: 600, border: 'none', cursor: 'pointer', fontSize: '1rem', marginBottom: '0.75rem' }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
-            <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
-          </svg>
-          Sign in with Apple
-        </button>
 
         <div style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '0.9rem' }}>
           {isRegister ? (
@@ -1944,103 +1932,6 @@ function App() {
     }
   };
 
-  const handleAppleSignIn = async () => {
-    try {
-      if (Capacitor.isNativePlatform()) {
-        setStatusMessage({ type: 'info', text: 'Signing in with Apple...' });
-
-        const result = await FirebaseAuthentication.signInWithApple();
-        if (!result.user?.uid) throw new Error('cancelled');
-
-        const appleUid = result.user.uid;
-        const slug = appleUid.replace(/[^a-z0-9]/gi, '').slice(0, 24);
-        const derivedPassword = `dqc_apple_${appleUid}`;
-        const displayName = result.user.displayName || 'Apple User';
-
-        // Stable deterministic ID based on Apple UID (no ID.unique() — must be idempotent)
-        const stableId = `apple${slug}`.slice(0, 36);
-        // Two email formats: current and legacy (from older builds)
-        const currentEmail = `apple_${slug}@digitalqrcard.app`;
-        const legacyEmail = `apple_${slug}@auth.dqc.internal`;
-
-        // Clear stale session silently
-        try { await account.deleteSession('current'); } catch { /* OK */ }
-
-        // Try to create account — will fail if already exists (expected)
-        let accountCreated = false;
-        try {
-          await account.create(stableId, currentEmail, derivedPassword, displayName);
-          accountCreated = true;
-          console.log('[Apple] Account created:', currentEmail);
-        } catch (e) {
-          console.log('[Apple] Create account result:', e.message || e);
-        }
-
-        // Try to sign in — try current email first, then legacy
-        let sessionOk = false;
-        for (const email of [currentEmail, legacyEmail]) {
-          try {
-            await account.createEmailPasswordSession(email, derivedPassword);
-            console.log('[Apple] Session created with:', email);
-            sessionOk = true;
-            break;
-          } catch (e) {
-            console.log('[Apple] Session failed with', email, ':', e.message || e);
-          }
-        }
-
-        if (!sessionOk) {
-          // Last resort: create account with legacy email (in case old builds used it)
-          if (!accountCreated) {
-            try {
-              await account.create(stableId, legacyEmail, derivedPassword, displayName);
-              await account.createEmailPasswordSession(legacyEmail, derivedPassword);
-              sessionOk = true;
-              console.log('[Apple] Created + signed in with legacy email');
-            } catch (e) {
-              console.error('[Apple] All sign-in attempts failed:', e.message || e);
-            }
-          }
-          if (!sessionOk) {
-            throw new Error('Could not create session. Please try Email/Password sign-in.');
-          }
-        }
-
-        const u = await account.get();
-
-        // Ensure user doc exists in Appwrite
-        try {
-          await databases.getDocument(DATABASE_ID, USERS_COLLECTION, u.$id);
-        } catch {
-          try {
-            await databases.createDocument(DATABASE_ID, USERS_COLLECTION, u.$id, {
-              email: currentEmail,
-              display_name: displayName,
-              subscription: 'free',
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            });
-            console.log('[Apple] User doc created');
-          } catch (docErr) {
-            console.warn('[Apple] User doc creation failed:', docErr.message || docErr);
-          }
-        }
-
-        setUser(u);
-        setShowAuthModal(false);
-        setStatusMessage({ type: 'success', text: 'Signed in with Apple ✓' });
-        setTimeout(() => setStatusMessage(null), 3000);
-      } else {
-        account.createOAuth2Session('apple', window.location.origin, window.location.origin);
-      }
-    } catch (error) {
-      if (error.message?.includes('cancel') || error.message?.includes('cancelled')) return;
-      console.error('[Apple] Sign-In error:', error);
-      setStatusMessage({ type: 'error', text: 'Apple Sign-In failed: ' + (error.message || 'Unknown error') + '. Please use Email/Password.' });
-      setTimeout(() => setStatusMessage(null), 8000);
-    }
-  };
-
   const performDelete = async () => {
     try {
       const currentUser = await account.get();
@@ -2293,13 +2184,6 @@ function App() {
           <AuthModal
             onClose={() => setShowAuthModal(false)}
             onLoginSuccess={(u) => setUser(u)}
-            onLoginGoogle={() => {
-              setShowAuthModal(false);
-              handleLogin();
-            }}
-            onLoginApple={() => {
-              handleAppleSignIn();
-            }}
           />
         )}
 

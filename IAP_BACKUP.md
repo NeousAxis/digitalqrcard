@@ -90,7 +90,11 @@ const PRICING = {
 | Composant `PricingModal` | intact, non rendu |
 
 ### Plugin Capacitor
-- `cordova-plugin-purchase` `^13.12.1` (`CdvPurchase`) — installé dans `package.json`.
+- ⚠️ **Build 63** : `cordova-plugin-purchase` a été **RETIRÉ de `package.json`** (et la
+  capability `com.apple.InAppPurchase` retirée du `project.pbxproj`) pour qu'Apple ne
+  réclame plus d'IAP (rejet 2.1b). Le code JS qui l'utilise reste présent mais gaté.
+- **Pour la V2, réinstaller le plugin** : `npm install cordova-plugin-purchase` puis
+  `npx cap sync ios`, et ré-cocher la capability In-App Purchase dans Xcode.
 - Flux v13 : `approved` → `transaction.verify()` → `verified` → `receipt.finish()`.
 - Plateforme : `APPLE_APPSTORE`, type `PAID_SUBSCRIPTION`.
 
@@ -131,6 +135,11 @@ Premium_898  → 'pro'
 // src/App.jsx — remettre :
 const IAP_ENABLED = true;
 ```
+Réinstaller aussi le plugin (retiré en build 63) :
+```bash
+npm install cordova-plugin-purchase
+```
+Puis ré-activer la capability **In-App Purchase** sur la cible App dans Xcode.
 
 ### C. Build + soumettre
 1. `npm run build && npx cap sync ios`

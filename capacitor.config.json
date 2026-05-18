@@ -4,11 +4,5 @@
   "webDir": "dist",
   "ios": {
     "scheme": "https"
-  },
-  "plugins": {
-    "FirebaseAuthentication": {
-      "skipNativeAuth": false,
-      "providers": ["apple.com", "google.com"]
-    }
   }
 }

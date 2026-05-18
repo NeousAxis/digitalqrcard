@@ -40,8 +40,8 @@ Le fichier `ios/capacitor-cordova-ios-plugins/sources/CordovaPluginPurchase/File
 - **Team ID**: BXB662X8PV
 - **API Key ID**: 8QAFD5C266
 - **Fastlane**: `ios/App/fastlane/Fastfile` (lanes: release, metadata, submit)
-- **Build actuel**: 1.0 (62) — v1.0 SANS IAP
-- **Status**: Build 62 uploade, resoumission en cours (8eme soumission)
+- **Build actuel**: 1.0 (63) — v1.0 SANS IAP, sans Firebase/Google
+- **Status**: Build 63 soumis (9eme soumission) — schema Appwrite repare
 
 ### Historique des rejets et corrections
 1. **12 mars 2026** — Rejet initial
@@ -205,6 +205,44 @@ Apple bloquait l'entree avec les abonnements configures. Les abos reviendront en
   `Foundation.h` apres `cap sync` est OBSOLETE
 - ⚠️ Ne PAS lancer `/simplify` sur le code IAP gate : il est volontairement "inactif"
   mais doit etre conserve pour la V2
+
+### Corrections appliquees — Build 63 (18 mai 2026)
+
+**Rejet Build 62** : Guideline 2.1(a) login error + 2.1(b) IAP + 3.1.2(c) EULA.
+
+**VRAIE CAUSE enfin identifiee** : la base Appwrite n'avait JAMAIS eu de schema.
+Les collections `users` et `cards` existaient mais sans leurs attributs (migration
+build 57 incomplete). L'app ne pouvait rien lire/ecrire → echec a la 1re operation
+de donnees apres login. C'est la cause reelle de TOUS les rejets "App Completeness"
+depuis le build 57 — aucun fix precedent ne pouvait marcher.
+
+#### Fix 1: Schema Appwrite recree (LA correction critique)
+- Script `scripts/setup-appwrite-schema.py` : cree tous les attributs des
+  collections `users` (6) et `cards` (17) + index `idx_user_id` / `idx_card_order`
+- Ancien attribut `cards.userId` (camelCase, REQUIS) passe en non-requis — il
+  bloquait la creation de documents (le code ecrit `user_id` en snake_case)
+- Verifie E2E reel : login + creation de carte OK (carte ecrite dans Appwrite)
+
+#### Fix 2: Keep-alive Appwrite (anti-pause)
+- `.github/workflows/appwrite-keepalive.yml` : ping toutes les 3h via GitHub Actions
+- Empeche le free tier Appwrite de se mettre en pause pendant la review Apple
+- 100% gratuit, aucune dependance Google
+
+#### Fix 3: Firebase/Google retire (demande utilisateur)
+- `@capacitor-firebase/authentication` desinstalle ; `GoogleService-Info.plist`
+  supprime ; scheme URL Google + `GIDClientID` retires d'`Info.plist`
+- Auth iOS = email/mot de passe uniquement (Appwrite). Apple Sign-In retire
+  (non requis tant qu'aucun login tiers n'est propose)
+
+#### Fix 4: IAP retire du binaire (Guideline 2.1b)
+- `cordova-plugin-purchase` desinstalle ; capability `com.apple.InAppPurchase`
+  retiree du `project.pbxproj`
+- Le code IAP JS reste gate par `IAP_ENABLED=false` (cf. `IAP_BACKUP.md` pour la V2)
+
+#### Cle API Appwrite
+- Une cle `server-admin` existe (scopes Databases) mais son secret n'est stocke
+  nulle part (Appwrite ne l'affiche qu'a la creation). Pour re-administrer la base :
+  creer une nouvelle cle API dans la console Appwrite (Settings -> API Keys).
 
 ### Problemes connus
 - `.env` contient des liens Stripe en mode TEST (`buy.stripe.com/test_*`) — masques sur iOS
