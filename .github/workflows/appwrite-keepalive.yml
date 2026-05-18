@@ -1,0 +1,34 @@
+name: Appwrite Keep-Alive
+
+# Empeche le projet Appwrite (free tier) de se mettre en pause apres inactivite.
+# 100% gratuit (runners GitHub), aucune dependance Google.
+# Sans ce ping, le backend s'endort et le login echoue pendant la review Apple.
+
+on:
+  schedule:
+    # Toutes les 3 heures (8x/jour) — largement suffisant pour rester actif
+    - cron: '0 */3 * * *'
+  workflow_dispatch: {}  # permet aussi un declenchement manuel
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Appwrite project
+        run: |
+          PROJECT="69c62a550031e83fd11e"
+          ENDPOINT="https://fra.cloud.appwrite.io/v1"
+          ok=0
+          for i in 1 2 3; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" \
+              -H "X-Appwrite-Project: $PROJECT" \
+              "$ENDPOINT/account")
+            echo "Ping $i -> HTTP $code"
+            # 401 = projet vivant (pas de session) ; 200 aussi. 403 = projet en pause.
+            if [ "$code" = "401" ] || [ "$code" = "200" ]; then ok=1; fi
+            sleep 2
+          done
+          if [ "$ok" != "1" ]; then
+            echo "::warning::Appwrite project may be paused (no 200/401 response)"
+          fi
+          echo "Keep-alive done."
