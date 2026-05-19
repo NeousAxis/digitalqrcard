@@ -1,1 +1,2 @@
-"NSCameraUsageDescription" = "Digital QR Cards needs access to your camera to scan QR codes";
+"NSCameraUsageDescription" = "Digital QR Cards needs access to your camera so you can take a photo for your digital card.";
+"NSPhotoLibraryUsageDescription" = "Digital QR Cards needs access to your photos so you can add a photo or logo to your digital card.";

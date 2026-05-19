@@ -835,7 +835,8 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage, subscripti
               <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#1e293b', marginTop: '0.5rem' }}>Standard Feature</span>
             </div>
           )}
-          <div
+          <label
+            htmlFor="card-image-input"
             style={{
               width: '100px',
               height: '100px',
@@ -847,23 +848,21 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage, subscripti
               alignItems: 'center',
               justifyContent: 'center',
               border: '2px dashed #cbd5e1',
-              cursor: IAP_ENABLED && subscription === 'free' ? 'not-allowed' : 'pointer',
+              cursor: 'pointer',
               position: 'relative'
             }}
-            onClick={() => (!IAP_ENABLED || subscription !== 'free') && document.getElementById('card-image-input').click()}
           >
             {image ? (
               <img src={image} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             ) : (
               <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>+ Photo</span>
             )}
-          </div>
+          </label>
           <input
             id="card-image-input"
             type="file"
             accept="image/*"
-            style={{ display: 'none' }}
-            disabled={subscription === 'free'}
+            style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, overflow: 'hidden' }}
             onChange={async (e) => {
               const file = e.target.files[0];
               if (!file) return;
@@ -939,7 +938,7 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage, subscripti
           <label
             htmlFor="card-image-input"
             className="btn-secondary"
-            style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem', cursor: subscription === 'free' ? 'not-allowed' : 'pointer', opacity: subscription === 'free' ? 0.5 : 1 }}
+            style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem', cursor: 'pointer', opacity: 1 }}
           >
             Upload Photo / Logo
           </label>

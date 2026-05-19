@@ -40,8 +40,8 @@ Le fichier `ios/capacitor-cordova-ios-plugins/sources/CordovaPluginPurchase/File
 - **Team ID**: BXB662X8PV
 - **API Key ID**: 8QAFD5C266
 - **Fastlane**: `ios/App/fastlane/Fastfile` (lanes: release, metadata, submit)
-- **Build actuel**: 1.0 (64) — v1.0 SANS IAP, sans Firebase/Google
-- **Status**: Build 64 — fix du schema iOS Appwrite (verifie sur simulateur iPad)
+- **Build actuel**: 1.0 (65) — v1.0 SANS IAP, sans Firebase/Google
+- **Status**: Build 65 — fix du bouton photo (input file desactive pour tous)
 
 ### Historique des rejets et corrections
 1. **12 mars 2026** — Rejet initial
@@ -272,6 +272,31 @@ marchait en navigateur desktop (d'ou les fausses validations precedentes).
 - NE PAS se fier au test navigateur desktop : il ne reproduit pas le WKWebView iOS.
 - Builder pour le simulateur (`xcodebuild -sdk iphonesimulator`), installer via
   `xcrun simctl`, et tester reellement login + donnees.
+
+### Corrections appliquees — Build 65 (19 mai 2026)
+
+**Rejet Build 64** : Guideline 2.1(a) — "when tapped to add a photo, nothing happened".
+(2.1a login et 3.1.2c EULA = RESOLUS au build 64.)
+
+**Cause** : le `<input type="file">` du selecteur de photo avait
+`disabled={subscription === 'free'}`. Comme l'IAP est desactive, `subscription`
+vaut `'free'` pour TOUS les utilisateurs → l'input etait desactive pour tout le
+monde → taper la photo ne faisait rien. Oubli du gating IAP (le `disabled` n'avait
+pas ete mis a jour avec les autres `IAP_ENABLED && ...`).
+
+#### Fix (src/App.jsx, composant editeur de carte)
+- Retrait de l'attribut `disabled` de l'input file (l'app etant gratuite, la photo
+  est toujours accessible).
+- Cercle "+ Photo" : `<div onClick={...click()}>` remplace par un `<label htmlFor>`
+  natif — declenchement fiable du selecteur dans WKWebView (le `.click()` JS sur un
+  input cache est peu fiable sur iOS).
+- Input file : `display:none` remplace par un style "visuellement masque mais present".
+- Label "Upload Photo / Logo" : retrait des styles bases sur `subscription`.
+
+#### Info.plist
+- Ajout de `NSPhotoLibraryUsageDescription` (acces photos pour la photo de carte).
+- `NSCameraUsageDescription` corrige (texte exact : prise de photo, pas "scan QR").
+- Localisations EN + FR mises a jour (`en.lproj` / `fr.lproj` InfoPlist.strings).
 
 ### Problemes connus
 - `.env` contient des liens Stripe en mode TEST (`buy.stripe.com/test_*`) — masques sur iOS

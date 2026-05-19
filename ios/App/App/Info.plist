@@ -21,13 +21,15 @@
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
-	<string>64</string>
+	<string>65</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Digital QR Cards needs access to your camera to scan QR codes</string>
+	<string>Digital QR Cards needs access to your camera so you can take a photo for your digital card.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Digital QR Cards needs access to your photos so you can add a photo or logo to your digital card.</string>
 	<key>UIDeviceFamily</key>
 	<array>
 		<integer>1</integer>
