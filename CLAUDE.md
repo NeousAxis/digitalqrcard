@@ -40,8 +40,8 @@ Le fichier `ios/capacitor-cordova-ios-plugins/sources/CordovaPluginPurchase/File
 - **Team ID**: BXB662X8PV
 - **API Key ID**: 8QAFD5C266
 - **Fastlane**: `ios/App/fastlane/Fastfile` (lanes: release, metadata, submit)
-- **Build actuel**: 1.0 (63) — v1.0 SANS IAP, sans Firebase/Google
-- **Status**: Build 63 soumis (9eme soumission) — schema Appwrite repare
+- **Build actuel**: 1.0 (64) — v1.0 SANS IAP, sans Firebase/Google
+- **Status**: Build 64 — fix du schema iOS Appwrite (verifie sur simulateur iPad)
 
 ### Historique des rejets et corrections
 1. **12 mars 2026** — Rejet initial
@@ -244,10 +244,43 @@ depuis le build 57 — aucun fix precedent ne pouvait marcher.
   nulle part (Appwrite ne l'affiche qu'a la creation). Pour re-administrer la base :
   creer une nouvelle cle API dans la console Appwrite (Settings -> API Keys).
 
+### Corrections appliquees — Build 64 (19 mai 2026)
+
+**Rejet Build 63** : Guideline 2.1(a) "unable to access the app, unspecified error"
+(iPad Air M4 + iPhone 17 Pro Max) + 3.1.2(c) lien EULA.
+
+**LA VRAIE CAUSE de TOUS les rejets depuis le build 57** (reproduite sur simulateur) :
+l'app iOS tournait sous l'origine `capacitor://localhost`, et **Appwrite rejette ce
+schema** ("Invalid Scheme"). Donc aucun login ne marchait sur iOS — alors que ça
+marchait en navigateur desktop (d'ou les fausses validations precedentes).
+
+#### Fix 1: schema iOS Capacitor (LE correctif)
+- `capacitor.config.json` : la cle etait `"ios": { "scheme": "https" }` — **mauvaise cle
+  Capacitor, totalement ignoree**. Le "fix build 59" n'a donc jamais rien fait.
+- Cle correcte = `server.iosScheme`. Et `https` n'est pas utilisable (schema reserve iOS).
+- Valeur retenue : `"server": { "iosScheme": "appwrite-callback-69c62a550031e83fd11e" }`
+  → l'app tourne sous `appwrite-callback-<projectId>://localhost`, schema explicitement
+  accepte par Appwrite (cf. son message d'erreur).
+- **Verifie sur simulateur iPad Air 11"** : login + creation/lecture/suppression de
+  carte fonctionnent (auto-test "IOSTEST OK").
+
+#### Fix 2: lien EULA (Guideline 3.1.2c)
+- Lien standard Apple EULA + mention "no in-app purchases" ajoutes a la description
+  App Store (en-US + fr-FR).
+
+#### Methode de verification (a refaire pour toute future soumission)
+- NE PAS se fier au test navigateur desktop : il ne reproduit pas le WKWebView iOS.
+- Builder pour le simulateur (`xcodebuild -sdk iphonesimulator`), installer via
+  `xcrun simctl`, et tester reellement login + donnees.
+
 ### Problemes connus
 - `.env` contient des liens Stripe en mode TEST (`buy.stripe.com/test_*`) — masques sur iOS
 - IAP product IDs: `Standard_898` et `Premium_898` — configures dans App Store Connect
 - Google Sign-In iOS : retire de l'app (Email/Password + Apple Sign-In uniquement)
 - IAP soumission : premiere soumission d'abonnements doit se faire via l'interface App Store Connect (pas via API)
 - Appwrite free tier : pas de backup auto (acceptable pour des cartes de visite)
-- **CRITIQUE** : Ne jamais oublier `"ios": { "scheme": "https" }` dans `capacitor.config.json` — Appwrite bloque `capacitor://localhost`
+- **CRITIQUE** : `capacitor.config.json` DOIT contenir
+  `"server": { "iosScheme": "appwrite-callback-69c62a550031e83fd11e" }`.
+  Sans ça l'app tourne sous `capacitor://localhost` et Appwrite bloque tout login
+  ("Invalid Scheme"). ⚠️ La cle est `server.iosScheme` — PAS `ios.scheme` (ignoree).
+  `https` ne marche pas (schema reserve iOS) : utiliser le schema `appwrite-callback-*`.

@@ -2,7 +2,7 @@
   "appId": "com.cyrilleger.digitalqrcardpro",
   "appName": "DigitalQRCardPro",
   "webDir": "dist",
-  "ios": {
-    "scheme": "https"
+  "server": {
+    "iosScheme": "appwrite-callback-69c62a550031e83fd11e"
   }
 }

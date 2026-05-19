@@ -9,3 +9,6 @@ Features:
 • Works offline — no internet required to display cards
 
 Perfect for networking events, business meetings, and everyday connections. Go paperless with Digital QR Cards.
+
+This app is completely free with no in-app purchases or subscriptions.
+Terms of Use (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
