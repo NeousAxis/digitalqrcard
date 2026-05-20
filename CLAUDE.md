@@ -41,7 +41,7 @@ Le fichier `ios/capacitor-cordova-ios-plugins/sources/CordovaPluginPurchase/File
 - **API Key ID**: 8QAFD5C266
 - **Fastlane**: `ios/App/fastlane/Fastfile` (lanes: release, metadata, submit)
 - **Build actuel**: 1.0 (65) — v1.0 SANS IAP, sans Firebase/Google
-- **Status**: Build 65 — fix du bouton photo (input file desactive pour tous)
+- **Status**: Build 65 resoumis (metadata-only) — compte demo avec 3 cartes + screenshots reels
 
 ### Historique des rejets et corrections
 1. **12 mars 2026** — Rejet initial
@@ -297,6 +297,37 @@ pas ete mis a jour avec les autres `IAP_ENABLED && ...`).
 - Ajout de `NSPhotoLibraryUsageDescription` (acces photos pour la photo de carte).
 - `NSCameraUsageDescription` corrige (texte exact : prise de photo, pas "scan QR").
 - Localisations EN + FR mises a jour (`en.lproj` / `fr.lproj` InfoPlist.strings).
+
+### Corrections appliquees — Resubmit Build 65 (20 mai 2026, metadata-only)
+
+**Rejet du build 65** : 2.1(a) "we need to have a demo account with data" + 2.3.3
+"screenshots do not show the actual app in use" (6.7" et 6.1" iPhone).
+
+**Pas de nouveau binaire** — uniquement de la metadata + des donnees Appwrite.
+
+#### Fix 1: Compte demo pre-rempli avec 3 cartes
+- Script `scripts/seed_demo_cards.py` (idempotent) — cree dans Appwrite 3 cartes
+  d'exemple sous le user `69c65913001ac2f25565` : Marie Dupont (Marketing Director,
+  BrightLabs), Jean Martin (Software Engineer, Northbound Studio), Sophie Laurent
+  (Architecte, Atelier Laurent).
+- Reviewer notes mises a jour pour mentionner la pre-population.
+
+#### Fix 2: Vrais screenshots (6.7", 6.5", 6.1") en-US + fr-FR
+- Anciens screenshots = mockups marketing avec badge "PREMIUM" (qui n'existe plus
+  dans l'app sans IAP) + layout qui ne correspondait pas a l'UI carrousel reelle.
+- Nouveaux screenshots generes sur simulateurs iPhone (17 Pro Max -> resize pour
+  6.7"/6.5", iPhone 17 Pro natif pour 6.1") : 3 ecrans par device class.
+  - Dashboard avec la carte "Marie Dupont" en carrousel.
+  - Vue partage QR.
+  - Editeur de carte.
+- Upload via API ASC : 18 screenshots (3 ecrans × 3 tailles × 2 locales). Anciens
+  mockups supprimes des sets ASC.
+
+#### Methode (pour reference future)
+- Diagnostic temporaire (auto-login + cycling) inseree dans App.jsx puis retire,
+  pour permettre la capture automatisee de plusieurs ecrans sans pilotage UI.
+- `xcrun simctl io screenshot` capture le framebuffer du device sans dependre de
+  la visibilite de la fenetre du Simulator.
 
 ### Problemes connus
 - `.env` contient des liens Stripe en mode TEST (`buy.stripe.com/test_*`) — masques sur iOS
