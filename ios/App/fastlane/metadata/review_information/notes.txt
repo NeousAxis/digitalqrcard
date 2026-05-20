@@ -1,5 +1,5 @@
 Demo Account:
-Email: demo@digitalqrcards.review
+Email: support@digitalqrcard.xyz
 Password: DemoReview2026!
 
 Sign in with the demo account above. The account is PRE-POPULATED with 3 example business cards (Marie Dupont, Jean Martin, Sophie Laurent), so you can see the app's main features as soon as you sign in.
