@@ -41,7 +41,9 @@ Le fichier `ios/capacitor-cordova-ios-plugins/sources/CordovaPluginPurchase/File
 - **API Key ID**: 8QAFD5C266
 - **Fastlane**: `ios/App/fastlane/Fastfile` (lanes: release, metadata, submit)
 - **Build actuel**: 1.0 (65) — v1.0 SANS IAP, sans Firebase/Google
-- **Status**: Build 65 resoumis (metadata-only) — compte demo avec 3 cartes + screenshots reels
+- **Status**: ✅ APPROUVEE ET PUBLIEE le 20 mai 2026 — `READY_FOR_SALE`
+  (https://apps.apple.com/app/digital-qr-cards/id6758325036)
+- **Compte demo App Review**: support@digitalqrcard.xyz / DemoReview2026! (3 cartes)
 
 ### Historique des rejets et corrections
 1. **12 mars 2026** — Rejet initial
