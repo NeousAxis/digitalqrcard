@@ -6,12 +6,16 @@ import {
   MapPin, Globe, Mail, Phone, Building2, Briefcase,
   User, Star, X, Check, Copy, LogIn, LogOut, Lock,
   CreditCard, Layout, Zap, Cloud, CloudOff, AlertCircle, RefreshCw, Gem,
-  ChevronLeft, ChevronRight, Settings, ArrowUp, ArrowDown,
+  ChevronLeft, ChevronRight, Settings, ArrowUp, ArrowDown, Wallet,
   Facebook, Linkedin, Instagram, Twitter, Youtube, MessageCircle, Twitch, Music, Send
 } from 'lucide-react';
 // Appwrite imports
 import { account, databases, ID, Query, DATABASE_ID, USERS_COLLECTION, CARDS_COLLECTION, appwriteClient } from './appwriteClient';
 import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
+
+// Apple Wallet pass endpoint (Vercel serverless)
+const WALLET_PASS_ENDPOINT = 'https://www.digitalqrcard.xyz/api/wallet-pass';
 
 // --- Utils ---
 const THEME_COLORS = {
@@ -2103,6 +2107,30 @@ function App() {
     }
   };
 
+  const handleAddToWallet = async (card) => {
+    try {
+      const payload = {
+        id: card.id,
+        name: card.name || '',
+        title: card.title || '',
+        company: card.company || '',
+        phone: card.phone || '',
+        email: card.email || '',
+        website: card.website || '',
+        location: card.location || '',
+      };
+      const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+      const url = `${WALLET_PASS_ENDPOINT}?d=${encodeURIComponent(b64)}`;
+      if (Capacitor.isNativePlatform()) {
+        await Browser.open({ url });
+      } else {
+        window.open(url, '_blank');
+      }
+    } catch (e) {
+      setStatusMessage({ type: 'error', text: 'Apple Wallet: ' + (e.message || e) });
+    }
+  };
+
   const handleDelete = async (id) => {
     if (confirm(t.confirmDelete)) {
       try {
@@ -2251,6 +2279,17 @@ function App() {
                               {sharedCardId === card.id ? <X size={20} /> : <Share2 size={20} />}
                               <span className="btn-label">{sharedCardId === card.id ? t.close : t.share}</span>
                             </button>
+
+                            {effectivePlan !== 'free' && (
+                              <button
+                                onClick={() => handleAddToWallet(card)}
+                                className="action-circle-btn wallet"
+                                title="Add to Apple Wallet"
+                              >
+                                <Wallet size={20} />
+                                <span className="btn-label">Wallet</span>
+                              </button>
+                            )}
 
                             <button
                               onClick={() => handleDelete(card.id)}

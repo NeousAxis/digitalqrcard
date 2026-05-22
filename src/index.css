@@ -373,6 +373,16 @@ body {
   background: #fef2f2;
 }
 
+.action-circle-btn.wallet {
+  background: #000;
+  color: white;
+}
+
+.action-circle-btn.wallet:hover {
+  background: #1c1c1e;
+  color: white;
+}
+
 .btn-label {
   position: absolute;
   bottom: -24px;
