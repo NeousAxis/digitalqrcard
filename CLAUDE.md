@@ -331,6 +331,39 @@ pas ete mis a jour avec les autres `IAP_ENABLED && ...`).
 - `xcrun simctl io screenshot` capture le framebuffer du device sans dependre de
   la visibilite de la fenetre du Simulator.
 
+### V2 EN COURS (committe sur main, NON soumis — en attente)
+
+**Feature Apple Wallet — FAITE et verifiee** (pass `.pkpass` s'ajoute au Wallet sur device) :
+- Pass Type ID `pass.com.cyrilleger.digitalqrcardpro` (ASC id `7A8Q47SLQG`) + certificat
+  de signature (ASC id `BZBU469H7F`). Materiel : `~/private_keys/pass/` (pass_cert.pem,
+  pass.key, wwdr.pem, pass.p12 pw `dqcpass`) + base64 en env Vercel
+  (`PASS_CERT_B64`, `PASS_KEY_B64`, `PASS_WWDR_B64`).
+- Endpoint `api/wallet-pass.js` (lib `passkit-generator`) deploye sur Vercel
+  (digitalqrcard.xyz). Genere+signe un pass (POST JSON ou GET `?d=<base64 carte>`).
+  ⚠️ Vercel ne se deploie PAS via git push (liaison morte) → `npx vercel --prod --yes`.
+- App : bouton « Add to Apple Wallet » sur chaque carte (gate `effectivePlan !== 'free'`),
+  ouvre l'URL du pass via `@capacitor/browser` → feuille native iOS.
+- ⏳ TODO couleur : le pass est en bleu de marque `#2563eb` en dur. L'utilisateur veut
+  que le pass prenne **la couleur du THEME de la carte** (map `THEME_COLORS` dans
+  App.jsx ~lignes 23-37 ; resoudre gradient→hex comme `accentColor` ligne ~422). Donc :
+  envoyer `theme` (ou la couleur resolue) au endpoint + l'utiliser en `backgroundColor`.
+
+**Abonnements (IAP) — PAS refaits, en attente** : B1 (`IAP_ENABLED=true` + reinstaller
+`cordova-plugin-purchase` + capability + disclosures abo), B2 (recreer abos dans ASC,
+cf. IAP_BACKUP.md), C (build 1.1 + soumission). Le user veut Wallet en perk premium.
+
+### BUG CONNU A CORRIGER (rapporte par l'utilisateur — 22 mai)
+- **Zoom bloque** : quand on tape dans un champ de saisie (l'input se zoome sur focus iOS),
+  impossible de dezoomer ensuite. Cause classique WKWebView : inputs en font-size < 16px
+  → iOS auto-zoom au focus, sans retour. Fix : dans `index.html`, mettre le viewport a
+  `width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover`
+  (et/ou forcer `font-size: 16px` sur tous les inputs). Actuel : pas de maximum-scale.
+
+### Test device
+- App installee en debug sur l'iPhone reel (« iPhone Neous », iPhone 14 Pro, UDID
+  `00008120-00090C861193C01E`) via signature auto (`xcodebuild -allowProvisioningUpdates`
+  + cle API ASC) puis `xcrun devicectl device install app`.
+
 ### Problemes connus
 - `.env` contient des liens Stripe en mode TEST (`buy.stripe.com/test_*`) — masques sur iOS
 - IAP product IDs: `Standard_898` et `Premium_898` — configures dans App Store Connect
