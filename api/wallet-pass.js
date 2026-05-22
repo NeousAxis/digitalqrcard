@@ -48,9 +48,9 @@ export default async function handler(req, res) {
       organizationName: "Digital QR Cards",
       description: `${name} — Digital business card`,
       serialNumber: String(card.id || Date.now()),
-      backgroundColor: "rgb(33, 46, 83)",
+      backgroundColor: "rgb(37, 99, 235)",
       foregroundColor: "rgb(255, 255, 255)",
-      labelColor: "rgb(176, 200, 235)",
+      labelColor: "rgb(203, 225, 255)",
       generic: {
         primaryFields: [],
         secondaryFields: [],
