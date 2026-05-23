@@ -40,8 +40,10 @@ Le fichier `ios/capacitor-cordova-ios-plugins/sources/CordovaPluginPurchase/File
 - **Team ID**: BXB662X8PV
 - **API Key ID**: 8QAFD5C266
 - **Fastlane**: `ios/App/fastlane/Fastfile` (lanes: release, metadata, submit)
-- **Build actuel**: 1.0 (65) — v1.0 SANS IAP, sans Firebase/Google
-- **Status**: ✅ APPROUVEE ET PUBLIEE le 20 mai 2026 — `READY_FOR_SALE`
+- **Build actuel**: v1.1 (72) — EN REVIEW (`WAITING_FOR_REVIEW`) depuis le 23 mai 2026
+  (V2 : footer compact, look abricot + THÈME DYNAMIQUE, Apple Wallet, photo, icône QR,
+  logo retiré du header). Release v1.1 = MANUELLE (publier via API après approbation).
+- **v1.0 (65)**: ✅ PUBLIEE le 20 mai 2026, reste `READY_FOR_SALE` pendant la review v1.1
   (https://apps.apple.com/app/digital-qr-cards/id6758325036)
 - **Compte demo App Review**: support@digitalqrcard.xyz / DemoReview2026! (3 cartes)
 
@@ -331,7 +333,80 @@ pas ete mis a jour avec les autres `IAP_ENABLED && ...`).
 - `xcrun simctl io screenshot` capture le framebuffer du device sans dependre de
   la visibilite de la fenetre du Simulator.
 
-### V2 EN COURS (committe sur main, NON soumis App Store — en attente)
+### Corrections appliquées — Build 71 (1.1) — 23 mai 2026
+
+Premier build de la V2 réellement soumis à l'App Store (la V2 était committée mais
+jamais soumise).
+
+#### Fix UI : footer trop grand qui cachait le bouton Save (rapporté par le user)
+- `src/index.css` `.app-footer` : `min-height:100px` retiré, `padding-top` 15→8px,
+  `padding-bottom` 30→8px (+safe area) ; `.footer-nav-item` padding 0.5→0.3rem.
+  Footer ~135px → ~103px sur iPhone à encoche.
+- `src/App.jsx` (fin du `<form>` éditeur) : spacer 80px →
+  `calc(110px + env(safe-area-inset-bottom))` pour dégager Save sous le footer fixe.
+- Vérifié navigateur (mobile) + simulateur : Save dégagé, ~40px de marge.
+
+#### Soumission
+- Captures **abricot** régénérées : les captures ASC étaient encore BLEUES (build 65) →
+  mismatch 2.3.3 garanti. Set **iPad supprimé** (app iPhone-only).
+- « Nouveautés » rempli (était vide — requis pour une MAJ).
+- Audit metadata OK : le seul hit (`abonnement` fr-FR) est le disclaimer « sans
+  abonnement » (sûr). 0 IAP / 0 abonnement côté ASC.
+- Soumis → `WAITING_FOR_REVIEW`. Remplacé par le build 72 avant prise en review.
+
+### Corrections appliquées — Build 72 (1.1) — 23 mai 2026
+
+3 changements UI demandés par le user (sur capture device).
+
+#### Fix 1 : logo retiré du header
+- `src/App.jsx` : `.brand-icon-pro` (img `/logo-icon.png`) supprimé ; il ne reste que le
+  titre `.brand-name-pro`. Le logo reste l'icône de l'app.
+
+#### Fix 2 : icône partage → QR code
+- Bouton d'action central : import `Share2` → `QrCode` (lucide) ; `<Share2>` → `<QrCode>`.
+  L'état actif (QR affiché) reste un `<X>` pour fermer.
+
+#### Fix 3 : thème dynamique — TOUT le chrome suit la couleur de la carte affichée
+- `useEffect` dans `App()` pose `--primary` + `--primary-glow` sur **`document.documentElement`
+  (:root)** depuis `themeToHex(carte active)` : carte du carrousel (`activeCardIndex`) en
+  dashboard, `editingCard` en éditeur, sinon abricot `#EC6B3E`.
+- ⚠️ Le footer est **hors de `.app-container`** → poser la var en inline sur `.app-container`
+  ne l'atteint PAS. Il FAUT la poser sur `:root`.
+- CSS passé en `var(--primary)` : `.brand-name-pro` (était un dégradé abricot en texte →
+  `color`), `.btn-create-pro`, `.action-circle-btn.share` (+ hover `filter:brightness(.92)`),
+  focus inputs. Wallet reste noir, edit/delete neutres (volontaire).
+- Vérifié simulateur : carte bleue → app bleue, carte verte → app verte.
+
+#### Remplacer un build DÉJÀ en review (réutilisable)
+1. **Annuler** la reviewSubmission : `PATCH /v1/reviewSubmissions/{id}` `{canceled:true}`
+   → la version repasse `DEVELOPER_REJECTED` (éditable).
+2. Attacher le nouveau build : `PATCH /v1/appStoreVersions/{VID}/relationships/build`.
+3. Remplacer captures + whatsNew, puis `fastlane submit` (reject_if_possible) → re-soumis.
+- Si le build n'est pas encore pris en review, aucun temps de review perdu.
+
+#### Méthode captures App Store (réutilisable — remplace l'ancienne note du build 65)
+- Harnais TEMPORAIRE dans `src/App.jsx` (const `SHOT_MODE=true`, retiré via
+  `git checkout src/App.jsx` après) : auto-login démo dans `checkAuth` + `useEffect` qui
+  choisit l'écran via `localStorage.SHOT_SCREEN` incrémenté à chaque relance
+  (0=dashboard, 1=QR, 2=éditeur). Commiter le code PROPRE d'abord, puis le harnais est jetable.
+- Build simu : `xcodebuild -sdk iphonesimulator -derivedDataPath /tmp/dd_shot CODE_SIGNING_ALLOWED=NO`.
+  `simctl status_bar override` (9:41, batterie 100) + relances `simctl launch/terminate` +
+  `simctl io <udid> screenshot`.
+- Capture sur **iPhone 17 Pro Max** (1320×2868) puis `sips -z` → 6.7"(1290×2796),
+  6.5"(1242×2688), 6.1"(1179×2556). App **iPhone-only** (`TARGETED_DEVICE_FAMILY=1`) → pas
+  d'iPad.
+- Upload via API ASC (POST appScreenshots → PUT chunks `uploadOperations` → PATCH
+  `uploaded`+md5). Scripts `/tmp/asc_*.py` (JWT helper du playbook). `assetDeliveryState`
+  doit passer `COMPLETE` avant de soumettre.
+- ⚠️ `simctl io screenshot` peut être en retard d'un frame vs l'état réel → vérifier les
+  couleurs via `getComputedStyle` (eval navigateur), pas seulement à l'œil.
+
+#### Compte démo (IMPORTANT — éviter un rejet 2.1)
+- Le compte qui FONCTIONNE = `support@digitalqrcard.xyz` / `DemoReview2026!`.
+  `demo@digitalqrcards.review` (cité dans de vieilles notes) **échoue au login** — ne
+  jamais le mettre dans les reviewer notes.
+
+### V2 (committee sur main) — SOUMISE App Store (build 71→72) le 23 mai 2026, EN REVIEW
 
 **Pass Wallet — GROSSE photo + GROS nom via banniere `strip` (2026-05-22).** Le user
 voulait photo ET nom « beaucoup plus grands ». Solution finale (endpoint only) :
