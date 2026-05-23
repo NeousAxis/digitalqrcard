@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
-  Edit2, Trash2, Plus, Share2, Download,
+  Edit2, Trash2, Plus, QrCode, Download,
   MapPin, Globe, Mail, Phone, Building2, Briefcase,
   User, Star, X, Check, Copy, LogIn, LogOut, Lock,
   CreditCard, Layout, Zap, Cloud, CloudOff, AlertCircle, RefreshCw, Gem,
@@ -2210,15 +2210,26 @@ function App() {
 
 
 
+  // Dynamic chrome theming — the app accent follows the active card's theme.
+  // Set on :root so it also reaches the fixed footer (outside .app-container).
+  useEffect(() => {
+    const src =
+      (view === 'editor' && editingCard) ? editingCard
+        : (view === 'dashboard' && cards[activeCardIndex]) ? cards[activeCardIndex]
+          : null;
+    const hex = src ? themeToHex(src.theme) : '#EC6B3E';
+    const n = parseInt(String(hex).slice(1), 16);
+    const root = document.documentElement;
+    root.style.setProperty('--primary', hex);
+    root.style.setProperty('--primary-glow', `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, 0.25)`);
+  }, [view, editingCard, cards, activeCardIndex]);
+
   return (
     <ErrorBoundary>
       <div className="app-container">
         {/* Header */}
         <header className="app-header glass-header">
           <div className="brand">
-            <div className="brand-icon-pro">
-              <img src="/logo-icon.png" alt="Digital QR Cards" />
-            </div>
             <h1 className="brand-name-pro">
               {t.appName}
             </h1>
@@ -2310,7 +2321,7 @@ function App() {
                               className={`action-circle-btn share ${sharedCardId === card.id ? 'active' : ''}`}
                               title={t.share}
                             >
-                              {sharedCardId === card.id ? <X size={20} /> : <Share2 size={20} />}
+                              {sharedCardId === card.id ? <X size={20} /> : <QrCode size={20} />}
                               <span className="btn-label">{sharedCardId === card.id ? t.close : t.share}</span>
                             </button>
 

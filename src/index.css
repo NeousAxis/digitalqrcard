@@ -103,10 +103,7 @@ select {
 .brand-name-pro {
   font-size: 1.25rem;
   font-weight: 800;
-  background: linear-gradient(135deg, #E8743B 0%, #F59E6B 100%);
-  /* Brand apricot/coral */
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--primary);
   letter-spacing: -0.025em;
   margin: 0;
   line-height: 1;
@@ -204,14 +201,13 @@ select {
 }
 
 .btn-create-pro {
-  background: linear-gradient(135deg, #EC6B3E 0%, #F2854E 100%);
-  /* Brand apricot/coral button */
+  background: var(--primary);
   color: white;
   border: none;
   padding: 0.85rem 2rem;
   border-radius: 99px;
   font-weight: 600;
-  box-shadow: 0 4px 15px rgba(236, 107, 62, 0.4);
+  box-shadow: 0 4px 15px var(--primary-glow);
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -378,7 +374,8 @@ select {
 }
 
 .action-circle-btn.share:hover {
-  background: #D85A2E;
+  background: var(--primary);
+  filter: brightness(0.92);
   color: white;
 }
 
@@ -746,7 +743,7 @@ select {
 .input-field:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 2px rgba(236, 107, 62, 0.2);
+  box-shadow: 0 0 0 2px var(--primary-glow);
 }
 
 .theme-selector {
