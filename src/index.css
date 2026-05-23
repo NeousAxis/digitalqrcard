@@ -3,8 +3,8 @@
   --bg-secondary: #f8fafc;
   --text-main: #1e293b;
   --text-muted: #64748b;
-  --primary: #2563eb;
-  --primary-glow: rgba(37, 99, 235, 0.2);
+  --primary: #EC6B3E;
+  --primary-glow: rgba(236, 107, 62, 0.2);
   --accent: #8b5cf6;
   --danger: #ef4444;
   --glass-border: rgba(0, 0, 0, 0.08);
@@ -30,6 +30,15 @@ body {
 
 * {
   box-sizing: border-box;
+}
+
+/* iOS auto-zooms when a focused input's font-size is < 16px and never zooms
+   back out. Force every text control to >= 16px to kill the zoom at the root
+   (the viewport lock in index.html is the backstop). */
+input,
+textarea,
+select {
+  font-size: 16px;
 }
 
 /* Layout structure for fixed footer */
@@ -75,22 +84,27 @@ body {
 .brand-icon-pro {
   width: 40px;
   height: 40px;
-  background: linear-gradient(135deg, #2563eb 0%, #00f2fe 100%);
-  /* Radiant Blue */
   border-radius: 10px;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3);
-  color: white;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.12);
   flex-shrink: 0;
+}
+
+.brand-icon-pro img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .brand-name-pro {
   font-size: 1.25rem;
   font-weight: 800;
-  background: linear-gradient(135deg, #2563eb 0%, #00c6fb 100%);
-  /* Radiant Blue Text */
+  background: linear-gradient(135deg, #E8743B 0%, #F59E6B 100%);
+  /* Brand apricot/coral */
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   letter-spacing: -0.025em;
@@ -190,14 +204,14 @@ body {
 }
 
 .btn-create-pro {
-  background: linear-gradient(135deg, #2563eb 0%, #00c6fb 100%);
-  /* Radiant Blue Button */
+  background: linear-gradient(135deg, #EC6B3E 0%, #F2854E 100%);
+  /* Brand apricot/coral button */
   color: white;
   border: none;
   padding: 0.85rem 2rem;
   border-radius: 99px;
   font-weight: 600;
-  box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4);
+  box-shadow: 0 4px 15px rgba(236, 107, 62, 0.4);
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -364,7 +378,7 @@ body {
 }
 
 .action-circle-btn.share:hover {
-  background: #1d4ed8;
+  background: #D85A2E;
   color: white;
 }
 
@@ -405,7 +419,6 @@ body {
   left: 0;
   width: 100%;
   height: auto;
-  min-height: 100px;
   background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -413,8 +426,8 @@ body {
   display: flex;
   justify-content: space-around;
   align-items: center;
-  padding-top: 15px;
-  padding-bottom: calc(30px + env(safe-area-inset-bottom));
+  padding-top: 8px;
+  padding-bottom: calc(8px + env(safe-area-inset-bottom));
 
 
   /* Safe area for iPhone X+ */
@@ -434,7 +447,7 @@ body {
   font-weight: 500;
   cursor: pointer;
   transition: color 0.2s;
-  padding: 0.5rem 1rem;
+  padding: 0.3rem 1rem;
 }
 
 .footer-nav-item svg {
@@ -733,7 +746,7 @@ body {
 .input-field:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+  box-shadow: 0 0 0 2px rgba(236, 107, 62, 0.2);
 }
 
 .theme-selector {
@@ -829,7 +842,7 @@ body {
   border-color: var(--primary);
   background: rgba(15, 23, 42, 0.95);
   /* Even darker for highlight */
-  box-shadow: 0 0 20px rgba(56, 189, 248, 0.15);
+  box-shadow: 0 0 20px rgba(236, 107, 62, 0.15);
 }
 
 .popular-badge {
@@ -1016,6 +1029,8 @@ body {
 @media (max-width: 768px) {
   .app-container {
     padding: 1rem;
+    /* Keep clearance for the fixed footer (the shorthand above would wipe it) */
+    padding-bottom: calc(150px + env(safe-area-inset-bottom));
   }
 
   .form-grid {

@@ -331,7 +331,85 @@ pas ete mis a jour avec les autres `IAP_ENABLED && ...`).
 - `xcrun simctl io screenshot` capture le framebuffer du device sans dependre de
   la visibilite de la fenetre du Simulator.
 
-### V2 EN COURS (committe sur main, NON soumis — en attente)
+### V2 EN COURS (committe sur main, NON soumis App Store — en attente)
+
+**Pass Wallet — GROSSE photo + GROS nom via banniere `strip` (2026-05-22).** Le user
+voulait photo ET nom « beaucoup plus grands ». Solution finale (endpoint only) :
+- Style `storeCard` + on **compose nous-memes la banniere `strip`** (`api/wallet-pass.js`,
+  `makeStrip` avec jimp) : gros avatar circulaire 340px a GAUCHE + nom en grand (Open Sans
+  128px, fallback 64px si trop long) a DROITE, fond = couleur du theme. PAS de logo, PAS de
+  champ nom Wallet (tout est dessine dans l'image) → aucun chevauchement, aucun doublon.
+  Contraste auto : texte blanc sur fond fonce, noir sur fond clair (`lightBg`).
+- ⚠️ PIEGE MAJEUR : le `strip` **ne s'affiche PAS dans le simulateur** (ni apercu ni meme
+  apres ajout) → j'ai cru a tort que c'etait impossible. **Sur un VRAI iPhone, le strip se
+  rend.** Toujours valider Wallet sur device reel, le simu ment sur les images de pass.
+- ⚠️ Polices jimp : `Jimp.loadFont(Jimp.FONT_SANS_*)` ECHOUE sur Vercel (les .fnt/.png ne
+  sont pas traces). FIX : copier les polices dans **`api/_fonts/`** (open-sans-128/64
+  white+black) et les charger par chemin relatif (`fileURLToPath(import.meta.url)`) — la
+  Vercel les bundle avec la fonction.
+- @2x/@3x du strip = multiples EXACTS du 1x (375x144 / 750x288 / 1125x432) sinon Wallet
+  jette l'image.
+- Pour piloter le simu/Wallet en CLI (ajouter un pass) : `cliclick`, fenetre Simulator avec
+  barre de titre ~77px. Mapping fb→ecran : `sx=winX+marge+propX*cw`,
+  `sy=winY+77+propY*(winH-77)`. Le simu demande « Autoriser » (Safari) puis « Ajouter ».
+
+**Build TestFlight 1.1 (70) — re-theme complet abricot (2026-05-22).**
+- Logo aussi DANS l'app : l'en-tete utilisait un `<Smartphone>` lucide dans une boite
+  bleue (`.brand-icon-pro`) → remplace par `<img src="/logo-icon.png">` (CSS : bg bleu
+  retire, `overflow:hidden`, img cover). Import `Smartphone` retire.
+- Toute l'UI passee du BLEU a l'ABRICOT/CORAIL pour coherence avec le logo :
+  `--primary: #2563eb → #EC6B3E` (cascade sur tous les `var(--primary)`), `--primary-glow`,
+  `.brand-name-pro` (texte), `.btn-create-pro` (bouton New Card), `.action-circle-btn.share`
+  hover, focus inputs (rgba 56,189,248 → 236,107,62), + bleus inline App.jsx (#3b82f6,
+  rgba 59,130,246, toast info rgba 37,99,235). Palette : primary `#EC6B3E`, hover `#D85A2E`,
+  gradient `#EC6B3E→#F2854E`.
+- Theme par defaut des NOUVELLES cartes : `pantone-classic-blue → pantone-peach-fuzz`
+  (editeur, ligne ~809). Les cartes existantes gardent leur theme choisi (donnee user).
+- ⚠️ Les couleurs de CARTE (banniere, accent) viennent du THEME de chaque carte
+  (`THEME_COLORS`, choisi par carte) — PAS du chrome. Une carte demo en `classic-blue`
+  reste bleue ; c'est normal, pas une incoherence du theme app.
+- Verifie sur simulateur : header logo+nom abricot, boutons/onglets/partage corail.
+
+**Build TestFlight 1.1 (69) — nouvelle icone + photo sur le pass (2026-05-22).**
+- Nouveau logo fourni par le user : `../Digital Qr Card_LOGO/digital-qr-cards-icon-1024.png`
+  (carte cream + avatar + QR sur fond abricot). Master 1024 a un canal alpha → APLATI
+  (Apple interdit l'alpha sur l'icone). 15 tailles regenerees via PIL (`Image.convert('RGB')`
+  → sans alpha) dans `AppIcon.appiconset` (memes noms, Contents.json inchange).
+- Logo applique aussi : favicon web (`public/logo-icon.png` 512) + logo du pass Wallet
+  (`api/_pass-assets.js` ICON_29/58/87 + LOGO_50/100 regeneres en base64 PNG via PIL) →
+  les passes SANS photo montrent desormais le nouveau logo (plus le carre bleu).
+- Pas d'ImageMagick sur la machine → utiliser **PIL** (`python3`, dispo) pour aplatir/resize.
+
+
+**Build TestFlight 1.1 (67) — 2 bugs corriges le 2026-05-22** (rapportes par le user sur le
+build 66). Les DEUX etaient PRE-EXISTANTS (pas causes par la V2) :
+- **Bug pass Wallet vide** : les donnees d'une carte vivent dans `card.fields[]`
+  (`{type,value}`), PAS en props directes. `handleAddToWallet` lisait `card.title/phone/...`
+  (vides) → pass sans infos. Fix : extraire les champs depuis `card.fields[]` (map byType).
+- **Bug photo non persistante** : (1) `handleSaveCard` n'ecrivait pas la photo ; (2)
+  `fetchCards` ne la lisait pas ; (3) **Appwrite n'a AUCUN attribut `image`** (verifie :
+  create avec `image` → `400 Unknown attribute`). Fix SANS cle API : la photo (compressee)
+  est stockee dans la colonne `fields` existante (limite 50000) comme entree reservee
+  `{type:'__photo', value:<dataURL>}`. `fetchCards` l'extrait vers `card.image` et la retire
+  des champs editables ; `handleSaveCard` la re-injecte. Compression ADAPTATIVE (dimensions
+  400→200, qualite 0.72→0.4) pour garantir que le dataURL tient sous ~44000 chars.
+  - ⚠️ Si un jour on veut la pleine qualite : creer un attribut `image` (string ~5MB) OU
+    un bucket Appwrite Storage (necessite une cle API serveur), puis basculer le stockage.
+  - Verifie par aller-retour REEL sur Appwrite (compte demo) : photo identique au bit pres
+    apres save→reload ; payload Wallet bien rempli. PAS verifie : le geste photo in-app.
+
+**Build TestFlight 1.1 (66) uploade le 2026-05-22** (Wallet couleur + fix zoom, SANS IAP).
+- Versions bumpees : `MARKETING_VERSION 1.0→1.1`, `CURRENT_PROJECT_VERSION 65→66` (pbxproj,
+  Debug+Release) ET `CFBundleVersion 65→66` (Info.plist, code en dur).
+- Upload via `cd ios/App && LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 fastlane release` →
+  `upload_to_app_store(submit_for_review: false)` = binaire sur ASC/TestFlight, **PAS de
+  soumission review**. Build state VALID confirme via API ASC.
+- ⚠️ NE PAS lancer `fastlane submit` (soumission App Store) sans accord EXPLICITE du user.
+- ⚠️ Piege : ne PAS piper `fastlane release` dans `tail` (l'exit code devient celui de tail,
+  pas de fastlane → faux positif). Verifier le succes via `fastlane/report.xml` (pas de
+  `<failure>`) et/ou l'API ASC (`/v1/builds`, cf. `/tmp/asc_builds.mjs`).
+- ⏳ Reste a confirmer par le user : test reel du build sur device via l'app TestFlight
+  (couleur du pass selon theme + zoom non bloque).
 
 **Feature Apple Wallet — FAITE et verifiee** (pass `.pkpass` s'ajoute au Wallet sur device) :
 - Pass Type ID `pass.com.cyrilleger.digitalqrcardpro` (ASC id `7A8Q47SLQG`) + certificat
@@ -343,21 +421,58 @@ pas ete mis a jour avec les autres `IAP_ENABLED && ...`).
   ⚠️ Vercel ne se deploie PAS via git push (liaison morte) → `npx vercel --prod --yes`.
 - App : bouton « Add to Apple Wallet » sur chaque carte (gate `effectivePlan !== 'free'`),
   ouvre l'URL du pass via `@capacitor/browser` → feuille native iOS.
-- ⏳ TODO couleur : le pass est en bleu de marque `#2563eb` en dur. L'utilisateur veut
-  que le pass prenne **la couleur du THEME de la carte** (map `THEME_COLORS` dans
-  App.jsx ~lignes 23-37 ; resoudre gradient→hex comme `accentColor` ligne ~422). Donc :
-  envoyer `theme` (ou la couleur resolue) au endpoint + l'utiliser en `backgroundColor`.
+- ✅ Couleur du pass = couleur du THEME de la carte (FAIT le 2026-05-22) :
+  - Helper `themeToHex(theme)` dans `src/App.jsx` (juste apres `THEME_COLORS`) : resout
+    une cle de theme vers son hex primaire (1er hex du gradient), fallback classic-blue.
+  - `handleAddToWallet` envoie `color: themeToHex(card.theme)` dans le payload du pass.
+  - `api/wallet-pass.js` : `passColors(hex)` convertit hex→rgb, met `backgroundColor` =
+    couleur du theme et **auto-contraste** le texte (foreground noir + label gris fonce
+    sur fond clair `lum>=0.6`, sinon blanc) → lisible sur les themes pales (peach, rose).
+  - `accentColor` (rendu carte) refactore pour reutiliser `themeToHex` (dedup /simplify).
+  - Verifie sur simulateur (openurl du pass) : magenta→texte blanc, peach→texte fonce.
+  - ⚠️ `scripts/seed-demo-cards.py` met des cles de theme INVALIDES (`forest-green`,
+    `sunset-orange`) absentes de `THEME_COLORS` → ces 2 cartes demo retombent sur le bleu
+    (rendu ET pass). Pour montrer une couleur, creer une carte avec un theme `pantone-*`.
+- ✅ Photo + agencement du pass (FAIT le 2026-05-22, build 68) — design choisi par le user
+  « comme sur la carte de visite » : avatar haut-gauche + nom a cote + QR en bas.
+  - `handleAddToWallet` genere une vignette JPEG ~200px (`makePassThumb`, base64<=18000
+    pour rester sous la limite d'URL Vercel ~24KB) et l'envoie en `&p=`.
+  - `api/wallet-pass.js` (`makeAvatar`, lib `jimp`) : convertit le JPEG en PNG (Wallet
+    REFUSE le JPEG), center-crop, fait un **avatar circulaire** = `logo.png` (50/100/150,
+    coins transparents) ET un carre = `icon.png` (29/58/87). Le nom passe en `logoText`.
+    ⚠️ @2x/@3x DOIVENT etre des multiples EXACTS du 1x sinon Wallet jette l'image en
+    silence. `makeAvatar` renvoie null sur erreur (le pass ne casse jamais).
+  - Champs : title+company en secondary, phone+email en auxiliary, website+location en
+    back. PAS de headerFields (ils masqueraient une eventuelle vignette). QR = barcode bas
+    (position FIXE imposee par Apple, non deplacable).
+  - ⚠️ PIEGES Apple Wallet appris a la dure :
+    - La feuille « Add to Wallet » affiche l'**icone de l'app editrice** en haut-gauche,
+      PAS le `logo.png` du pass (verifie sur simu neuf). La photo (logo) n'apparait que
+      sur le pass REEL une fois AJOUTE dans Wallet. Donc impossible de la voir dans
+      l'apercu openurl ; il faut ajouter le pass (tap « Ajouter ») pour la voir.
+    - Le logo est plafonne ~50pt → l'avatar est PETIT, pas grand comme sur la carte.
+    - Le pass n'est PAS un canvas libre (gabarit fixe). On ne peut pas reproduire une
+      maquette custom (ex. QR en bas-droite : impossible).
+  - Verifie au niveau FICHIER (curl + inspection pixels) : avec `&p=`, `logo.png` = avatar
+    rond, `icon.png` = carre. PAS verifie visuellement dans Wallet (tap non automatisable
+    de facon fiable en CLI) → a confirmer sur device avec une carte qui A une photo.
+  - ⚠️ Build 67 n'a PAS `makePassThumb` (ajoute apres) → la photo n'arrive sur le pass
+    qu'a partir du build 68. Et seule une carte AVEC photo l'affiche (pas les cartes demo).
 
 **Abonnements (IAP) — PAS refaits, en attente** : B1 (`IAP_ENABLED=true` + reinstaller
 `cordova-plugin-purchase` + capability + disclosures abo), B2 (recreer abos dans ASC,
 cf. IAP_BACKUP.md), C (build 1.1 + soumission). Le user veut Wallet en perk premium.
 
-### BUG CONNU A CORRIGER (rapporte par l'utilisateur — 22 mai)
-- **Zoom bloque** : quand on tape dans un champ de saisie (l'input se zoome sur focus iOS),
-  impossible de dezoomer ensuite. Cause classique WKWebView : inputs en font-size < 16px
-  → iOS auto-zoom au focus, sans retour. Fix : dans `index.html`, mettre le viewport a
-  `width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover`
-  (et/ou forcer `font-size: 16px` sur tous les inputs). Actuel : pas de maximum-scale.
+### BUG zoom bloque — ✅ CORRIGE le 2026-05-22
+- Symptome : taper dans un champ zoomait l'app (auto-zoom iOS au focus d'un input
+  font-size < 16px) sans possibilite de dezoomer.
+- Fix (les deux, pour robustesse) :
+  - `index.html` : viewport `maximum-scale=1.0, user-scalable=no` (garde-fou — bloque
+    tout zoom donc tout blocage).
+  - `src/index.css` : regle globale `input, textarea, select { font-size: 16px }` qui
+    traite la cause racine (empeche l'auto-zoom au focus, garde le pinch ailleurs).
+- ⏳ Reste a confirmer par TOI le geste pinch sur device reel (non automatisable en CLI :
+  pas d'API tap simctl). Les 2 correctifs sont presents dans le bundle iOS (verifie).
 
 ### Test device
 - App installee en debug sur l'iPhone reel (« iPhone Neous », iPhone 14 Pro, UDID

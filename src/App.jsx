@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
-  Smartphone, Edit2, Trash2, Plus, Share2, Download,
+  Edit2, Trash2, Plus, Share2, Download,
   MapPin, Globe, Mail, Phone, Building2, Briefcase,
   User, Star, X, Check, Copy, LogIn, LogOut, Lock,
   CreditCard, Layout, Zap, Cloud, CloudOff, AlertCircle, RefreshCw, Gem,
@@ -36,6 +36,40 @@ const THEME_COLORS = {
   'pantone-olivine': 'linear-gradient(135deg, #6A7051 0%, #8A916B 100%)', // Olive
   'pantone-deep-forest': 'linear-gradient(135deg, #394A3F 0%, #5C7063 100%)', // Custom Dark Green
 };
+
+// Resolve a card theme key to its primary solid hex (first color of the gradient).
+const themeToHex = (theme) => {
+  const bg = THEME_COLORS[theme] || THEME_COLORS['pantone-classic-blue'];
+  return bg.includes('gradient')
+    ? (bg.match(/#[a-fA-F0-9]{6}/)?.[0] || '#0F4C81')
+    : bg;
+};
+
+// Downscale the card photo to a small JPEG for the Wallet pass thumbnail. It
+// travels in the pass URL (the endpoint converts it to PNG), so cap the base64
+// well under Vercel's ~24KB URL limit. Returns bare base64 (no data: prefix).
+const makePassThumb = (dataUrl) => new Promise((resolve) => {
+  if (!dataUrl) { resolve(''); return; }
+  const img = new Image();
+  img.onload = () => {
+    const BUDGET = 18000; // base64 chars
+    const render = (dim, q) => {
+      let w = img.width, h = img.height;
+      if (w > h) { if (w > dim) { h *= dim / w; w = dim; } }
+      else { if (h > dim) { w *= dim / h; h = dim; } }
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      return c.toDataURL('image/jpeg', q);
+    };
+    const steps = [[200, 0.7], [180, 0.65], [160, 0.6], [140, 0.55], [120, 0.5]];
+    let out = '';
+    for (const [dim, q] of steps) { out = render(dim, q); if (out.length <= BUDGET) break; }
+    resolve((out.split(',')[1]) || '');
+  };
+  img.onerror = () => resolve('');
+  img.src = dataUrl;
+});
 
 // Appwrite is initialized in appwriteClient.js
 console.log('Appwrite client initialized');
@@ -417,11 +451,7 @@ const CardPreview = ({ card, showQR, isExpanded, onToggleExpand, t }) => {
 
   /* Safe Theme Resolution */
   const safeTheme = (card.theme && THEME_COLORS[card.theme]) ? card.theme : 'pantone-classic-blue';
-  const themeBg = THEME_COLORS[safeTheme];
-
-  const accentColor = (themeBg && themeBg.includes('gradient'))
-    ? themeBg.match(/#[a-fA-F0-9]{6}/)?.[0] || '#38bdf8'
-    : themeBg || '#38bdf8';
+  const accentColor = themeToHex(card.theme);
 
   // Helper to build social URLs (Moved for reuse)
   const buildSocialUrl = (type, value) => {
@@ -776,7 +806,7 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage, subscripti
   const [name, setName] = useState(card?.name || '');
   const [image, setImage] = useState(card?.image || null); // New Image State
   const [uploadStatus, setUploadStatus] = useState(null); // Local state for image upload feedback
-  const [theme, setTheme] = useState(card?.theme || 'pantone-classic-blue'); // Default to Classic Blue
+  const [theme, setTheme] = useState(card?.theme || 'pantone-peach-fuzz'); // Default to brand apricot
   const [fields, setFields] = useState(card ? migrateCard(card) : [
     { type: 'title', value: '' },
     { type: 'company', value: '' },
@@ -882,29 +912,27 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage, subscripti
                     const img = new Image();
                     img.src = event.target.result;
                     img.onload = () => {
-                      const canvas = document.createElement('canvas');
-                      const MAX_WIDTH = 500; // Reduced for safety & speed
-                      const MAX_HEIGHT = 500;
-                      let width = img.width;
-                      let height = img.height;
-
-                      if (width > height) {
-                        if (width > MAX_WIDTH) {
-                          height *= MAX_WIDTH / width;
-                          width = MAX_WIDTH;
+                      // The photo is persisted inside the 50KB `fields` column, so
+                      // shrink dimensions/quality until the data URL fits the budget.
+                      const BUDGET = 44000; // base64 chars
+                      const render = (maxDim, quality) => {
+                        let width = img.width, height = img.height;
+                        if (width > height) {
+                          if (width > maxDim) { height *= maxDim / width; width = maxDim; }
+                        } else {
+                          if (height > maxDim) { width *= maxDim / height; height = maxDim; }
                         }
-                      } else {
-                        if (height > MAX_HEIGHT) {
-                          width *= MAX_HEIGHT / height;
-                          height = MAX_HEIGHT;
-                        }
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width; canvas.height = height;
+                        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+                        return canvas.toDataURL('image/jpeg', quality);
+                      };
+                      const steps = [[400, 0.72], [360, 0.65], [320, 0.6], [280, 0.5], [240, 0.45], [200, 0.4]];
+                      let dataUrl = '';
+                      for (const [dim, q] of steps) {
+                        dataUrl = render(dim, q);
+                        if (dataUrl.length <= BUDGET) break;
                       }
-                      canvas.width = width;
-                      canvas.height = height;
-                      const ctx = canvas.getContext('2d');
-                      ctx.drawImage(img, 0, 0, width, height);
-                      // Compress to JPEG at 80% quality
-                      const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
                       resolve(dataUrl);
                     };
                     img.onerror = (err) => reject(new Error("Failed to load image"));
@@ -922,20 +950,8 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage, subscripti
 
               } catch (error) {
                 console.error("Image processing error:", error);
-
-                // FALLBACK: If compression fails but file is reasonably small (< 4MB), use it raw
-                if (file.size < 4 * 1024 * 1024) {
-                  const reader = new FileReader();
-                  reader.onload = (e) => {
-                    setImage(e.target.result);
-                    setUploadStatus({ type: 'success', text: 'Photo (brute) ajoutée !' });
-                    setTimeout(() => setUploadStatus(null), 3000);
-                  };
-                  reader.readAsDataURL(file);
-                } else {
-                  alert("Erreur technique: " + (error.message || "L'image ne peut pas être traitée"));
-                  setUploadStatus({ type: 'error', text: 'Erreur image' });
-                }
+                alert("Erreur: cette image n'a pas pu être traitée. Essaie une autre photo.");
+                setUploadStatus({ type: 'error', text: 'Erreur image' });
               }
             }}
           />
@@ -1215,15 +1231,15 @@ const Editor = ({ card, onSave, onCancel, t, isSaving, statusMessage, subscripti
           </button>
 
         </div>
-        {/* Spacer for Fixed Footer */}
-        <div style={{ height: '80px' }}></div>
+        {/* Spacer for Fixed Footer (must exceed footer height incl. safe area) */}
+        <div style={{ height: 'calc(110px + env(safe-area-inset-bottom))' }}></div>
         {
           statusMessage && (
             <div style={{
               marginTop: '1rem',
               padding: '0.75rem',
               borderRadius: '0.5rem',
-              background: statusMessage.type === 'error' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(59, 130, 246, 0.2)',
+              background: statusMessage.type === 'error' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(236, 107, 62, 0.2)',
               color: statusMessage.type === 'error' ? '#fca5a5' : '#93c5fd',
               fontSize: '0.9rem',
               textAlign: 'center'
@@ -1243,7 +1259,7 @@ const PlanAuthModal = ({ onClose, onLogin }) => {
     <div className="modal-overlay" style={{ zIndex: 1100 }} onClick={onClose}>
       <div className="glass-panel animate-fade-in" style={{ maxWidth: '450px', width: '90%', padding: '2.5rem', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
         <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'center' }}>
-          <div style={{ background: 'rgba(59, 130, 246, 0.1)', padding: '1rem', borderRadius: '50%' }}>
+          <div style={{ background: 'rgba(236, 107, 62, 0.1)', padding: '1rem', borderRadius: '50%' }}>
             <Lock size={48} className="text-primary" />
           </div>
         </div>
@@ -1495,9 +1511,9 @@ const AuthModal = ({ onClose, onLoginSuccess }) => {
 
         <div style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '0.9rem' }}>
           {isRegister ? (
-            <p>Déjà un compte ? <button type="button" onClick={() => setIsRegister(false)} style={{ color: '#3b82f6', cursor: 'pointer', fontWeight: 'bold', background: 'none', border: 'none', padding: '10px', fontSize: 'inherit' }}>Se connecter</button></p>
+            <p>Déjà un compte ? <button type="button" onClick={() => setIsRegister(false)} style={{ color: '#EC6B3E', cursor: 'pointer', fontWeight: 'bold', background: 'none', border: 'none', padding: '10px', fontSize: 'inherit' }}>Se connecter</button></p>
           ) : (
-            <p>Pas de compte ? <button type="button" onClick={() => setIsRegister(true)} style={{ color: '#3b82f6', cursor: 'pointer', fontWeight: 'bold', background: 'none', border: 'none', padding: '10px', fontSize: 'inherit' }}>Créer un compte</button></p>
+            <p>Pas de compte ? <button type="button" onClick={() => setIsRegister(true)} style={{ color: '#EC6B3E', cursor: 'pointer', fontWeight: 'bold', background: 'none', border: 'none', padding: '10px', fontSize: 'inherit' }}>Créer un compte</button></p>
           )}
         </div>
       </div>
@@ -1992,24 +2008,30 @@ function App() {
           Query.equal('user_id', user.$id),
           Query.orderAsc('card_order')
         ]);
-        const loaded = response.documents.map(doc => ({
-          id: doc.$id,
-          name: doc.name || '',
-          title: doc.title || '',
-          company: doc.company || '',
-          phone: doc.phone || '',
-          email: doc.email || '',
-          website: doc.website || '',
-          address: doc.address || '',
-          location: doc.location || '',
-          theme: doc.theme || 'pantone-classic-blue',
-          fields: doc.fields ? JSON.parse(doc.fields) : [],
-          avatar_emoji: doc.avatar_emoji || '',
-          avatar_color: doc.avatar_color || '',
-          background_color: doc.background_color || '',
-          card_order: doc.card_order || 0,
-          updatedAt: doc.updated_at || ''
-        }));
+        const loaded = response.documents.map(doc => {
+          let parsedFields = [];
+          try { parsedFields = doc.fields ? JSON.parse(doc.fields) : []; } catch { parsedFields = []; }
+          const photo = parsedFields.find(f => f && f.type === '__photo');
+          return {
+            id: doc.$id,
+            name: doc.name || '',
+            image: photo ? photo.value : '',
+            title: doc.title || '',
+            company: doc.company || '',
+            phone: doc.phone || '',
+            email: doc.email || '',
+            website: doc.website || '',
+            address: doc.address || '',
+            location: doc.location || '',
+            theme: doc.theme || 'pantone-classic-blue',
+            fields: parsedFields.filter(f => f && f.type !== '__photo'),
+            avatar_emoji: doc.avatar_emoji || '',
+            avatar_color: doc.avatar_color || '',
+            background_color: doc.background_color || '',
+            card_order: doc.card_order || 0,
+            updatedAt: doc.updated_at || ''
+          };
+        });
         console.log("Cards loaded from server:", loaded.length);
         setCards(loaded);
       } catch (error) {
@@ -2044,6 +2066,10 @@ function App() {
       // 1. Prepare Data
       // eslint-disable-next-line no-unused-vars
       const { id, ...rawData } = cardData;
+      // Appwrite has no `image` column; persist the (compressed) photo inside the
+      // `fields` JSON as a reserved __photo entry so it survives reloads.
+      const persistFields = [...(rawData.fields || [])];
+      if (rawData.image) persistFields.push({ type: '__photo', value: rawData.image });
       const dataToSave = {
         user_id: currentUser.$id,
         name: rawData.name || '',
@@ -2055,7 +2081,7 @@ function App() {
         address: rawData.address || '',
         location: rawData.location || '',
         theme: rawData.theme || 'pantone-classic-blue',
-        fields: JSON.stringify(rawData.fields || []),
+        fields: JSON.stringify(persistFields),
         avatar_emoji: rawData.avatar_emoji || rawData.avatarEmoji || '',
         avatar_color: rawData.avatar_color || rawData.avatarColor || '',
         background_color: rawData.background_color || rawData.backgroundColor || '',
@@ -2109,18 +2135,26 @@ function App() {
 
   const handleAddToWallet = async (card) => {
     try {
+      // Card data lives in card.fields[] ({type,value}); the flat props are legacy/empty.
+      const byType = {};
+      (card.fields || []).forEach(f => {
+        if (f && f.type && f.value && byType[f.type] === undefined) byType[f.type] = f.value;
+      });
       const payload = {
         id: card.id,
         name: card.name || '',
-        title: card.title || '',
-        company: card.company || '',
-        phone: card.phone || '',
-        email: card.email || '',
-        website: card.website || '',
-        location: card.location || '',
+        title: byType.title || card.title || '',
+        company: byType.company || card.company || '',
+        phone: byType.phone || card.phone || '',
+        email: byType.email || card.email || '',
+        website: byType.website || card.website || '',
+        location: byType.location || card.location || card.address || '',
+        color: themeToHex(card.theme),
       };
       const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
-      const url = `${WALLET_PASS_ENDPOINT}?d=${encodeURIComponent(b64)}`;
+      const photo = await makePassThumb(card.image);
+      const url = `${WALLET_PASS_ENDPOINT}?d=${encodeURIComponent(b64)}`
+        + (photo ? `&p=${encodeURIComponent(photo)}` : '');
       if (Capacitor.isNativePlatform()) {
         await Browser.open({ url });
       } else {
@@ -2183,7 +2217,7 @@ function App() {
         <header className="app-header glass-header">
           <div className="brand">
             <div className="brand-icon-pro">
-              <Smartphone className="text-white" size={24} />
+              <img src="/logo-icon.png" alt="Digital QR Cards" />
             </div>
             <h1 className="brand-name-pro">
               {t.appName}
@@ -2415,8 +2449,8 @@ function App() {
                     display: 'block',
                     width: '100%',
                     marginBottom: '1rem',
-                    color: '#3b82f6',
-                    borderColor: 'rgba(59, 130, 246, 0.2)',
+                    color: '#EC6B3E',
+                    borderColor: 'rgba(236, 107, 62, 0.2)',
                     textDecoration: 'none'
                   }}
                 >
@@ -2548,7 +2582,7 @@ function App() {
         {statusMessage && view !== 'editor' && (
           <div style={{
             position: 'fixed', bottom: '80px', left: '50%', transform: 'translateX(-50%)',
-            background: statusMessage.type === 'error' ? 'rgba(220,38,38,0.95)' : statusMessage.type === 'success' ? 'rgba(22,163,74,0.95)' : 'rgba(37,99,235,0.95)',
+            background: statusMessage.type === 'error' ? 'rgba(220,38,38,0.95)' : statusMessage.type === 'success' ? 'rgba(22,163,74,0.95)' : 'rgba(236,107,62,0.95)',
             color: '#fff', padding: '12px 24px', borderRadius: '10px',
             zIndex: 9999, maxWidth: '85%', textAlign: 'center',
             boxShadow: '0 4px 16px rgba(0,0,0,0.4)', fontSize: '0.95rem', fontWeight: 500,
