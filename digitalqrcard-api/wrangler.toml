@@ -1,0 +1,27 @@
+# For more details on how to configure Wrangler, refer to:
+# https://developers.cloudflare.com/workers/wrangler/configuration/
+
+name = "digitalqrcard-api"
+main = "src/index.ts"
+compatibility_date = "2025-03-01"
+compatibility_flags = ["nodejs_compat"]
+
+[observability]
+enabled = true
+
+[placement]
+mode = "smart"
+
+[[d1_databases]]
+binding = "DATABASE"
+database_name = "digitalqrcard-api-db"
+database_id = "4b4c661e-a1b6-42e1-9d66-e2eb6fffbe52"
+migrations_dir = "drizzle"
+
+
+# To protect the database id, we ignore this
+# file when committing to the repo by running once:
+# git update-index --assume-unchanged wrangler.toml
+#
+# Put back in git if you need to commit this file:
+# git update-index --no-assume-unchanged wrangler.toml

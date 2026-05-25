@@ -9,8 +9,12 @@ import {
   ChevronLeft, ChevronRight, Settings, ArrowUp, ArrowDown, Wallet,
   Facebook, Linkedin, Instagram, Twitter, Youtube, MessageCircle, Twitch, Music, Send
 } from 'lucide-react';
-// Appwrite imports
-import { account, databases, ID, Query, DATABASE_ID, USERS_COLLECTION, CARDS_COLLECTION, appwriteClient } from './appwriteClient';
+// Backend API client (Cloudflare Worker + Better Auth + D1) — replaces Appwrite
+import {
+  signUp, signIn, signOut, getCurrentUser, deleteAccount,
+  listCards, createCard, updateCard, deleteCard,
+  getProfile, updateProfile,
+} from './apiClient';
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
 
@@ -71,8 +75,7 @@ const makePassThumb = (dataUrl) => new Promise((resolve) => {
   img.src = dataUrl;
 });
 
-// Appwrite is initialized in appwriteClient.js
-console.log('Appwrite client initialized');
+// Backend API client lives in apiClient.js (Cloudflare Worker + Better Auth + D1)
 const generateVCard = (card) => {
   const parts = (card.name || '').trim().split(/\s+/);
   const lastName = parts.length > 1 ? parts.pop() : '';
@@ -1428,15 +1431,13 @@ const AuthModal = ({ onClose, onLoginSuccess }) => {
     setError(null);
     try {
       const cleanEmail = email.trim();
+      let user;
       if (isRegister) {
-        // Create account then create session
-        await account.create(ID.unique(), cleanEmail, password, cleanEmail.split('@')[0]);
-        await account.createEmailPasswordSession(cleanEmail, password);
+        user = await signUp({ email: cleanEmail, password });
       } else {
-        await account.createEmailPasswordSession(cleanEmail, password);
+        user = await signIn({ email: cleanEmail, password });
       }
-      // Get user and notify parent
-      const user = await account.get();
+      // Notify parent
       if (onLoginSuccess) onLoginSuccess(user);
       onClose();
     } catch (err) {
@@ -1647,16 +1648,19 @@ function App() {
   // Check auth state on mount (Appwrite uses sessions, not realtime listeners)
   useEffect(() => {
     const checkAuth = async () => {
-      try {
-        const u = await account.get();
-        setUser(u);
-      } catch {
-        // Not logged in
+      const resetLoggedOut = () => {
         setUser(null);
         setCards([]);
         setSubscription('free');
         setSubscriptionDate(null);
         localStorage.removeItem('subscription');
+      };
+      try {
+        const u = await getCurrentUser();
+        if (u) setUser(u);
+        else resetLoggedOut();
+      } catch {
+        resetLoggedOut();
       }
     };
     checkAuth();
@@ -1711,8 +1715,9 @@ function App() {
           // Try to save to Appwrite if user is logged in
           const saveToCloud = async () => {
             try {
-              const currentUser = await account.get();
-              await databases.updateDocument(DATABASE_ID, USERS_COLLECTION, currentUser.$id, {
+              const currentUser = await getCurrentUser();
+              if (!currentUser) throw new Error('not logged in');
+              await updateProfile({
                 subscription: newPlan,
                 updated_at: new Date().toISOString(),
                 iap_transaction_id: transaction?.transactionId || ''
@@ -1822,9 +1827,9 @@ function App() {
 
     const fetchSubscription = async () => {
       try {
-        const userDoc = await databases.getDocument(DATABASE_ID, USERS_COLLECTION, user.$id);
-        const newSubscription = userDoc.subscription || 'free';
-        const newDate = userDoc.updated_at || null;
+        const profile = await getProfile();
+        const newSubscription = profile.subscription || 'free';
+        const newDate = profile.updated_at || null;
 
         setSubscription(newSubscription);
         setSubscriptionDate(newDate);
@@ -1834,7 +1839,7 @@ function App() {
         const pendingPlan = localStorage.getItem('pendingPlan') || localStorage.getItem('pending_subscription');
         if (IAP_ENABLED && pendingPlan && ['basic', 'pro'].includes(pendingPlan)) {
           if (newSubscription !== pendingPlan) {
-            await databases.updateDocument(DATABASE_ID, USERS_COLLECTION, user.$id, {
+            await updateProfile({
               subscription: pendingPlan,
               updated_at: new Date().toISOString()
             });
@@ -1846,25 +1851,8 @@ function App() {
           localStorage.removeItem('pendingPlan');
           localStorage.removeItem('pending_subscription');
         }
-
       } catch (err) {
-        if (err.code === 404) {
-          // Create user doc if missing
-          try {
-            await databases.createDocument(DATABASE_ID, USERS_COLLECTION, user.$id, {
-              email: user.email || '',
-              display_name: user.name || '',
-              subscription: 'free',
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            });
-          } catch (createErr) {
-            console.error("Error creating user doc:", createErr);
-          }
-          setSubscription('free');
-        } else {
-          console.error("Error fetching subscription:", err);
-        }
+        console.error("Error fetching subscription:", err);
       }
     };
 
@@ -1877,8 +1865,8 @@ function App() {
       if (document.visibilityState === 'visible' && user) {
         console.log("App visible, refreshing subscription status...");
         try {
-          const userDoc = await databases.getDocument(DATABASE_ID, USERS_COLLECTION, user.$id);
-          const freshSubscription = userDoc.subscription || 'free';
+          const profile = await getProfile();
+          const freshSubscription = profile.subscription || 'free';
 
           if (freshSubscription !== subscription) {
             setSubscription(freshSubscription);
@@ -1912,7 +1900,7 @@ function App() {
         }
 
         try {
-          await databases.updateDocument(DATABASE_ID, USERS_COLLECTION, user.$id, {
+          await updateProfile({
             subscription: planFromURL,
             updated_at: new Date().toISOString()
           });
@@ -1940,40 +1928,19 @@ function App() {
   }, [user]);
 
   const handleLogin = async () => {
-    // Google Sign-In removed on iOS; kept as placeholder for web OAuth if needed
-    try {
-      setStatusMessage({ type: 'info', text: 'Connexion Google en cours...' });
-      // Appwrite OAuth2 redirect for Google (web only)
-      account.createOAuth2Session('google', window.location.origin, window.location.origin);
-    } catch (error) {
-      console.error("Google Sign-In error:", error);
-      setStatusMessage({ type: 'error', text: 'Google Sign-In non disponible. Veuillez utiliser Sign in with Apple ou Email/Mot de passe.' });
-    }
+    // Google Sign-In is not available; users authenticate via Email/Password.
+    setStatusMessage({ type: 'error', text: 'Veuillez utiliser Email/Mot de passe.' });
   };
 
   const performDelete = async () => {
     try {
-      const currentUser = await account.get();
-      if (!currentUser) return;
-
-      // Delete all cards for this user
-      const cardsList = await databases.listDocuments(DATABASE_ID, CARDS_COLLECTION, [
-        Query.equal('user_id', currentUser.$id)
-      ]);
-      for (const cardDoc of cardsList.documents) {
-        await databases.deleteDocument(DATABASE_ID, CARDS_COLLECTION, cardDoc.$id);
-      }
-
-      // Delete user doc
-      try {
-        await databases.deleteDocument(DATABASE_ID, USERS_COLLECTION, currentUser.$id);
-      } catch { /* might not exist */ }
-
-      // Delete Appwrite account session (user can't self-delete account via client SDK)
-      await account.deleteSession('current');
-
+      // Server-side cascade: deletes the user's cards, profile, sessions and account.
+      await deleteAccount();
       setUser(null);
       setCards([]);
+      setSubscription('free');
+      setSubscriptionDate(null);
+      localStorage.removeItem('subscription');
       setStatusMessage({ type: 'success', text: 'Compte supprimé avec succès.' });
     } catch (error) {
       console.error('Delete account error:', error);
@@ -1983,7 +1950,7 @@ function App() {
 
   const handleLogout = async () => {
     try {
-      await account.deleteSession('current');
+      await signOut();
     } catch (e) {
       console.error('Logout error:', e);
     }
@@ -1996,24 +1963,20 @@ function App() {
 
   // Fetch cards from Appwrite when user logs in
   useEffect(() => {
-    if (!user?.$id) {
+    if (!user?.id) {
       setCards([]);
       return;
     }
 
     const fetchCards = async () => {
       try {
-        console.log("Fetching cards for user:", user.$id);
-        const response = await databases.listDocuments(DATABASE_ID, CARDS_COLLECTION, [
-          Query.equal('user_id', user.$id),
-          Query.orderAsc('card_order')
-        ]);
-        const loaded = response.documents.map(doc => {
+        const docs = await listCards();
+        const loaded = docs.map(doc => {
           let parsedFields = [];
           try { parsedFields = doc.fields ? JSON.parse(doc.fields) : []; } catch { parsedFields = []; }
           const photo = parsedFields.find(f => f && f.type === '__photo');
           return {
-            id: doc.$id,
+            id: doc.id,
             name: doc.name || '',
             image: photo ? photo.value : '',
             title: doc.title || '',
@@ -2028,11 +1991,10 @@ function App() {
             avatar_emoji: doc.avatar_emoji || '',
             avatar_color: doc.avatar_color || '',
             background_color: doc.background_color || '',
-            card_order: doc.card_order || 0,
+            card_order: doc.cardOrder || 0,
             updatedAt: doc.updated_at || ''
           };
         });
-        console.log("Cards loaded from server:", loaded.length);
         setCards(loaded);
       } catch (error) {
         console.error("Error fetching cards:", error);
@@ -2040,7 +2002,7 @@ function App() {
     };
 
     fetchCards();
-  }, [user?.$id]);
+  }, [user?.id]);
 
 
   const handleSaveCard = async (cardData) => {
@@ -2055,7 +2017,8 @@ function App() {
 
     let currentUser;
     try {
-      currentUser = await account.get();
+      currentUser = await getCurrentUser();
+      if (!currentUser) throw new Error('not authenticated');
     } catch {
       alert("Erreur: Vous n'êtes pas connecté. Veuillez vous reconnecter.");
       setIsSaving(false);
@@ -2066,12 +2029,13 @@ function App() {
       // 1. Prepare Data
       // eslint-disable-next-line no-unused-vars
       const { id, ...rawData } = cardData;
-      // Appwrite has no `image` column; persist the (compressed) photo inside the
-      // `fields` JSON as a reserved __photo entry so it survives reloads.
+      // The photo (compressed) is persisted inside the `fields` JSON as a reserved
+      // __photo entry so it survives reloads (kept from the previous storage model).
       const persistFields = [...(rawData.fields || [])];
       if (rawData.image) persistFields.push({ type: '__photo', value: rawData.image });
+      const cardOrder = rawData.card_order || rawData.cardOrder || 0;
       const dataToSave = {
-        user_id: currentUser.$id,
+        cardOrder,
         name: rawData.name || '',
         title: rawData.title || '',
         company: rawData.company || '',
@@ -2085,28 +2049,27 @@ function App() {
         avatar_emoji: rawData.avatar_emoji || rawData.avatarEmoji || '',
         avatar_color: rawData.avatar_color || rawData.avatarColor || '',
         background_color: rawData.background_color || rawData.backgroundColor || '',
-        card_order: rawData.card_order || rawData.cardOrder || 0,
         updated_at: new Date().toISOString()
       };
 
       let savedId;
 
-      // 2. Write to Appwrite
+      // 2. Write to backend
       if (editingCard && !editingCard.id.startsWith('temp_')) {
         // Update existing
         savedId = editingCard.id;
-        await databases.updateDocument(DATABASE_ID, CARDS_COLLECTION, savedId, dataToSave);
+        await updateCard(savedId, dataToSave);
 
         // Manual State Update
-        const localCard = { ...rawData, ...dataToSave, id: savedId, fields: rawData.fields || [] };
+        const localCard = { ...rawData, ...dataToSave, card_order: cardOrder, id: savedId, fields: rawData.fields || [] };
         setCards(prev => prev.map(c => c.id === savedId ? localCard : c));
       } else {
         // Create new
         dataToSave.created_at = new Date().toISOString();
-        const doc = await databases.createDocument(DATABASE_ID, CARDS_COLLECTION, ID.unique(), dataToSave);
-        savedId = doc.$id;
+        const doc = await createCard(dataToSave);
+        savedId = doc.id;
 
-        const localCard = { ...rawData, ...dataToSave, id: savedId, fields: rawData.fields || [] };
+        const localCard = { ...rawData, ...dataToSave, card_order: cardOrder, id: savedId, fields: rawData.fields || [] };
         setCards(prev => [...prev, localCard]);
       }
 
@@ -2168,7 +2131,7 @@ function App() {
   const handleDelete = async (id) => {
     if (confirm(t.confirmDelete)) {
       try {
-        await databases.deleteDocument(DATABASE_ID, CARDS_COLLECTION, id);
+        await deleteCard(id);
         setCards(cards.filter(c => c.id !== id));
       } catch (err) {
         alert("Erreur lors de la suppression: " + err.message);
@@ -2177,26 +2140,15 @@ function App() {
   };
 
   const handleUpgrade = async (plan) => {
-    if (!user?.$id) return;
+    if (!user?.id) return;
 
     try {
-      await databases.updateDocument(DATABASE_ID, USERS_COLLECTION, user.$id, {
+      await updateProfile({
         subscription: plan,
         updated_at: new Date().toISOString()
       });
-    } catch (err) {
-      // If doc doesn't exist, create it
-      try {
-        await databases.createDocument(DATABASE_ID, USERS_COLLECTION, user.$id, {
-          email: user.email || '',
-          display_name: user.name || '',
-          subscription: plan,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        });
-      } catch (e) {
-        console.error("Error upgrading:", e);
-      }
+    } catch (e) {
+      console.error("Error upgrading:", e);
     }
 
     setSubscription(plan);
@@ -2417,7 +2369,7 @@ function App() {
                         const res = await fetch('/api/cancel-subscription', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ userId: user.$id })
+                          body: JSON.stringify({ userId: user.id })
                         });
                         const data = await res.json();
 
