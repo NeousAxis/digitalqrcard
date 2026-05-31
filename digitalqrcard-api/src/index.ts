@@ -451,4 +451,99 @@ app.put("/api/profile", async c => {
     return c.json({ profile: data });
 });
 
+// ---------------------------------------------------------------------------
+// Password reset web page (no app update / no Apple review needed). A user opens
+// /reset-password?token=... from the email link, picks a new password, and we POST
+// it to Better Auth's /api/auth/reset-password. Then they log in normally in the app.
+// ---------------------------------------------------------------------------
+app.get("/forgot-password", c => {
+    const html = `<!DOCTYPE html><html lang="fr"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mot de passe oublié — Digital QR Cards</title>
+<style>
+  body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#faf7f5;margin:0;display:flex;min-height:100vh;align-items:center;justify-content:center;padding:20px}
+  .card{background:#fff;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,.08);padding:32px;max-width:380px;width:100%}
+  h1{color:#EC6B3E;font-size:1.4rem;margin:0 0 8px}
+  p{color:#555;font-size:.92rem;margin:0 0 20px}
+  label{display:block;font-size:.85rem;color:#333;margin:14px 0 6px;font-weight:600}
+  input{width:100%;box-sizing:border-box;padding:12px;border:1px solid #ddd;border-radius:10px;font-size:16px}
+  button{width:100%;margin-top:20px;padding:13px;background:#EC6B3E;color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:600;cursor:pointer}
+  button:disabled{opacity:.5}
+  .msg{margin-top:16px;font-size:.9rem;text-align:center}.ok{color:#137a3e}.err{color:#c0392b}
+</style></head><body>
+<div class="card">
+  <h1>Mot de passe oublié</h1>
+  <p>Entrez votre email : nous vous enverrons un lien pour choisir un nouveau mot de passe.</p>
+  <form id="f">
+    <label>Email</label>
+    <input type="email" id="e" autocomplete="email" required placeholder="vous@exemple.com">
+    <button type="submit" id="b">Envoyer le lien</button>
+  </form>
+  <div class="msg" id="m"></div>
+</div>
+<script>
+  var f=document.getElementById('f'),m=document.getElementById('m'),b=document.getElementById('b');
+  f.addEventListener('submit',async function(e){
+    e.preventDefault();
+    var email=document.getElementById('e').value.trim();
+    b.disabled=true;m.className='msg';m.textContent='Envoi...';
+    try{
+      await fetch('/api/auth/forget-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email,redirectTo:location.origin+'/reset-password'})});
+      m.className='msg ok';m.textContent='✅ Si un compte existe pour cet email, un lien vient d\\'être envoyé. Vérifiez votre boîte mail.';f.style.display='none';
+    }catch(err){m.className='msg err';m.textContent='Erreur réseau, réessayez.';b.disabled=false;}
+  });
+</script>
+</body></html>`;
+    return c.html(html);
+});
+
+app.get("/reset-password", c => {
+    const token = c.req.query("token") || "";
+    const html = `<!DOCTYPE html><html lang="fr"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Réinitialiser le mot de passe — Digital QR Cards</title>
+<style>
+  body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#faf7f5;margin:0;display:flex;min-height:100vh;align-items:center;justify-content:center;padding:20px}
+  .card{background:#fff;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,.08);padding:32px;max-width:380px;width:100%}
+  h1{color:#EC6B3E;font-size:1.4rem;margin:0 0 8px}
+  p{color:#555;font-size:.92rem;margin:0 0 20px}
+  label{display:block;font-size:.85rem;color:#333;margin:14px 0 6px;font-weight:600}
+  input{width:100%;box-sizing:border-box;padding:12px;border:1px solid #ddd;border-radius:10px;font-size:16px}
+  button{width:100%;margin-top:20px;padding:13px;background:#EC6B3E;color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:600;cursor:pointer}
+  button:disabled{opacity:.5}
+  .msg{margin-top:16px;font-size:.9rem;text-align:center}
+  .ok{color:#137a3e}.err{color:#c0392b}
+</style></head><body>
+<div class="card">
+  <h1>Nouveau mot de passe</h1>
+  <p>Choisissez un nouveau mot de passe pour votre compte Digital QR Cards.</p>
+  <form id="f">
+    <label>Nouveau mot de passe</label>
+    <input type="password" id="p1" autocomplete="new-password" minlength="6" required placeholder="Au moins 6 caractères">
+    <label>Confirmer</label>
+    <input type="password" id="p2" autocomplete="new-password" minlength="6" required placeholder="Retapez le mot de passe">
+    <button type="submit" id="b">Valider</button>
+  </form>
+  <div class="msg" id="m"></div>
+</div>
+<script>
+  var token=${JSON.stringify(token)};
+  var f=document.getElementById('f'),m=document.getElementById('m'),b=document.getElementById('b');
+  if(!token){m.className='msg err';m.textContent='Lien invalide ou expiré. Refaites une demande depuis l\\'app.';b.disabled=true;}
+  f.addEventListener('submit',async function(e){
+    e.preventDefault();
+    var p1=document.getElementById('p1').value,p2=document.getElementById('p2').value;
+    if(p1!==p2){m.className='msg err';m.textContent='Les deux mots de passe ne correspondent pas.';return;}
+    b.disabled=true;m.className='msg';m.textContent='Validation...';
+    try{
+      var r=await fetch('/api/auth/reset-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({newPassword:p1,token:token})});
+      if(r.ok){m.className='msg ok';m.textContent='✅ Mot de passe changé ! Retournez dans l\\'app et connectez-vous.';f.style.display='none';}
+      else{var d=await r.json().catch(function(){return{};});m.className='msg err';m.textContent='Erreur : '+(d.message||'lien expiré, refaites une demande.');b.disabled=false;}
+    }catch(err){m.className='msg err';m.textContent='Erreur réseau, réessayez.';b.disabled=false;}
+  });
+</script>
+</body></html>`;
+    return c.html(html);
+});
+
 export default app;

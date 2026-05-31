@@ -6,6 +6,7 @@ import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { drizzle } from "drizzle-orm/d1";
 import { schema } from "../db";
 import type { CloudflareBindings } from "../env";
+import { sendResetEmail } from "../email.js";
 
 // Origins allowed to call this API. The iOS app (Capacitor/WKWebView) runs under
 // `capacitor://localhost` (and `https://localhost`); the web build runs on the
@@ -94,8 +95,16 @@ function createAuth(env?: CloudflareBindings, cf?: IncomingRequestCfProperties, 
                 trustedOrigins: TRUSTED_ORIGINS,
                 emailAndPassword: {
                     enabled: true,
+                    minPasswordLength: 6,
                     // Native PBKDF2 (see above) — fits the free-plan CPU budget.
                     password: { hash: hashPassword, verify: verifyPassword },
+                    // Password reset: Better Auth calls this on POST /api/auth/forget-password.
+                    // We email a link to the reset page hosted on this Worker.
+                    sendResetPassword: async ({ user, token }: { user: { email: string }; token: string }) => {
+                        const base = baseURL || env?.BETTER_AUTH_URL || "https://www.digitalqrcard.xyz";
+                        const resetUrl = `${base}/reset-password?token=${token}`;
+                        await sendResetEmail(env, user.email, resetUrl);
+                    },
                 },
                 // bearer(): returns the session token in the `set-auth-token`
                 // response header on sign-in/up; the app sends it back as
