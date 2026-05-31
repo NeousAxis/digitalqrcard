@@ -89,6 +89,21 @@ export async function signIn({ email, password }) {
   return data?.user || null;
 }
 
+// Request a password-reset email (Better Auth). Always resolves without throwing on the
+// "account not found" case — the server returns a neutral message either way so we never
+// leak whether an email is registered.
+export async function requestPasswordReset(email) {
+  await request("/api/auth/request-password-reset", {
+    method: "POST",
+    auth: false,
+    body: {
+      email,
+      redirectTo: "https://www.digitalqrcard.xyz/reset-password",
+    },
+  });
+  return true;
+}
+
 // Returns the current user object, or null if not authenticated.
 export async function getCurrentUser() {
   if (!getToken()) return null;

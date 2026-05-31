@@ -13,7 +13,7 @@ import {
 import {
   signUp, signIn, signOut, getCurrentUser, deleteAccount,
   listCards, createCard, updateCard, deleteCard,
-  getProfile, updateProfile,
+  getProfile, updateProfile, requestPasswordReset,
 } from './apiClient';
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
@@ -1419,6 +1419,31 @@ const AuthModal = ({ onClose, onLoginSuccess }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
+  const [forgotMsg, setForgotMsg] = useState(null);
+
+  const handleForgot = async () => {
+    const mail = (forgotEmail || '').trim();
+    if (!mail || !mail.includes('@')) {
+      setForgotMsg('Veuillez saisir une adresse email valide.');
+      return;
+    }
+    setForgotLoading(true);
+    setForgotMsg(null);
+    try {
+      await requestPasswordReset(mail);
+      // Réponse volontairement neutre (ne révèle pas si le compte existe)
+      setForgotSent(true);
+      setForgotMsg("Si un compte existe pour cette adresse, un email avec un lien de réinitialisation vient d'être envoyé. Pensez à vérifier vos spams.");
+    } catch (e) {
+      setForgotMsg('Erreur réseau. Veuillez réessayer.');
+    } finally {
+      setForgotLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
@@ -1508,6 +1533,49 @@ const AuthModal = ({ onClose, onLoginSuccess }) => {
           >
             {loading ? 'Chargement...' : (isRegister ? 'S\'inscrire' : 'Se connecter')}
           </button>
+
+          {!isRegister && !showForgot && (
+            <div style={{ textAlign: 'center', marginTop: '0.75rem' }}>
+              <button
+                type="button"
+                onClick={() => { setShowForgot(true); setForgotEmail(email); setForgotMsg(null); setForgotSent(false); }}
+                style={{ color: '#EC6B3E', cursor: 'pointer', background: 'none', border: 'none', fontSize: '0.85rem', textDecoration: 'underline', padding: '4px' }}
+              >
+                Mot de passe oublié ?
+              </button>
+            </div>
+          )}
+
+          {!isRegister && showForgot && (
+            <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(236,107,62,0.07)', borderRadius: '12px' }}>
+              {!forgotSent ? (
+                <>
+                  <label className="field-label">Email du compte</label>
+                  <input
+                    type="email"
+                    className="input-field"
+                    value={forgotEmail}
+                    onChange={e => setForgotEmail(e.target.value)}
+                    autoComplete="email"
+                    placeholder="vous@exemple.com"
+                  />
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    style={{ width: '100%', justifyContent: 'center', marginTop: '0.75rem', opacity: forgotLoading ? 0.7 : 1 }}
+                    onClick={handleForgot}
+                    disabled={forgotLoading}
+                  >
+                    {forgotLoading ? 'Envoi...' : 'Envoyer le lien de réinitialisation'}
+                  </button>
+                </>
+              ) : null}
+              {forgotMsg && <div style={{ color: forgotSent ? '#137a3e' : '#ef4444', fontSize: '0.85rem', marginTop: '0.75rem', textAlign: 'center' }}>{forgotMsg}</div>}
+              <div style={{ textAlign: 'center', marginTop: '0.5rem' }}>
+                <button type="button" onClick={() => { setShowForgot(false); setForgotMsg(null); setForgotSent(false); }} style={{ color: '#888', cursor: 'pointer', background: 'none', border: 'none', fontSize: '0.8rem', padding: '4px' }}>Retour à la connexion</button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '0.9rem' }}>
