@@ -173,7 +173,7 @@ platform :ios do
       skip_metadata: false,
       run_precheck_before_submit: false,
       submit_for_review: false,
-      automatic_release: false,
+      automatic_release: true,
       submission_information: {
         add_id_info_uses_idfa: false,
         content_rights_contains_third_party_content: false,
@@ -207,7 +207,7 @@ platform :ios do
       run_precheck_before_submit: false,
       submit_for_review: true,
       reject_if_possible: true,
-      automatic_release: false,
+      automatic_release: true,
       submission_information: {
         add_id_info_uses_idfa: false,
         content_rights_contains_third_party_content: false,
