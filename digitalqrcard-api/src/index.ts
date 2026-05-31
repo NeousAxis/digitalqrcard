@@ -488,7 +488,7 @@ app.get("/forgot-password", c => {
     var email=document.getElementById('e').value.trim();
     b.disabled=true;m.className='msg';m.textContent='Envoi...';
     try{
-      await fetch('/api/auth/forget-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email,redirectTo:location.origin+'/reset-password'})});
+      await fetch('/api/auth/request-password-reset',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email,redirectTo:location.origin+'/reset-password'})});
       m.className='msg ok';m.textContent='✅ Si un compte existe pour cet email, un lien vient d\\'être envoyé. Vérifiez votre boîte mail.';f.style.display='none';
     }catch(err){m.className='msg err';m.textContent='Erreur réseau, réessayez.';b.disabled=false;}
   });
