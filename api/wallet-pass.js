@@ -1,45 +1,54 @@
 // Vercel serverless function: generate + sign an Apple Wallet (.pkpass) for a card.
 // POST JSON: { id, name, title, company, phone, email, website, location }
 import { PKPass } from "passkit-generator";
-import Jimp from "jimp";
+import { Resvg } from "@resvg/resvg-js";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import { ICON_29, ICON_58, ICON_87 } from "./_pass-assets.js";
 
-// jimp's bundled fonts aren't traced by Vercel, so load copies shipped in api/_fonts.
-const FONTS = join(dirname(fileURLToPath(import.meta.url)), "_fonts");
+// Fonts shipped in api/_fonts so Vercel bundles them with the function.
+const FONT_FILE = join(dirname(fileURLToPath(import.meta.url)), "_fonts", "HostGrotesk-SemiBold.ttf");
 
-const hexToInt = (hex) => {
-  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(String(hex || ""));
-  const [r, g, b] = m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : [37, 99, 235];
-  return ((r * 256 + g) * 256 + b) * 256 + 255;
-};
+// "Air" palette (design 3d): navy pass, pale blue labels, powder-blue strip.
+const AIR = { navy: "#0a1a3a", powder: "#cfe3ff", label: "#8fb5ff" };
 
-// Compose the whole top banner ("strip") ourselves so the photo AND name are both
-// big with NO overlap: large circular avatar on the left, big name to its right,
-// on the theme color. Real iOS devices render this strip (the simulator doesn't).
-// @2x/@3x are exact multiples of @1x. Returns null on failure (caller falls back).
-async function makeStrip(b64, name, bgInt, lightBg) {
+const xml = (s) => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+const svgRender = (svg, width) => new Resvg(svg, {
+  fitTo: width ? { mode: "width", value: width } : { mode: "original" },
+  font: { fontFiles: [FONT_FILE], loadSystemFonts: false, defaultFontFamily: "Host Grotesk" },
+});
+
+// Width in px of the name lines at a given font size (measured with the real font).
+function nameWidth(lines, size) {
+  const t = lines.map((l, i) => `<text x="0" y="${(i + 1) * size}" font-family="Host Grotesk" font-weight="600" font-size="${size}" letter-spacing="${-0.03 * size}">${xml(l)}</text>`).join("");
+  const bbox = svgRender(`<svg xmlns="http://www.w3.org/2000/svg" width="4000" height="${size * 3}">${t}</svg>`).getBBox();
+  return bbox ? bbox.width : 0;
+}
+
+// Strip banner (eventTicket strip = 375x98pt), drawn at @3x (1125x294): first name /
+// last name in Host Grotesk on powder blue, a navy disc on the right with the photo
+// (or the initials). @1x/@2x are exact divisions so Wallet keeps them. Null on failure.
+function makeStrip(photoB64, name) {
   try {
-    const W = 1125, H = 432;
-    const img = new Jimp(W, H, bgInt);
-    let textX = 60;
-    if (b64) {
-      try {
-        const av = (await Jimp.read(Buffer.from(String(b64), "base64"))).cover(340, 340).circle();
-        img.composite(av, 50, Math.round((H - 340) / 2));
-        textX = 440;
-      } catch { /* name-only banner */ }
-    }
-    const shade = lightBg ? "black" : "white";
-    const avail = W - textX - 50;
-    const fontFile = (px) => join(FONTS, `open-sans-${px}-${shade}`, `open-sans-${px}-${shade}.fnt`);
-    let font = await Jimp.loadFont(fontFile(128));
-    if (Jimp.measureText(font, name) > avail) font = await Jimp.loadFont(fontFile(64));
-    const th = Jimp.measureTextHeight(font, name, avail);
-    img.print(font, textX, Math.max(0, Math.round((H - th) / 2)), name);
-    const out = (w, h) => img.clone().resize(w, h).getBufferAsync(Jimp.MIME_PNG);
-    return { s1: await out(375, 144), s2: await out(750, 288), s3: await img.getBufferAsync(Jimp.MIME_PNG) };
+    const W = 1125, H = 294, PAD = 63, D = 170;
+    const words = name.split(/\s+/).filter(Boolean);
+    const lines = words.length > 1 ? [words[0], words.slice(1).join(" ")] : [name];
+    const initials = (words.length > 1 ? words[0][0] + words[words.length - 1][0] : name.slice(0, 2)).toUpperCase();
+    const avail = W - PAD * 2 - D - 42;
+    let size = 100;
+    while (size > 40 && nameWidth(lines, size) > avail) size -= 6;
+    const lh = size * 0.98;
+    const top = (H - lh * lines.length) / 2 + size * 0.78;
+    const text = lines.map((l, i) => `<text x="${PAD}" y="${top + i * lh}" font-family="Host Grotesk" font-weight="600" font-size="${size}" letter-spacing="${-0.03 * size}" fill="${AIR.navy}">${xml(l)}</text>`).join("");
+    const cx = W - PAD - D / 2, cy = H / 2, r = D / 2;
+    const photo = photoB64 && /^[A-Za-z0-9+/=]+$/.test(String(photoB64));
+    const disc = photo
+      ? `<clipPath id="c"><circle cx="${cx}" cy="${cy}" r="${r}"/></clipPath><circle cx="${cx}" cy="${cy}" r="${r}" fill="${AIR.navy}"/><image href="data:image/jpeg;base64,${photoB64}" x="${cx - r}" y="${cy - r}" width="${D}" height="${D}" preserveAspectRatio="xMidYMid slice" clip-path="url(#c)"/>`
+      : `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${AIR.navy}"/><text x="${cx}" y="${cy + 21}" text-anchor="middle" font-family="Host Grotesk" font-weight="600" font-size="60" fill="${AIR.powder}">${xml(initials)}</text>`;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" fill="${AIR.powder}"/>${text}${disc}</svg>`;
+    const png = (w) => Buffer.from(svgRender(svg, w).render().asPng());
+    return { s1: png(375), s2: png(750), s3: png(1125) };
   } catch {
     return null;
   }
@@ -47,23 +56,6 @@ async function makeStrip(b64, name, bgInt, lightBg) {
 
 const b64buf = (s) => Buffer.from(s || "", "base64");
 const envPem = (n) => Buffer.from(process.env[n] || "", "base64").toString("utf8");
-
-// Resolve the card's theme hex into pass colors: the theme color is the
-// background, and the text color flips to dark on light backgrounds so labels
-// stay legible on pale themes (peach, rose quartz, serenity...).
-function passColors(hex) {
-  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(String(hex || ""));
-  const rgb = m
-    ? { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) }
-    : { r: 37, g: 99, b: 235 };
-  const lum = (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255;
-  const lightBg = lum >= 0.6;
-  return {
-    background: `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`,
-    foreground: lightBg ? "rgb(17, 24, 39)" : "rgb(255, 255, 255)",
-    label: lightBg ? "rgb(55, 65, 81)" : "rgb(229, 231, 235)",
-  };
-}
 
 function esc(s) {
   return String(s || "").replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n");
@@ -99,10 +91,8 @@ export default async function handler(req, res) {
       return;
     }
     const name = (card.name || "").trim() || "My Card";
-    const colors = passColors(card.color);
-    const lightBg = colors.foreground === "rgb(17, 24, 39)";
     const photoB64 = req.method === "GET" ? (req.query && req.query.p) : card.photo;
-    const strip = await makeStrip(photoB64, name, hexToInt(card.color), lightBg);
+    const strip = makeStrip(photoB64, name);
 
     const passJson = {
       formatVersion: 1,
@@ -110,13 +100,15 @@ export default async function handler(req, res) {
       teamIdentifier: "BXB662X8PV",
       organizationName: "Digital QR Cards",
       description: `${name} — Digital business card`,
-      logoText: "Digital QR Card",
+      logoText: "Digital QR Cards",
       serialNumber: String(card.id || Date.now()),
-      backgroundColor: colors.background,
-      foregroundColor: colors.foreground,
-      labelColor: colors.label,
-      // storeCard renders the primary field LARGE → big name.
-      storeCard: {
+      backgroundColor: "rgb(10, 26, 58)",
+      foregroundColor: "rgb(255, 255, 255)",
+      labelColor: "rgb(143, 181, 255)",
+      // eventTicket (not storeCard): with a strip, storeCard squeezes all four fields
+      // into one row; eventTicket keeps two rows (title/company, phone/email) as in
+      // the Air design. Primary stays empty: the name is drawn in the strip.
+      eventTicket: {
         primaryFields: [],
         secondaryFields: [],
         auxiliaryFields: [],
@@ -124,7 +116,7 @@ export default async function handler(req, res) {
       },
     };
 
-    // No logo image — only the "Digital QR Card" logoText forms the header (shown in
+    // No logo image — only the "Digital QR Cards" logoText forms the header (shown in
     // the collapsed Wallet stack so the pass stays identifiable); strip banner below.
     const buffers = {
       "icon.png": b64buf(ICON_29),
@@ -145,6 +137,7 @@ export default async function handler(req, res) {
     });
 
     // Avatar + name are baked big into the strip; only fall back to a text field if it failed.
+    if (card.num) pass.headerFields.push({ key: "num", label: "CARD", value: String(card.num).padStart(2, "0") });
     if (!strip) pass.primaryFields.push({ key: "name", label: "", value: name });
     if (card.title) pass.secondaryFields.push({ key: "title", label: "TITLE", value: card.title });
     if (card.company) pass.secondaryFields.push({ key: "company", label: "COMPANY", value: card.company });
@@ -157,6 +150,7 @@ export default async function handler(req, res) {
       message: buildVCard(card),
       format: "PKBarcodeFormatQR",
       messageEncoding: "iso-8859-1",
+      altText: "Scan to save",
     });
 
     const buffer = pass.getAsBuffer();

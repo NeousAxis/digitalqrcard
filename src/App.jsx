@@ -9,7 +9,7 @@ import {
   ChevronLeft, ChevronRight, Settings, ArrowUp, ArrowDown, Wallet,
   Facebook, Linkedin, Instagram, Twitter, Youtube, MessageCircle, Twitch, Music, Send
 } from 'lucide-react';
-// Backend API client (Cloudflare Worker + Better Auth + D1) — replaces Appwrite
+// Backend API client (Cloudflare Worker + Better Auth + D1)
 import {
   signUp, signIn, signOut, getCurrentUser, deleteAccount,
   listCards, createCard, updateCard, deleteCard,
@@ -1713,7 +1713,7 @@ function App() {
 
 
 
-  // Check auth state on mount (Appwrite uses sessions, not realtime listeners)
+  // Check auth state on mount (token-based session, not realtime listeners)
   useEffect(() => {
     const checkAuth = async () => {
       const resetLoggedOut = () => {
@@ -1780,7 +1780,7 @@ function App() {
 
           console.log(`[IAP] Verified: ${productId} -> ${newPlan}`);
 
-          // Try to save to Appwrite if user is logged in
+          // Try to save to the backend if user is logged in
           const saveToCloud = async () => {
             try {
               const currentUser = await getCurrentUser();
@@ -1889,7 +1889,7 @@ function App() {
     }
   };
 
-  // Fetch Subscription Status from Appwrite when User Logs In
+  // Fetch Subscription Status from the backend when User Logs In
   useEffect(() => {
     if (!user) return;
 
@@ -2029,7 +2029,7 @@ function App() {
     localStorage.removeItem('subscription');
   };
 
-  // Fetch cards from Appwrite when user logs in
+  // Fetch cards from the backend when user logs in
   useEffect(() => {
     if (!user?.id) {
       setCards([]);
@@ -2180,7 +2180,7 @@ function App() {
         email: byType.email || card.email || '',
         website: byType.website || card.website || '',
         location: byType.location || card.location || card.address || '',
-        color: themeToHex(card.theme),
+        num: cards.findIndex(c => c.id === card.id) + 1 || undefined,
       };
       const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
       const photo = await makePassThumb(card.image);

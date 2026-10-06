@@ -1,15 +1,28 @@
 # Digital QR Cards iOS - CLAUDE.md
 
+> ## ⚠️ BACKEND ACTUEL (2026-06-07) : Cloudflare — Appwrite et Firebase SUPPRIMÉS
+> Le backend est un **Cloudflare Worker + Better Auth + D1** (`digitalqrcard-api/`,
+> live sur `https://digitalqrcard-api.neousaxis.workers.dev`). Auth par **bearer token**
+> (PBKDF2), pas de cookies → marche dans le WKWebView iOS sous `capacitor://localhost`
+> sans config de scheme particulière.
+> - Client : `src/apiClient.js` (importé par `src/App.jsx`). `VITE_API_URL` dans `.env`.
+> - DB : D1 `digitalqrcard-api-db` (id `4b4c661e-...`). Admin via `cd digitalqrcard-api && npx wrangler d1 execute ... --remote`.
+> - Déploiement Worker : `cd digitalqrcard-api && npx wrangler deploy`.
+> - **Appwrite a été entièrement retiré le 2026-06-07** (deps npm, scripts, keep-alive
+>   GitHub Action, bridge de migration `appwrite-fallback.ts`, doc privacy). Le projet
+>   Appwrite Cloud (`69c62a550031e83fd11e`) doit être supprimé côté console Appwrite.
+> - ⚠️ **Tout ce qui mentionne Appwrite ou Firebase plus bas est de l'HISTORIQUE daté**
+>   (logs de rejets builds 57→65) — ce n'est PLUS l'état courant. Ne pas s'y fier.
+
 ## Projet
 Application iOS de creation et partage de cartes de visite numeriques avec QR codes.
-Deploye sur Firebase (projet: `digitalqrcard-8fdb8`).
 
 ## Stack technique
 - **Frontend**: React 19 + Vite 7 + CSS
 - **Native**: Capacitor 8 (bridge iOS)
-- **Backend**: Firebase (Firestore + Auth + Hosting)
-- **Auth iOS**: Firebase Auth (Apple Sign-In + Email/Password via @capacitor-firebase/authentication) — Google Sign-In retire de l'app iOS
-- **Auth Web**: Firebase Auth (Google + Apple Sign-In + Email/Password)
+- **Backend**: Cloudflare Worker + Better Auth + D1 (`digitalqrcard-api/`)
+- **Auth iOS**: Email/Password (Better Auth, bearer token via `src/apiClient.js`)
+- **Auth Web**: Email/Password (Better Auth) — reset de mot de passe via `/reset-password`
 - **Paiements iOS**: Apple IAP via cordova-plugin-purchase v13.12.1
 - **Paiements Web**: Stripe (masque sur iOS natif)
 - **QR**: qrcode.react
@@ -406,6 +419,26 @@ jamais soumise).
   `demo@digitalqrcards.review` (cité dans de vieilles notes) **échoue au login** — ne
   jamais le mettre dans les reviewer notes.
 
+### Identité « Air » — icône 5c + pass Wallet 3d (2026-10-04, NON déployé, NON commité)
+- Source : handoff Claude Design `~/Desktop/Digital QR Cards App Design-handoff.zip`
+  (`Logo & Icon.dc.html` piste 5c « Cartes », `QR Cards App v2.dc.html` pass 3d).
+- Icône 5c : 15 PNG `AppIcon.appiconset` sans alpha (fond carré, iOS arrondit), favicons
+  `public/favicon.svg|-32|-16`, `apple-touch-icon.png`, `logo-icon.png`, icônes du pass
+  (`api/_pass-assets.js` ICON_*). Couleurs : poudre #cfe3ff, marine #0a1a3a, blanc.
+- Pass 3d (`api/wallet-pass.js`) : couleurs FIXES Air (plus la couleur du thème), bande
+  dessinée en SVG via `@resvg/resvg-js` + `api/_fonts/HostGrotesk-SemiBold.ttf` (nom sur
+  2 lignes + pastille photo ou initiales). Style **eventTicket** (pas storeCard) : avec une
+  bande, storeCard met les 4 champs sur UNE ligne (e-mail illisible) ; eventTicket garde 2
+  lignes mais ajoute l'encoche Apple en haut. Bande eventTicket = 375x98 (@3x 1125x294).
+  En-tête « CARD 01 » via `num` envoyé par `handleAddToWallet`.
+- Le simulateur (iOS 26.x) AFFICHE bien le strip dans l'aperçu openurl (≠ note de mai).
+- **v1.4 (75) soumise le 2026-10-06** (`WAITING_FOR_REVIEW`, release AFTER_APPROVAL) : nouvelle
+  icône 5c uniquement côté binaire (version ASC `e552dab8-...`, submission `74c5c4d8-...`).
+- **Vercel prod déployé le 2026-10-06** (`npx vercel --prod`) : pass 3d live et vérifié (resvg +
+  Host Grotesk OK sur Vercel), privacy.html sans Appwrite, favicons 5c. ⚠️ Les secrets PASS_*
+  ne sont QUE en Production : pour tester une préversion, `npx vercel --yes -e PASS_CERT_B64=...`
+  puis `npx vercel curl <path> --deployment <url>` (préversions protégées par Vercel Auth).
+
 ### V2 (committee sur main) — SOUMISE App Store (build 71→72) le 23 mai 2026, EN REVIEW
 
 **Pass Wallet — GROSSE photo + GROS nom via banniere `strip` (2026-05-22).** Le user
@@ -559,9 +592,8 @@ cf. IAP_BACKUP.md), C (build 1.1 + soumission). Le user veut Wallet en perk prem
 - IAP product IDs: `Standard_898` et `Premium_898` — configures dans App Store Connect
 - Google Sign-In iOS : retire de l'app (Email/Password + Apple Sign-In uniquement)
 - IAP soumission : premiere soumission d'abonnements doit se faire via l'interface App Store Connect (pas via API)
-- Appwrite free tier : pas de backup auto (acceptable pour des cartes de visite)
-- **CRITIQUE** : `capacitor.config.json` DOIT contenir
-  `"server": { "iosScheme": "appwrite-callback-69c62a550031e83fd11e" }`.
-  Sans ça l'app tourne sous `capacitor://localhost` et Appwrite bloque tout login
-  ("Invalid Scheme"). ⚠️ La cle est `server.iosScheme` — PAS `ios.scheme` (ignoree).
-  `https` ne marche pas (schema reserve iOS) : utiliser le schema `appwrite-callback-*`.
+- Backend Cloudflare D1 : pas de backup auto (acceptable pour des cartes de visite)
+- `capacitor.config.json` : PAS de `server.iosScheme` — l'app tourne sous
+  `capacitor://localhost` par défaut, ce qui marche avec le Worker Cloudflare (bearer
+  token, CORS, pas de cookies). ⚠️ NE PAS réintroduire l'ancien scheme
+  `appwrite-callback-*` (c'était un workaround Appwrite, supprimé le 2026-06-07).
