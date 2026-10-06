@@ -104,11 +104,11 @@ Standard_898 → 'basic'
 Premium_898  → 'pro'
 ```
 
-### Persistance backend (Appwrite)
-- Project ID `69c62a550031e83fd11e`, endpoint `https://fra.cloud.appwrite.io/v1`
-- Database `digitalqrcard`, collection `users`
-- Champs écrits à l'achat : `subscription` (`free`/`basic`/`pro`), `updated_at`,
-  `iap_transaction_id`
+### Persistance backend (Cloudflare D1 — depuis 2026-06-07, ex-Appwrite supprimé)
+- Worker `digitalqrcard-api` + D1 `digitalqrcard-api-db`, table `profiles`
+- API : `GET/PUT /api/profile` (bearer token) via `getProfile`/`updateProfile` (`src/apiClient.js`)
+- Champs écrits à l'achat : `subscription` (`free`/`basic`/`pro`) + métadonnées IAP
+  (`iap_transaction_id`, etc.) dans le profil
 - Achat hors-ligne / non connecté : `localStorage` clé `pending_subscription`,
   synchronisée au prochain login dans `fetchSubscription`.
 

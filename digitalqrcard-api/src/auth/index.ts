@@ -11,7 +11,7 @@ import { sendResetEmail } from "../email.js";
 // Origins allowed to call this API. The iOS app (Capacitor/WKWebView) runs under
 // `capacitor://localhost` (and `https://localhost`); the web build runs on the
 // digitalqrcard.xyz domains. Bearer tokens are used (no cookies) to avoid the
-// WKWebView cross-origin cookie blocking that broke Appwrite on iOS.
+// WKWebView cross-origin cookie blocking that breaks cookie-based auth on iOS.
 export const TRUSTED_ORIGINS = [
     "capacitor://localhost",
     "https://localhost",

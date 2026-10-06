@@ -2,7 +2,6 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { createAuth, TRUSTED_ORIGINS } from "./auth";
 import type { CloudflareBindings } from "./env";
-import { signInWithAppwriteFallback } from "./appwrite-fallback";
 
 type Variables = {
     auth: ReturnType<typeof createAuth>;
@@ -35,11 +34,6 @@ app.use("*", async (c, next) => {
     c.set("auth", auth);
     await next();
 });
-
-// Transparent migration: intercept email sign-in so existing Appwrite users (whose accounts
-// were never migrated to Cloudflare) are migrated on first login — no app update, no reset.
-// MUST be registered BEFORE the /api/auth/* catch-all below. See appwrite-fallback.ts.
-app.post("/api/auth/sign-in/email", c => signInWithAppwriteFallback(c));
 
 // Handle all auth routes
 app.all("/api/auth/*", async c => {
@@ -334,7 +328,6 @@ app.get("/health", c => {
 
 // ---------------------------------------------------------------------------
 // App data API (bearer-authenticated): business cards + user profile.
-// Replaces the Appwrite `cards` and `users` collections.
 // ---------------------------------------------------------------------------
 
 // Resolve the authenticated user id from the bearer token (no cookies).

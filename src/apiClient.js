@@ -1,7 +1,6 @@
 // API client for the Digital QR Cards backend (Cloudflare Worker + Better Auth + D1).
-// Replaces the previous Appwrite client. Auth uses BEARER TOKENS (no cookies) so it
-// works inside the iOS WKWebView under capacitor://localhost without the cross-origin
-// cookie problems that plagued Appwrite.
+// Auth uses BEARER TOKENS (no cookies) so it works inside the iOS WKWebView under
+// capacitor://localhost without cross-origin cookie problems.
 
 const API_URL = (
   import.meta.env.VITE_API_URL || "https://digitalqrcard-api.neousaxis.workers.dev"
