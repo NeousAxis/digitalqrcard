@@ -419,6 +419,17 @@ jamais soumise).
   `demo@digitalqrcards.review` (cité dans de vieilles notes) **échoue au login** — ne
   jamais le mettre dans les reviewer notes.
 
+### ⚠️ CRASH AU LANCEMENT v1.4 (75) sur iOS 27 — corrigé en 1.4.1 (76), 2026-10-08
+- Cause : Xcode passé en **27.0** entre la 1.3 et la 1.4 → binaire lié au SDK iOS 27
+  (`DTPlatformVersion 27.0`). iOS 27 REFUSE de lancer une app liée à ce SDK sans cycle de vie
+  UIScene : log `Application failed to launch: UIScene life cycle is required for apps built
+  with this SDK`. Sur iOS 26 l'app marchait → mon test sur simulateur iOS 26.2 ne l'a pas vu.
+- Fix : `SceneDelegate` (dans `ios/App/App/AppDelegate.swift`, relaie les URL à
+  `ApplicationDelegateProxy`) + `UIApplicationSceneManifest` dans Info.plist
+  (`UISceneStoryboardFile = Main`, `$(PRODUCT_MODULE_NAME).SceneDelegate`).
+- RÈGLE : toujours tester le build sur un simulateur de la **dernière version d'iOS**
+  (simulateur `DQC iOS27`), pas seulement sur un ancien runtime.
+
 ### Identité « Air » — icône 5c + pass Wallet 3d (2026-10-04, NON déployé, NON commité)
 - Source : handoff Claude Design `~/Desktop/Digital QR Cards App Design-handoff.zip`
   (`Logo & Icon.dc.html` piste 5c « Cartes », `QR Cards App v2.dc.html` pass 3d).
