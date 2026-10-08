@@ -430,8 +430,7 @@ jamais soumise).
 - `VITE_MOCK=1 npm run build` = démo locale sans réseau (3 cartes de la maquette) pour
   vérifier l'UI et faire les captures App Store. JAMAIS pour un build de prod.
 - Captures ASC refaites (4 écrans × fr/en × 6.7/6.5/6.1) depuis le simu `DQC ProMax27`.
-- Vercel NON redéployé avec la refonte (bloqué par les permissions) : le site web garde
-  l'ancienne interface tant que `npx vercel --prod` n'est pas relancé.
+- Vercel prod redéployé avec la refonte le 2026-10-08 (site web = interface Air).
 - ⚠️ Simulateurs blancs (même Safari) = Mac saturé en mémoire (swap plein) : éteindre les
   simus inutiles, `simctl erase` si besoin. Ce n'était PAS un bug de l'app.
 
