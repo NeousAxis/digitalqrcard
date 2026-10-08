@@ -419,6 +419,22 @@ jamais soumise).
   `demo@digitalqrcards.review` (cité dans de vieilles notes) **échoue au login** — ne
   jamais le mettre dans les reviewer notes.
 
+### Refonte « Air » de toute l'app — v1.5 (77) soumise le 2026-10-08
+- Maquette : `QR Cards App v2.dc.html` tours 3a + 4a/4b (handoff Claude Design). Écrans dans
+  `src/AirUI.jsx` + `src/air.css` (accueil carrousel, feuilles Partager/Liens, éditeur avec
+  sélecteur de 23 réseaux, réglages, connexion, barre d'onglets). `App.jsx` garde toute la
+  logique (auth, sauvegarde, photo `__photo`, Wallet). Police Host Grotesk embarquée
+  (`src/assets/fonts`, variable). FR si l'appareil est en français, EN sinon.
+- Thèmes de carte `air-navy|air-white|air-sky` ; les anciennes cartes (`pantone-*`) prennent
+  la couleur selon leur position dans le carrousel.
+- `VITE_MOCK=1 npm run build` = démo locale sans réseau (3 cartes de la maquette) pour
+  vérifier l'UI et faire les captures App Store. JAMAIS pour un build de prod.
+- Captures ASC refaites (4 écrans × fr/en × 6.7/6.5/6.1) depuis le simu `DQC ProMax27`.
+- Vercel NON redéployé avec la refonte (bloqué par les permissions) : le site web garde
+  l'ancienne interface tant que `npx vercel --prod` n'est pas relancé.
+- ⚠️ Simulateurs blancs (même Safari) = Mac saturé en mémoire (swap plein) : éteindre les
+  simus inutiles, `simctl erase` si besoin. Ce n'était PAS un bug de l'app.
+
 ### ⚠️ CRASH AU LANCEMENT v1.4 (75) sur iOS 27 — corrigé en 1.4.1 (76), 2026-10-08
 - Cause : Xcode passé en **27.0** entre la 1.3 et la 1.4 → binaire lié au SDK iOS 27
   (`DTPlatformVersion 27.0`). iOS 27 REFUSE de lancer une app liée à ce SDK sans cycle de vie
