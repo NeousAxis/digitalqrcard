@@ -425,8 +425,11 @@ jamais soumise).
   sélecteur de 23 réseaux, réglages, connexion, barre d'onglets). `App.jsx` garde toute la
   logique (auth, sauvegarde, photo `__photo`, Wallet). Police Host Grotesk embarquée
   (`src/assets/fonts`, variable). FR si l'appareil est en français, EN sinon.
-- Thèmes de carte `air-navy|air-white|air-sky` ; les anciennes cartes (`pantone-*`) prennent
-  la couleur selon leur position dans le carrousel.
+- Thèmes de carte : `air-navy|air-white|air-sky` + les 15 `pantone-*` d'avant la refonte
+  (`PANTONE` dans `src/AirUI.jsx`), 18 pastilles dans l'éditeur. La 1.5 n'en proposait que 3
+  et affichait les cartes `pantone-*` selon leur position : corrigé en 1.5.1 (78), commit
+  `dc63f27`. Texte blanc ou marine selon le meilleur contraste. Seule une carte sans thème
+  connu prend la couleur de sa position.
 - `VITE_MOCK=1 npm run build` = démo locale sans réseau (3 cartes de la maquette) pour
   vérifier l'UI et faire les captures App Store. JAMAIS pour un build de prod.
 - Captures ASC refaites (4 écrans × fr/en × 6.7/6.5/6.1) depuis le simu `DQC ProMax27`.
