@@ -239,13 +239,53 @@ export const cardToVCard = (card) => {
   return lines.join('\r\n');
 };
 
+// The palette offered before Air: cards saved with it keep their colour, and it stays selectable.
+const PANTONE = [
+  ['pantone-peach-fuzz', '#FFBE98', 'Pêche', 'Peach Fuzz'],
+  ['pantone-living-coral', '#FF6F61', 'Corail', 'Living Coral'],
+  ['pantone-viva-magenta', '#BE3455', 'Magenta', 'Viva Magenta'],
+  ['pantone-honeysuckle', '#D65076', 'Chèvrefeuille', 'Honeysuckle'],
+  ['pantone-rose-quartz', '#F7CAC9', 'Quartz rose', 'Rose Quartz'],
+  ['pantone-radiant-orchid', '#B565A7', 'Orchidée', 'Radiant Orchid'],
+  ['pantone-ultra-violet', '#5F4B8B', 'Ultra violet', 'Ultra Violet'],
+  ['pantone-very-peri', '#6667AB', 'Pervenche', 'Very Peri'],
+  ['pantone-serenity', '#91A8D0', 'Sérénité', 'Serenity'],
+  ['pantone-classic-blue', '#0F4C81', 'Bleu classique', 'Classic Blue'],
+  ['pantone-turquoise', '#45B8AC', 'Turquoise', 'Turquoise'],
+  ['pantone-emerald', '#009473', 'Émeraude', 'Emerald'],
+  ['pantone-greenery', '#88B04B', 'Vert tendre', 'Greenery'],
+  ['pantone-olivine', '#6A7051', 'Olive', 'Olivine'],
+  ['pantone-deep-forest', '#394A3F', 'Forêt', 'Deep Forest'],
+];
+
+const luminance = (hex) => {
+  const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
+    .map(c => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+const NAVY_LUM = luminance('#0a1a3a');
+
+// Text in white or navy, whichever contrasts more with the card colour.
+const themeFor = (bg) => {
+  const l = luminance(bg);
+  return 1.05 / (l + 0.05) >= (l + 0.05) / (NAVY_LUM + 0.05)
+    ? { bg, fg: '#ffffff', sub: 'rgba(255,255,255,.72)', chip: 'rgba(255,255,255,.16)', mono: '#ffffff', monoFg: bg, more: 'rgba(255,255,255,.4)' }
+    : { bg, fg: '#0a1a3a', sub: 'rgba(10,26,58,.68)', chip: 'rgba(10,26,58,.1)', mono: '#0a1a3a', monoFg: '#ffffff', more: 'rgba(10,26,58,.3)' };
+};
+
 export const AIR_THEMES = {
   'air-navy': { bg: '#0a1a3a', fg: '#ffffff', sub: 'rgba(255,255,255,.66)', chip: 'rgba(255,255,255,.12)', mono: '#ffffff', monoFg: '#0a1a3a', more: 'rgba(255,255,255,.35)' },
   'air-white': { bg: '#ffffff', fg: '#0a1a3a', sub: 'rgba(10,26,58,.6)', chip: 'rgba(10,26,58,.07)', mono: '#0a1a3a', monoFg: '#ffffff', more: 'rgba(10,26,58,.25)' },
   'air-sky': { bg: '#8fb5ff', fg: '#0a1a3a', sub: 'rgba(10,26,58,.68)', chip: 'rgba(10,26,58,.1)', mono: '#ffffff', monoFg: '#0a1a3a', more: 'rgba(10,26,58,.3)' },
+  ...Object.fromEntries(PANTONE.map(([k, hex]) => [k, themeFor(hex)])),
 };
 export const AIR_ROTATION = ['air-navy', 'air-white', 'air-sky'];
-// Cards saved before Air keep their data; their colour follows the carousel position.
+const THEME_ORDER = [...AIR_ROTATION, ...PANTONE.map(([k]) => k)];
+const themeName = (k) => {
+  const p = PANTONE.find(([key]) => key === k);
+  return p ? p[LANG === 'fr' ? 2 : 3] : S[k.replace('air-', '')];
+};
+// A card without a known theme takes its colour from its carousel position.
 export const themeKeyOf = (card, index) => (AIR_THEMES[card?.theme] ? card.theme : AIR_ROTATION[(index || 0) % 3]);
 
 export const splitName = (name) => {
@@ -660,12 +700,13 @@ export const AirEditor = ({ card, defaultTheme, isSaving, onSave, onCancel, onDe
         </div>
 
         <div className="air-section">
-          <div className="air-section-head"><span>{S.style}</span></div>
+          <div className="air-section-head"><span>{S.style}</span><span>{themeName(theme)}</span></div>
           <div className="air-swatches">
-            {AIR_ROTATION.map(k => (
+            {THEME_ORDER.map(k => (
               <button type="button" key={k} className={`air-swatch${theme === k ? ' active' : ''}`} onClick={() => setTheme(k)}
+                aria-label={themeName(k)} aria-pressed={theme === k}
                 style={{ background: AIR_THEMES[k].bg, color: AIR_THEMES[k].fg }}>
-                {S[k.replace('air-', '')]}
+                {theme === k && <Icon name="check" size={18} stroke={2.4} />}
               </button>
             ))}
           </div>
