@@ -431,7 +431,7 @@ jamais soumise).
   `dc63f27`. Texte blanc ou marine selon le meilleur contraste. Seule une carte sans thème
   connu prend la couleur de sa position.
 - **1.5.1 (78) soumise le 2026-10-13** (`WAITING_FOR_REVIEW`, release AFTER_APPROVAL, submission
-  `f5797ddf-...`). Vercel PAS encore redéployé avec la palette (attend l'accord de Cyril).
+  `f5797ddf-...`). Vercel prod redéployé avec la palette le 2026-10-13.
 - `VITE_MOCK=1 npm run build` = démo locale sans réseau (3 cartes de la maquette) pour
   vérifier l'UI et faire les captures App Store. JAMAIS pour un build de prod.
 - Captures ASC refaites (4 écrans × fr/en × 6.7/6.5/6.1) depuis le simu `DQC ProMax27`.
